@@ -1,0 +1,641 @@
+🧪 Testing Pipeline with Macro Scan
+
+📊 Testing with 3 holdings:
+  - NVDA (stock) - NVIDIA Corporation
+  - AAPL (stock) - Apple Inc.
+  - MSFT (stock) - Microsoft Corporation
+
+🔍 Starting pipeline-based research...
+
+✨ Using pipeline mode with macro scan
+
+
+Researching NVDA (stock) with pipeline...
+Triage: Selected 2 articles from 30 results
+Triage reasoning: The research query calls for NVDA’s recent SEC filing—specifically an 8-K (or earnings announcement filed under current report requirements) that provides concrete financial performance updates (earnings numbers, guidance, and any material events) in January 2026. Two filings from SEC.gov meet this set of criteria:
+
+1. The filing titled “NVIDIA Announces Financial Results for First Quarter …” (URL ending in q1fy26pr.htm) clearly provides the first‐quarter fiscal 2026 earnings release. The description includes forward guidance for the next quarter (outlook for the second quarter) as well as specific earnings numbers. Given that Q1 results for fiscal 2026 are typically reported in early 2026 (and assuming that this filing falls within the past 7 days), it directly responds to the query regarding January 2026 earnings updates.
+
+2. The filing “CFO Commentary on First Quarter Fiscal 2026 Results” (URL ending in q1fy26cfocommentary.htm) is an attached commentary—likely part of or supplementing the earnings announcement—that provides additional insight into the financial performance. This supplementary commentary further reinforces the concrete material details (such as GAAP margins, non‐GAAP adjustments, and related tax impacts) that the query is targeting.
+
+Both filings are from SEC.gov (a Tier 1 primary source) and provide detailed earnings results and forward-looking guidance with strategic implications regarding NVDA’s performance. Other filings in the list are either for different dates (including many from 2025 or earlier), are not explicitly linked to the earnings update (or are routine information pages referencing other forms like 10-K or proxy materials), or lack the specificity to the January 2026 earnings event. Therefore, only these two documents meet the explicit criteria of recency, source quality, and content relevance regarding a recent 8-K style earnings update in January 2026.
+Triage: Selected 2 articles from 30 results
+Triage reasoning: Both selected articles originate from Reuters (a Tier 1 source) and were published within the last 7 days of the specified period. They focus on key strategic and product-related developments concerning Nvidia’s H200 chips, which are central to Nvidia’s product and technology roadmap. The first article (URL 1) details the US approval for Nvidia H200 chip exports to China – a development with clear strategic and market implications – while the second (URL 2) provides important details about Nvidia’s payment terms for the H200 chips, indicating a deliberate strategy in product roll‐out. Other articles were rejected either because they fell outside the recency window, were sourced from non–Tier 1 outlets, or did not directly address new NVDA product launch announcements with clear strategic importance.
+Triage: Selected 11 articles from 30 results
+Triage reasoning: The selection process focused on ensuring recency (within the last 7 days), high source quality (Tier 1 sources and respectable Tier 2 publications) and strategic content relevant to NVDA in January 2026. Article 1 from Yahoo Finance provides a prediction feature about Nvidia’s share price with strategic implications. Article 2 from CNBC (a Tier 1 outlet) delves into share struggles and the AI narrative, meeting recency and strategic criteria. Article 3 on MarketBeat discusses Nvidia’s potential breakthrough at CES—a critical event with strategic and market positioning insights. Article 4 from The Motley Fool presents bold predictions and product updates (e.g. a new architecture “Rubin”), thereby offering directional indicators. Article 5 is Nvidia’s official CES event page which is primary source and central to the January 2026 narrative. Article 7 from Seeking Alpha (not duplicated with article 23) offers a rating upgrade with detailed EPS projections that shed light on Nvidia’s performance outlook. Article 9 (a YouTube video) serves as a CES preview with strategic content, and is included over its duplicate. Article 12 from Morningstar provides an analysis of Nvidia’s array of announcements at CES, adding weight to the strategic narrative. Article 21 is a live session with CEO Jensen Huang from Nvidia that delivers direct strategic insights. Article 24 from Zacks brings in concrete data related to Nvidia’s Data Center revenue and other financial metrics, highlighting robust growth and market positioning. Finally, Article 30, a Yahoo Finance video, discusses chip sales projections (potentially topping $1T) and reiterates Nvidia’s dominating position in the AI space. Articles primarily focused on option chain data, duplicate content (identical YouTube videos or duplicate Seeking Alpha pieces) or simply price quotes and historical trading figures were excluded as they did not contribute significant strategic news or were not within our targeted recency window.
+
+📰 Found 17 triaged articles for NVDA
+
+🔍 Pipeline: Processing 17 articles for 3 holdings
+   Top holdings: NVDA, AAPL, MSFT
+
+
+📄 Processing: NVIDIA Announces Financial Results for First Quarter ......
+   Scoring breakdown:
+     Impact: 9/10 (weight: 0.6) = 5.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 9.40
+     Reasoning: This is an earnings release SEC filing from NVIDIA, which is one of the holdings. It is a high-impact financial update directly affecting an owned company.
+   Impact: 9/10, Relevance: 1, Composite: 9.40
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: CFO Commentary on First Quarter Fiscal 2026 Results...
+   Scoring breakdown:
+     Impact: 9/10 (weight: 0.6) = 5.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 9.40
+     Reasoning: This article is an SEC filing presenting quarterly earnings commentary, which generally signifies a high-impact earnings release and is directly relevant as it is associated with NVDA (CIK 0001045810 matches NVDA).
+   Impact: 9/10, Relevance: 1, Composite: 9.40
+   Matches: None
+
+📄 Processing: US approves Nvidia H200 chip exports to China with some cond...
+   Scoring breakdown:
+     Impact: 8/10 (weight: 0.6) = 4.80
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 8.80
+     Reasoning: The article involves a significant regulatory change allowing Nvidia to export its H200 chips to China, accompanied by substantial purchase orders from Chinese tech companies. This regulatory decision and ensuing contract win are high-impact events for Nvidia, one of the user's holdings. The relevance is direct since it affects NVDA, giving a relevance score of 1.
+   Impact: 8/10, Relevance: 1, Composite: 8.80
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: Nvidia says no upfront payment needed for its H200 chips | R...
+   Scoring breakdown:
+     Impact: 5/10 (weight: 0.6) = 3.00
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 7.00
+     Reasoning: This Reuters update describes an operational/pricing decision regarding Nvidia's H200 chips, representing a moderate impact news item rather than a major strategic shift or regulatory event. Since Nvidia is a user holding, the article is relevant, leading to a relevance score of 1.
+   Impact: 5/10, Relevance: 1, Composite: 7.00
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: Prediction: in 2026 the red-hot Nvidia share price could tur...
+   Scoring breakdown:
+     Impact: 2/10 (weight: 0.6) = 1.20
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 4.70
+     Reasoning: The article is a speculative opinion piece predicting Nvidia's future share price rather than reporting on a factual event (such as an earnings release, regulatory change, or major strategic announcement). While it is directly related to Nvidia, which is one of your holdings, its impact is low given that it doesn't represent a significant factual or strategic development.
+   Impact: 2/10, Relevance: 1, Composite: 4.70
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: Nvidia shares are stuck. How the AI juggernaut can break its...
+   Scoring breakdown:
+     Impact: 3/10 (weight: 0.6) = 1.80
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 5.30
+     Reasoning: The article is largely an analytical opinion piece discussing Nvidia's stock performance, rather than a report of a material event such as an earnings release, regulatory action, or strategic announcement. While it directly concerns Nvidia (one of the holdings), its overall impact is categorized as lower-level industry analysis rather than a high-impact factual update.
+   Impact: 3/10, Relevance: 1, Composite: 5.30
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: NVIDIA's Next Leg Higher May Have Started at CES - MarketBea...
+   Scoring breakdown:
+     Impact: 5/10 (weight: 0.6) = 3.00
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 6.50
+     Reasoning: The article is focused around NVIDIA and speculates on a significant correction based on CES news and potential sales to China. While it touches on a notable event, it remains a speculative analysis rather than an official earnings release or firm product launch, placing it in the moderate impact category. Given NVDA is a current holding, the article is clearly relevant.
+   Impact: 5/10, Relevance: 1, Composite: 6.50
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: 3 Bold Nvidia Predictions For 2026 | The Motley Fool...
+   Scoring breakdown:
+     Impact: 4/10 (weight: 0.6) = 2.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 5.90
+     Reasoning: The article is a forward-looking opinion piece with predictions on Nvidia’s revenue and its next-generation architecture (Rubin), which is not confirmed by an SEC filing, earnings release, or official product launch announcement yet. Consequently, while it introduces potential future developments, it is considered a lower-impact narrative piece compared to official product launches or earnings releases. However, since it directly addresses Nvidia, it is directly relevant to the NVDA holding.
+   Impact: 4/10, Relevance: 1, Composite: 5.90
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: NVIDIA at CES 2026 | January 5–9 | Las Vegas, NV...
+   Scoring breakdown:
+     Impact: 5/10 (weight: 0.6) = 3.00
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 6.50
+     Reasoning: This article is a promotional announcement of NVIDIA's presence at CES 2026. While NVIDIA is one of the holdings and the event may eventually lead to product advancements or announcements, the immediate immediate news is more of an operational update rather than a major earnings release or a breakthrough product launch. Therefore, it scores a moderate impact score (5) and is directly relevant due to the mention of NVIDIA.
+   Impact: 5/10, Relevance: 1, Composite: 6.50
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: Nvidia: Ready To Outperform In 2026 -- Again (Rating Upgrade...
+   Scoring breakdown:
+     Impact: 4/10 (weight: 0.6) = 2.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 5.90
+     Reasoning: The article is an opinion-based rating upgrade piece that discusses Nvidia’s projected EPS growth and performance outlook. While it provides a positive perspective on Nvidia, it does not represent a high-impact event such as an official earnings release, regulatory action, or product launch. Its specific focus on NVDA makes it directly relevant to the holdings.
+   Impact: 4/10, Relevance: 1, Composite: 5.90
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: Nvidia CES preview and outlook for 2026 - YouTube...
+   Scoring breakdown:
+     Impact: 7/10 (weight: 0.6) = 4.20
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 7.70
+     Reasoning: The article covers Nvidia's involvement at CES with a preview and outlook for 2026, which suggests potential strategic product launches and announcements that could materially impact NVDA. As NVDA is a holding and the content relates to upcoming product news and industry trends at a major technology event, it meets the criteria for a moderately high impact rating and is directly relevant.
+   Impact: 7/10, Relevance: 1, Composite: 7.70
+     Matched NVDA via symbol (confidence: 95%)
+
+📄 Processing: Nvidia: Full Steam Ahead With an Impressive Array of ......
+   Scoring breakdown:
+     Impact: 7/10 (weight: 0.6) = 4.20
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 7.70
+     Reasoning: The article covers Nvidia’s product announcements and strategic updates at CES 2026, which are significant but not on the level of earnings releases or major regulatory actions. Given that Nvidia is a holding, the article is directly relevant.
+   Impact: 7/10, Relevance: 1, Composite: 7.70
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: Nvidia CES preview and outlook for 2026 - YouTube...
+   Scoring breakdown:
+     Impact: 7/10 (weight: 0.6) = 4.20
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 7.70
+     Reasoning: This article centers on Nvidia's CES preview and outlook with a focus on the CEO's keynote, suggesting upcoming strategic announcements or product launches. While it doesn't involve an earnings release or regulatory action, the preview context at CES can have substantial impact on Nvidia's positioning, warranting a moderately high impact score. Moreover, it directly mentions NVDA, making it immediately relevant for holdings.
+   Impact: 7/10, Relevance: 1, Composite: 7.70
+     Matched NVDA via symbol (confidence: 95%)
+
+📄 Processing: NVIDIA Live with CEO Jensen Huang - YouTube...
+   Scoring breakdown:
+     Impact: 8/10 (weight: 0.6) = 4.80
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 8.30
+     Reasoning: This NVIDIA event from CES 2026, featuring strategic product direction and advancements in AI technology, represents a significant operational update and product roadmap shift. Such events can influence market sentiment and the company's competitive positioning. Given that NVDA is among the holdings, the article is directly relevant.
+   Impact: 8/10, Relevance: 1, Composite: 8.30
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: Nvidia: Ready To Outperform In 2026 -- Again (Rating Upgrade...
+   Scoring breakdown:
+     Impact: 5/10 (weight: 0.6) = 3.00
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 6.50
+     Reasoning: The article is a rating upgrade and forward-looking commentary on Nvidia’s EPS forecasts. While it provides moderately significant insights into future performance, it does not represent a major event like an earnings release or regulatory action. Since Nvidia is one of the holdings, the article is directly relevant.
+   Impact: 5/10, Relevance: 1, Composite: 6.50
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+
+📄 Processing: AI, Defense & Quantum Drive 2026 Investment: NVDA and 2 More...
+   Scoring breakdown:
+     Impact: 7/10 (weight: 0.6) = 4.20
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 7.70
+     Reasoning: The article highlights strong Data Center revenue growth and record performance for NVIDIA, which is one of the user's holdings. This operational update and strong quarterly performance is moderate-to-high impact news, particularly given its significance for NVDA.
+   Impact: 7/10, Relevance: 1, Composite: 7.70
+     Matched NVDA via symbol (confidence: 95%)
+
+📄 Processing: Chip sales could top $1T in 2026. Is Nvidia still top AI pla...
+   Scoring breakdown:
+     Impact: 3/10 (weight: 0.6) = 1.80
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 5.30
+     Reasoning: The article is largely a narrative piece with industry trend commentary regarding chip sales and Nvidia's AI positioning. It doesn't contain any direct earnings releases, regulatory actions, or major strategic announcements. However, since it specifically mentions Nvidia (NVDA), a holding, its relevance to holdings is high.
+   Impact: 3/10, Relevance: 1, Composite: 5.30
+     Matched NVDA via symbol (confidence: 95%)
+
+✅ Enriched 17 articles
+   Approved: 15
+   Rejected: 2
+
+
+Researching AAPL (stock) with pipeline...
+Triage: Selected 6 articles from 30 results
+Triage reasoning: Article 1 is Apple’s official Investor Relations page and is posting the FY26 Q1 results conference call schedule (January 29, 2026), which is directly related to the upcoming earnings release. Article 2 from Yahoo Finance aggregates AAPL 8-K and SEC filings and is a Tier‑1 quality source providing direct access to the filings. Articles 6 and 18 are direct SEC.gov filings (Form 8‑K) from Apple with recent dates in January 2026 – these are primary sources and likely to include the detailed earnings information (revenue, profit, margin, updated guidance and non‑GAAP metrics) that are the subject of the query. Article 8 is Apple’s official SEC filings page on its Investor Relations site, offering the complete set of current and historical filings, including the earnings release details. Article 25 from PlainSite, while provided by an aggregator, directly references a SEC Form 8‑K filed on January 2, 2026, making it relevant for capturing any first‐hand earnings release material. Other articles were rejected because they either relate to filings from earlier periods (or for other purposes, such as Q4 earnings or proxy statements), are generic aggregator pages without focused earnings details, or come from lower‐tier sources that do not add unique, critical information for the specific query.
+Triage: Selected 3 articles from 30 results
+Triage reasoning: The query required selecting all relevant articles that represent official product launch announcements from Apple in January 2026, confirmed by Tier 1 sources (Reuters). Article #1 from Reuters (dated January 13, 2026) covers Apple’s official rollout of Creator Studio, which qualifies as a new product/service announcement. Article #8 (Reuters company page) details the demonstration of the new iPhone 17 in a Moscow store ahead of its sales launch in Russia, making it a direct product launch announcement. Article #15 (Reuters video) reports on Apple unveiling a new iPhone alongside an extreme sports watch, fitting the official launch criteria. Other articles were either outside the date range, from non-Tier 1 sources, or not focused on direct product launch announcements, and were therefore excluded.
+Triage: Selected 7 articles from 30 results
+Triage reasoning: The selected articles all meet our criteria for recency, source quality, and strategic relevance to Apple (AAPL) in January 2026. The first article from AppleInsider discusses the upcoming Q1 2026 earnings announcement—a critical event that provides directional insight into Apple’s financial performance. The second article from Times Online offers a deep-dive analysis amid a broader tech sell-off, capturing competitive dynamics and market recalibration, relevant to the current environment. The Yahoo Finance video (article 6) discusses Apple’s lag in its AI strategy compared to competitors, giving an important strategic perspective. The Seeking Alpha piece (article 12) highlights a major strategic shift with the anticipated launch of Apple’s first foldable iPhone and changes in product release cadence—an unprecedented development that has far‐reaching implications. CNBC’s coverage (article 13) of the latest analyst calls offers Tier 1 source insights into institutional sentiment. The official Investor Relations page (article 18) is critical for confirming the upcoming earnings call and major corporate communications directly from Apple. Finally, the 247WallSt article (article 21) on the early-year downgrade reflects a significant shift in investor sentiment with strategic ramifications. Articles related solely to price quotes, options data, or long-term predictive forecasts without immediate recent news were rejected per our criteria.
+
+📰 Found 17 triaged articles for AAPL
+
+🔍 Pipeline: Processing 17 articles for 3 holdings
+   Top holdings: NVDA, AAPL, MSFT
+
+
+📄 Processing: Investor Relations - Apple...
+   Scoring breakdown:
+     Impact: 9/10 (weight: 0.6) = 5.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 8.90
+     Reasoning: This article pertains to Apple's earnings release conference call, which is a high-impact event (earnings call, SEC filings) and directly involves one of the holdings (AAPL).
+   Impact: 9/10, Relevance: 1, Composite: 8.90
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+📄 Processing: AAPL 8-K & SEC Filings - Yahoo Finance...
+   Scoring breakdown:
+     Impact: 9/10 (weight: 0.6) = 5.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 8.90
+     Reasoning: The article is about AAPL's 8-K SEC filing, which is a significant regulatory filing and thus high-impact news. It directly pertains to one of the user’s holdings (AAPL), making it highly relevant.
+   Impact: 9/10, Relevance: 1, Composite: 8.90
+     Matched AAPL via symbol (confidence: 95%)
+
+📄 Processing: Apple Inc. - SEC.gov...
+   Scoring breakdown:
+     Impact: 5/10 (weight: 0.6) = 3.00
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 7.00
+     Reasoning: The article is an SEC Form 8-K filing concerning Apple's Principal Accounting Officer change, which is an operational update. While 8-K filings are significant regulatory filings and carry important information about leadership and governance, they generally fall into the moderate impact category unless there are extraordinary circumstances. Because it directly affects Apple (a holding), the article is relevant (1 for relevance), and its operational update nature places it in the moderate impact range (score of 5).
+   Impact: 5/10, Relevance: 1, Composite: 7.00
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+📄 Processing: SEC Filings - Apple Investor Relations...
+   Scoring breakdown:
+     Impact: 2/10 (weight: 0.6) = 1.20
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 4.70
+     Reasoning: This article is simply a link to Apple's SEC filings page, which is a routine information source rather than a single impactful event. It appears to be an informational portal rather than a major update such as an earnings release or regulatory action. However, it directly involves Apple, one of the user’s holdings, hence the relevance score of 1.
+   Impact: 2/10, Relevance: 1, Composite: 4.70
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+📄 Processing: Apple Inc. - SEC.gov...
+   Scoring breakdown:
+     Impact: 8/10 (weight: 0.6) = 4.80
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 8.80
+     Reasoning: This SEC filing from Apple Inc. is directly related to one of your holdings (AAPL) and constitutes a formal corporate filing, which generally carries high impact. Although the filing pertains to routine disclosures such as note details, SEC filings are considered material events and therefore score high under the outlined criteria.
+   Impact: 8/10, Relevance: 1, Composite: 8.80
+     Matched AAPL via symbol (confidence: 95%)
+
+📄 Processing: Apple, Inc. SEC Form 8-K Filed January 2, 2026 - PlainSite...
+   Scoring breakdown:
+     Impact: 6/10 (weight: 0.6) = 3.60
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 7.10
+     Reasoning: The article is an SEC Form 8-K filing from Apple, which qualifies as an official update from a major holding. While SEC filings are high-quality corporate disclosures, this particular filing appears routine without any explicitly major events, thus representing moderate impact. The relevance is high given Apple's inclusion in the holdings.
+   Impact: 6/10, Relevance: 1, Composite: 7.10
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+📄 Processing: Apple rolls out Creator Studio to boost services push, adds ...
+   Scoring breakdown:
+     Impact: 8/10 (weight: 0.6) = 4.80
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 8.80
+     Reasoning: Apple's rollout of Creator Studio with AI features is a strategic product launch that represents a significant advancement in its services division. As such, it qualifies as a high-impact announcement affecting earnings and competitive positioning. Since AAPL is part of the user holdings, the article is directly relevant.
+   Impact: 8/10, Relevance: 1, Composite: 8.80
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+📄 Processing: Apple Inc | Reuters...
+   Scoring breakdown:
+     Impact: 9/10 (weight: 0.6) = 5.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 9.40
+     Reasoning: This article covers the demonstration of the new iPhone 17—a product launch which is a high-impact event. Since it directly involves Apple, one of your holdings, it is highly relevant.
+   Impact: 9/10, Relevance: 1, Composite: 9.40
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+📄 Processing: Apple unveils new iPhone, extreme sports watch - Reuters...
+   Scoring breakdown:
+     Impact: 9/10 (weight: 0.6) = 5.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 9.40
+     Reasoning: The article details a major product launch by Apple, which is a high-impact event and directly affects one of the holdings (AAPL). The product launch falls into the high-impact criteria based on the significant announcement of new consumer technology.
+   Impact: 9/10, Relevance: 1, Composite: 9.40
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+📄 Processing: What to expect from Apple's Q1 2026 earnings on January 29...
+   Scoring breakdown:
+     Impact: 9/10 (weight: 0.6) = 5.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 8.90
+     Reasoning: This article is focused on Apple's Q1 2026 earnings announcement, a major event for the company, and it directly affects one of the user's holdings (AAPL). Earnings releases are considered high-impact events.
+   Impact: 9/10, Relevance: 1, Composite: 8.90
+     Matched AAPL via symbol (confidence: 95%)
+
+📄 Processing: A Deep-Dive into AAPL Amid the January 2026 Tech Sell-off - ...
+   Scoring breakdown:
+     Impact: 5/10 (weight: 0.6) = 3.00
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 6.50
+     Reasoning: The article is an analytical deep-dive on Apple (AAPL) amid a broader tech sell-off, making it relevant to your holdings since it directly discusses AAPL. However, the content appears to focus on market sentiment and expectations rather than a specific high-impact event such as an earnings release, regulatory action, or major partnership announcement, resulting in a moderate impact score.
+   Impact: 5/10, Relevance: 1, Composite: 6.50
+     Matched AAPL via symbol (confidence: 95%)
+
+📄 Processing: Apple stock slides in 2026 as AI strategy lags behind compet...
+   Scoring breakdown:
+     Impact: 5/10 (weight: 0.6) = 3.00
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 6.50
+     Reasoning: This is a moderate operational update: Apple’s stock is down 5% YTD due to its lagging AI strategy. Although important for understanding Apple’s short-term challenges, it lacks the gravity of an earnings release, major partnership, or regulatory action that would merit a higher impact score. Since Apple (AAPL) is a holding, the relevance score is 1.
+   Impact: 5/10, Relevance: 1, Composite: 6.50
+     Matched AAPL via symbol (confidence: 95%)
+
+📄 Processing: Apple 2026: Major Change Expected (NASDAQ:AAPL)...
+   Scoring breakdown:
+     Impact: 8/10 (weight: 0.6) = 4.80
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 8.30
+     Reasoning: The article focuses on a significant strategic move by Apple, including the launch of its first foldable iPhone and a change in its product release schedule. These developments are high-impact news events (product launch and roadmap change) and directly affect one of the holdings (AAPL), making the article highly relevant.
+   Impact: 8/10, Relevance: 1, Composite: 8.30
+     Matched AAPL via symbol (confidence: 95%)
+
+📄 Processing: Here are Wednesday's biggest analyst calls: Nvidia, Apple .....
+   Scoring breakdown:
+     Impact: 3/10 (weight: 0.6) = 1.80
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 5.30
+     Reasoning: The article is essentially an aggregator of upcoming analyst calls which includes NVDA, AAPL, and MSFT, directly matching your holdings. However, it does not present major company events such as earnings releases, regulatory actions, or significant product launches, thus it rates low on immediate impact.
+   Impact: 3/10, Relevance: 1, Composite: 5.30
+     Matched NVDA via entity "nvidia corporation" (primary word: nvidia) (confidence: 80%)
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+     Matched MSFT via entity "microsoft corporation" (primary word: microsoft) (confidence: 80%)
+
+📄 Processing: Investor Relations - Apple...
+   Scoring breakdown:
+     Impact: 10/10 (weight: 0.6) = 6.00
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 9.50
+     Reasoning: Apple's FY26 Q1 earnings conference call is a major earnings event that could significantly impact the stock's direction. The update is highly relevant as it directly affects one of the holdings (AAPL), and earnings releases are usually high impact (scoring 9-10 on the impact scale).
+   Impact: 10/10, Relevance: 1, Composite: 9.50
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+📄 Processing: Investor Relations - Apple...
+   Scoring breakdown:
+     Impact: 10/10 (weight: 0.6) = 6.00
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 9.50
+     Reasoning: Apple's quarterly earnings release is a major event and directly relevant to AAPL, which is in the holdings.
+   Impact: 10/10, Relevance: 1, Composite: 9.50
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+📄 Processing: Apple Stock Starts 2026 With a Downgrade. Why Investors Shou...
+   Scoring breakdown:
+     Impact: 3/10 (weight: 0.6) = 1.80
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 5.30
+     Reasoning: The article is an opinion-based downgrade on Apple stock rather than a major earnings release or a regulatory or product event. Although it influences sentiment around AAPL—which is in your holdings—it is a lower-impact narrative piece rather than a formal company announcement.
+   Impact: 3/10, Relevance: 1, Composite: 5.30
+     Matched AAPL via entity "apple inc." (primary word: apple) (confidence: 80%)
+
+✅ Enriched 17 articles
+   Approved: 16
+   Rejected: 1
+
+
+Researching MSFT (stock) with pipeline...
+Triage: Selected 1 articles from 30 results
+Triage reasoning: Out of the 30 provided items, only the filing in Article 9 is a Form 8-K from Microsoft (identified by the CIK 789019) that appears to be a recent material filing (in January 2026) relevant to the query. The other entries are either different form types (such as 10-K, 424B2, DEF 14A, S-4, etc.), pertain to documents not directly linked to an 8-K, or are from different periods or companies. Therefore, based on the criteria (Tier 1 source from SEC.gov, recency within the last 7 days, and content relevance to a material event such as an 8-K filing), only Article 9 meets all the requirements.
+Triage: Selected 1 articles from 30 results
+Triage reasoning: Among the provided list, only the first article meets all the selection criteria. Published on January 8, 2026—within the last 7 days—it is an official press release from Microsoft (hosted on news.microsoft.com) and details a concrete product development update, specifically the launch of agentic AI capabilities designed for retail automation. Other articles were either not product development updates, not within the specified time window, or represent generic pages or historical context rather than a direct product launch announcement.
+Triage: Selected 3 articles from 30 results
+Triage reasoning: Three articles meeting our strict selection criteria were identified. The Microsoft support article (URL 3) is from an official Microsoft channel and provides a recent technical update (January 13, 2026) that may have strategic implications for product segmentation and system builds. The Microsoft Investor page (URL 14) is an official channel detailing upcoming corporate events such as the Fiscal Year 2026 Q2 earnings conference call, offering direct insight from the company. The Morningstar/Marketwatch article (URL 17), provided by Dow Jones, addresses strategic market commentary around Microsoft’s positioning in the AI space – an important directional indicator with immediate relevance in the January 2026 timeframe. Other items were rejected because they either came from lower-tier sources, focused on derivative trading data, were generic historical price displays, or presented forecasts/predictions without critical new factual developments.
+
+📰 Found 5 triaged articles for MSFT
+
+🔍 Pipeline: Processing 5 articles for 3 holdings
+   Top holdings: NVDA, AAPL, MSFT
+
+
+📄 Processing: 8-K...
+   Scoring breakdown:
+     Impact: 4/10 (weight: 0.6) = 2.40
+     Relevance: 0 (weight: 0.3) = 0.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 3.40
+     Reasoning: This SEC Form 8-K filing details a new debt issuance ($762M, 3.4% Notes due 2026), which is a routine regulatory update. Although it’s an official SEC filing, its content is a debt issuance announcement rather than an earnings release or major strategic move, thus scoring a moderate impact (4/10). Furthermore, none of the user’s holdings (NVDA, AAPL, MSFT) are related to this filing, so the relevance score is 0.
+   Impact: 4/10, Relevance: 0, Composite: 3.40
+   Matches: None
+
+📄 Processing: Microsoft propels retail forward with agentic AI capabilitie...
+   Scoring breakdown:
+     Impact: 9/10 (weight: 0.6) = 5.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 9.40
+     Reasoning: The article details a significant product launch at Microsoft, focusing on agentic AI solutions that can potentially reshape retail automation. Given that product launches are high-impact events, and Microsoft is a current holding, the article scores a 9 for impact and a 1 for relevance to holdings.
+   Impact: 9/10, Relevance: 1, Composite: 9.40
+     Matched MSFT via entity "microsoft corporation" (primary word: microsoft) (confidence: 80%)
+
+📄 Processing: January 13, 2026—KB5074109 (OS Builds 26200.7623 and ......
+   Scoring breakdown:
+     Impact: 2/10 (weight: 0.6) = 1.20
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 5.20
+     Reasoning: This article relates to a minor operational update from Microsoft (a Windows Server security/build update) and does not represent a significant market-moving event. However, because it concerns Microsoft, it matches one of the holdings.
+   Impact: 2/10, Relevance: 1, Composite: 5.20
+   Matches: None
+
+📄 Processing: Home page...
+   Scoring breakdown:
+     Impact: 9/10 (weight: 0.6) = 5.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 1 (weight: 0.1) = 1.00
+     Composite: 9.40
+     Reasoning: The article announces Microsoft's FY2026 Q2 Earnings Conference Call, which is a critical earnings release event. Earnings calls are high-impact events, and since Microsoft is one of the holdings, the relevance is a 1.
+   Impact: 9/10, Relevance: 1, Composite: 9.40
+     Matched MSFT via entity "microsoft corporation" (primary word: microsoft) (confidence: 80%)
+
+📄 Processing: Microsoft's stock may be an AI winner - but it's not acting ...
+   Scoring breakdown:
+     Impact: 4/10 (weight: 0.6) = 2.40
+     Relevance: 1 (weight: 0.3) = 3.00
+     Source Quality: 0.5 (weight: 0.1) = 0.50
+     Composite: 5.90
+     Reasoning: The article is essentially a commentary on Microsoft’s performance in the AI space rather than a major announcement like an earnings release, product launch, or strategic partnership. While the discussion might influence sentiment, it doesn't present a material update from a fundamental perspective. As Microsoft is one of the holdings, the relevance is directly 1.
+   Impact: 4/10, Relevance: 1, Composite: 5.90
+     Matched MSFT via entity "microsoft corporation" (primary word: microsoft) (confidence: 80%)
+
+✅ Enriched 5 articles
+   Approved: 3
+   Rejected: 2
+
+
+🌍 Running macro & liquidity scan...
+
+
+🌍 Scanning macro & liquidity conditions...
+
+  Scanning Central Bank Policy...
+Created 2 queries [
+  {
+    query: 'Fed rate decision January 2026 Reuters Bloomberg official Fed statement',
+    researchGoal: "The goal is to locate Tier 1 sourced articles and official statements regarding the Fed's rate decision in January 2026, focusing on content from Reuters and Bloomberg. This query should uncover detailed analyses on how the rate decision is expected to impact market dynamics, regulatory oversight, and the strategic positioning of key financial institutions. Further research can focus on related company filings and SEC news releases to gain insight into the Fed’s communication tone and anticipated effects on corporate financial strategies."
+  },
+  {
+    query: 'ECB rate decision January 2026 Financial Times central bank policy update',
+    researchGoal: "This query aims to retrieve detailed Tier 1 coverage from the Financial Times on the ECB rate decision and subsequent central bank policy statements. The objective is to investigate the nuances of the ECB's policy for insights into strategic market positioning and competitive dynamics among European banks and corporates. Additional research directions include comparing these regulatory changes with historical trends noted in official ECB and financial regulatory sources and analyzing immediate market reactions to gauge the strength and implications of the policy shift."
+  }
+]
+Triage: Selected 4 articles from 30 results
+Triage reasoning: Four articles clearly meet our strict selection criteria. Articles 1, 13, and 25 are from the Financial Times and directly report on the ECB’s decision to hold interest rates at 2%, with details such as updated inflation forecasts and the continuity of policy. Article 12 (noting that its duplicate, Article 21, was omitted) from the Financial Times provides important Tier 1 coverage on how market participants are interpreting the ECB’s stance – highlighting changed expectations and potential implications for competitive market positioning among European banks and corporates. The other entries were excluded because they either originate from non-Financial Times Tier 1 sources or do not focus on the detailed, recent ECB decision and policy update relevant to our research query.
+Triage: Selected 4 articles from 30 results
+Triage reasoning: Article 1 from Reuters is a Tier 1 source published on January 13, 2026, discussing how global central banks are preparing a statement in solidarity with Fed Chair Powell—providing valuable context around the Fed’s communication and likely rate decision narrative. Article 8 from Bloomberg (dated January 12, 2026) offers a Tier 1 analysis of shifting global rate paths and strategic positioning influenced by Trump’s actions at the Fed, directly tying into market dynamics and the Fed’s policy stance. Article 11 is a Bloomberg video from January 8, 2026 featuring Fed Governor Miran, which gives official insights on rate cuts, inflation, and future policy—meeting the criterion of an official Fed communication. Finally, Article 27 from the official Federal Reserve Board website is included as it provides the official meeting calendar and statement information, which is directly relevant to understanding when and how the Fed’s rate decision process is unfolding. Articles that did not meet the source quality (e.g., non-Tier 1 sources) or recency criteria (older than 7 days) were excluded.
+Smart Filter: 2 to scrape, 3 metadata-only
+  Scraping: f4b36069-d44c-4ff6-8584-1ce29e9a730a, cb4179b2-bafa-4292-99f4-d7f4503fc9d9
+  Metadata-only: 889f7398-49b0-42ad-a289-cf6104efcb98, 03838f1b-5e16-4595-9568-23a496158eef, cb4179b2-bafa-4292-99f4-d7f4503fc9d9
+Ran ECB rate decision January 2026 Financial Times central bank policy update, found 5 contents
+Created 1 learnings [
+  '[RECENT CHANGE] No new factual developments in ECB policy updates over the past 7 days; the published December 2025 decisions on holding rates at 2% and investor expectations for a rate rise remain unchanged.'
+]
+Smart Filter: 4 to scrape, 2 metadata-only
+  Scraping: , global-rate-paths-splinter-as-trump-drives-change-at-the-fed, fed-s-miran-on-rate-cuts-inflation-future-at-fed-video, fomccalendars.htm
+  Metadata-only: , global-rate-paths-splinter-as-trump-drives-change-at-the-fed
+Ran Fed rate decision January 2026 Reuters Bloomberg official Fed statement, found 6 contents
+Created 2 learnings [
+  '[RECENT CHANGE] Reuters (Jan 13, 2026) reports that global central bank officials, coordinated under the Bank for International Settlements, are finalizing a joint statement in support of Federal Reserve Chair Jerome Powell. This move comes in response to the Trump administration’s initiation of a criminal investigation against Powell over his remarks on cost overruns linked to a $2.5 billion renovation at the Fed’s Washington, D.C. headquarters. The enduring core remains the international commitment to central bank independence, even as political pressures intensify.',
+  '[RECENT CHANGE] Bloomberg analysis indicates that despite shifting geopolitical and domestic dynamics—exemplified by recent actions targeting Powell—the Fed is expected to hold its overnight-rate target at 2.25% for much of 2026. This suggests that the core fundamentals of a moderately accommodative monetary policy stance and stable rate-setting processes remain intact.'
+]
+  Scanning Economic Data...
+Created 2 queries [
+  {
+    query: 'site:bls.gov "January 2026" CPI inflation unemployment report',
+    researchGoal: 'The goal is to locate the official January 2026 CPI inflation and unemployment data release from the Bureau of Labor Statistics (BLS) that was published in the last 7 days. This query targets Tier 1 sources and seeks to uncover detailed statistics as well as any accompanying analysis in reputable outlets such as Reuters or Bloomberg. Once the results are found, further research should verify if there are any new strategic indicators, such as policy responses or market interpretations, revealed in additional primary news from the sources.'
+  },
+  {
+    query: 'site:bea.gov "January 2026" GDP growth data release',
+    researchGoal: 'The objective is to retrieve the official release from the Bureau of Economic Analysis (BEA) regarding January 2026 GDP growth figures, focusing on data published in the past week. This query emphasizes Tier 1 sources and looks to capture both the raw figures and any commentary on the strategic implications of the release, such as competitive market shifts or potential regulatory impacts. Further research directions include comparing these figures with previous periods to deduce any directional changes and exploring related expert analyses in primary financial media like Bloomberg or Reuters.'
+  }
+]
+Triage: Selected 2 articles from 6 results
+Triage reasoning: Article 1, titled 'GDP, Personal Income and Outlays', is directly relevant because its title explicitly mentions GDP and is a BEA source discussing changes in the release related to January 2026 data. Although its description emphasizes Personal Income and Outlays, the inclusion of GDP in the title suggests that the release contains critical information regarding GDP growth figures. Article 2, 'Release Schedule | U.S. Bureau of Economic Analysis (BEA)', is an official BEA scheduling page that is likely to list the January 2026 GDP growth release along with other key economic indicators, making it an essential reference for verifying the timing and content of the release. The remaining articles focus on related topics (e.g., personal income, international trade) that either do not address GDP growth or pertain to different reporting periods, so they were not selected.
+Smart Filter: 1 to scrape, 1 metadata-only
+  Scraping: economic-release-schedule-updates-gdp-personal-income-and-outlays
+  Metadata-only: schedule
+Ran site:bea.gov "January 2026" GDP growth data release, found 2 contents
+Created 2 learnings [
+  '[RECENT CHANGE] As of January 7, 2026, the BEA revised its economic release schedule: The combined Personal Income and Outlays report for October and November 2025 is now set for release on January 22, 2026, at 10 a.m., with the methodology retaining stability by averaging September and November CPI data for October estimates due to missing full October data from the Bureau of Labor Statistics.',
+  "[RECENT CHANGE] The release dates for key GDP estimates have been rescheduled: The Advance Estimate for Q4 and full-year 2025 GDP, previously slated for January 29, is now scheduled for February 20, 2026, at 8:30 a.m., while the Second Estimate along with the January 2026 Personal Income and Outlays report have been postponed due to insufficient source data—illustrating BEA's commitment to data integrity despite operational delays."
+]
+Triage: Selected 18 articles from 30 results
+Triage reasoning: The selected articles are all hosted on the official BLS website – a Tier 1 source – and provide the official release schedules and detailed summaries for the January 2026 CPI inflation and employment/unemployment data set. Articles (1), (3), (4), (5), and (25) directly reference the upcoming Consumer Price Index release for January 2026 (noting its scheduled publication on February 11, 2026). Articles (7), (10), (13), (18), (19), (22), (27), and (28) cover employment and related labor market indicators (including unemployment and real earnings) tied to January 2026 data. Article (2) and (8) are schedule pages that list the release dates for multiple reports, further helping confirm the timeline. Article (6) and (26) highlight publication changes and contextual impacts (such as modifications due to the federal government shutdown) that serve as strategic indicators. Regional releases such as (29) add complementary data coverage. All selections meet the criteria of Tier 1, recency (within the last 7 days in the context of the scheduled January 2026 releases), and content relevance with strategic insights. Articles that either referenced older cycles (e.g. December 2025 data), focused on unrelated indices (PPI), or were archival in nature were omitted.
+Smart Filter: 2 to scrape, 16 metadata-only
+  Scraping: empsit.htm, realer.nr0.htm
+  Metadata-only: cpi_01132026.htm, , cpi.nr0.htm, cpi.pdf, consumerpriceindex_northeast.htm, empsit.nr0.htm, prebmk.nr0.htm, , news-release-schedule.htm, current_year.asp, cpi.htm, , publication-changes-2026.htm, 2025-federal-government-shutdown-impact-cpi.htm, laus.nr0.htm, metro.nr0.htm
+Ran site:bls.gov "January 2026" CPI inflation unemployment report, found 18 contents
+Created 2 learnings [
+  '[RECENT CHANGE] The December 2025 Employment Situation report (embargoed until 8:30 a.m. ET on January 9, 2026) shows nonfarm payroll employment increased modestly by 50,000 and the unemployment rate edged to 4.4%, with key sectors—food services (+27,000), health care (+21,000), and social assistance (+17,000)—continuing upward trends while retail trade lost 25,000 jobs. Notably, revisions for October and November 2025 lowered previously reported employment by a combined 76,000 jobs, yet core fundamentals such as labor force participation (62.4%) and the employment-population ratio (59.7%) remain stable.',
+  '[RECENT CHANGE] The Real Earnings Summary for December 2025 (released January 13, 2026) indicates that real average hourly earnings for all employees remained unchanged month-over-month due to simultaneous 0.3% increases in both average hourly earnings and the CPI-U, resulting in a 0.3% decline in real average weekly earnings from a shortened workweek. Year-over-year, real average hourly earnings advanced by 1.1%, while production and nonsupervisory employees experienced a slight 0.2% monthly decrease (offset by a 0.1% earnings upturn and 0.2% CPI-W rise) and a 0.9% increase over the past year, underscoring persistent, though modest, gains in purchasing power.'
+]
+  Scanning Currency Moves...
+Created 2 queries [
+  {
+    query: 'US Dollar Index DXY January 2026 Bloomberg -last7days',
+    researchGoal: "The goal is to uncover detailed, Tier 1 sourced reporting on the latest movements in the US Dollar Index (DXY) for January 2026 as reported by Bloomberg. This query should capture any significant events, commentary from market strategists, and analyses that reveal strategic directional changes. Once initial results are gathered, further research directions could include drilling down into any linked regulatory/political commentaries that address the US Dollar's influence on international markets, or following any firm-specific forecasts that hint at competitive dynamics both domestically and internationally."
+  },
+  {
+    query: 'USD EUR JPY exchange rate trends January 2026 Reuters -last7days',
+    researchGoal: 'This query aims to find recent Reuters content on currency movements among USD, EUR, and JPY during January 2026, highlighting any strategic implications, earnings surprises, or central bank commentary that may indicate a shift in competitive international positioning. After the initial search, additional directions include investigating whether these movements have led to any new regulatory measures or if there are emerging indications of shifts in global economic power as inferred from the latest statistics and official statements.'
+  }
+]
+Triage: Selected 3 articles from 30 results
+Triage reasoning: Three articles from Reuters have been selected as they meet all the selection criteria: they are Tier 1 sources (Reuters), are from the last 7 days (January 2026), and discuss currency movements among the USD, EUR, and JPY with strategic implications such as central bank commentary, regulatory/legal developments (e.g., the Fed probe in article 16), and market directional shifts. Other articles were rejected because they either originate from non-Reuters sources, are from dates outside the last 7-day window, or do not provide sufficiently relevant strategic or regulatory insights.
+Triage: Selected 2 articles from 30 results
+Triage reasoning: Two articles clearly meet the query criteria. The first is Bloomberg’s dedicated DXY quote page, which is a Tier 1 source and provides real-time data on the US Dollar Index, exactly matching the requirement for detailed, recent and authoritative information from Bloomberg. The second is a Bloomberg-produced video (hosted on YouTube) where Bloomberg’s Skylar Montgomery Koning discusses the US Dollar's path in 2026. This video, also originating from Bloomberg, offers strategic commentary and analysis on DXY and directly addresses directional insights and market commentary, which is critical to this research goal. All other options were rejected either because they originated from non–Tier 1 sources, were not directly from Bloomberg, or did not contain detailed recent reporting or analysis specific to January 2026.
+Smart Filter: 1 to scrape, 2 metadata-only
+  Scraping: watch?v=SQtVy0jmSHc
+  Metadata-only: DXY:CUR, watch?v=SQtVy0jmSHc
+Ran US Dollar Index DXY January 2026 Bloomberg -last7days, found 3 contents
+Smart Filter: 1 to scrape, 2 metadata-only
+  Scraping: 
+  Metadata-only: , 
+Ran USD EUR JPY exchange rate trends January 2026 Reuters -last7days, found 3 contents
+Created 3 learnings [
+  '[RECENT CHANGE] On January 12, 2026, the US dollar weakened as the dollar index fell by 0.37% to 98.87 following the US DOJ’s indication of a potential indictment of Fed Chair Jerome Powell over his testimony on cost overruns for a $2.5 billion renovation at the Fed’s headquarters, reflecting rising concerns over central bank independence despite stable US macro fundamentals.',
+  '[RECENT CHANGE] The Japanese yen experienced marked volatility: one Reuters report noted the dollar strengthening against the yen—rising 0.15% to 158.12 and touching a one‐year high—while separate metadata highlighted a rebound from an 18‐month low, with weak labor earnings and dovish Bank of Japan policy underpinning ongoing domestic pressures.',
+  '[RECENT CHANGE] Meanwhile, safe‐haven dynamics appear active in other currencies as the euro gained 0.29% to $1.1671 and the Swiss franc appreciated by 0.54% against the greenback, illustrating market responses to geopolitical uncertainties and regulatory events without disrupting core economic fundamentals.'
+]
+Created 2 learnings [
+  '[CONTEXT] Bloomberg’s recent analysis (video dated Dec 29, 2025) highlighted that the US dollar was coming off its worst week since June with the index on course for its steepest annual drop since 2017, indicating ongoing concerns about debasement even as core fundamentals like dominance in trade flows remain stable.',
+  '[CONTEXT] The Bloomberg DOLLAR INDEX SPOT page continues to provide real‐to‐the‐minute spot exchange rate data for the DXY, underscoring that despite short-term volatility and debates over a potential shift toward alternative assets (e.g., gold), the liquidity and global role of the US dollar remain largely intact.'
+]
+  Scanning Geopolitical...
+Created 2 queries [
+  {
+    query: 'Reuters January 2026 oil market update: geopolitical events, current price levels, inventory data, and supply-demand balance',
+    researchGoal: 'This query is aimed at gathering detailed information from Reuters on oil market dynamics in January 2026, incorporating macro geopolitical events and their impact on current price movements, inventory levels, and supply versus demand balances. The goal is to capture significant recent events and shifts affecting the oil market, including any direct references to geopolitical tension or disruptions. Additional research directions include identifying any critical shifts in producer behavior (especially from OPEC or major oil-producing nations) and assessing whether these events are causing price reactions or changes in inventory levels.'
+  },
+  {
+    query: 'WSJ trade policy tariffs January 2026 oil markets: impact analysis on producer behavior, inventory changes, and price trends',
+    researchGoal: 'This query targets WSJ’s coverage of trade policy tariffs affecting oil markets in January 2026. The objective is to uncover concrete details relating to how tariffs are altering competitive dynamics, impacting producer behavior, and influencing inventory levels and pricing. The research should focus on linking tariff policy to macroeconomic and geopolitical shifts, and exploring any underlying strategic implications for industry players. Further lines of inquiry may include comparisons with historical trends and assessing the overall supply-demand balance.'
+  }
+]
+Triage: Selected 5 articles from 30 results
+Triage reasoning: The query focuses on WSJ’s coverage of trade policy tariffs affecting oil markets with specific interest in their impact on producer behavior, inventory levels, and price trends. Out of the provided list, five articles meet the selection criteria: they are Tier 1 WSJ sources, were published recently (within the relevant time frame), and address oil market fundamentals affected by tariffs. Article 5 discusses the limited impact of tariffs on oil and gas prices, while Articles 6, 7, and 8 provide direct insights into how recent tariff measures are influencing oil price trends and the resultant market dynamics. Article 11 directly connects tariff-induced market pressures with inventory build data and resulting price movements, thereby matching the query’s requirements for concrete analysis of supply and price trends. Other articles were rejected based on irrelevance to oil markets, lack of specific recent news, or non–Tier 1 sourcing.
+Triage: Selected 7 articles from 30 results
+Triage reasoning: The selection focuses exclusively on Tier 1 Reuters articles published within the last 7 days that directly address elements of the research query: geopolitical events, current price levels, inventory data, and supply-demand fundamentals. Article 1 (Reuters, Jan 12) discusses Goldman’s outlook with a focus on supply swells and geopolitical risks; Article 3 (Jan 13) highlights price gains linked to unrest in Iran, incorporating geopolitical risk premiums; Article 4 (Jan 08) details a 3% price rise amid Venezuela news and inventory draws, directly linking to supply-demand balance; Article 5 (Jan 07) covers a Trump-related deal on Venezuelan crude tied to inventory movements; Article 7 (Reuters video) presents analysis on a significant supply-demand imbalance as noted by an analyst from Kpler; Article 8 (Jan 09) provides coverage of price gains amid concerns over supply disruptions in Iran and Russia; and Article 19 (Reuters) reports on rising oil prices despite increased U.S. inventories, underscoring the geopolitical concerns impacting market fundamentals. Other articles were rejected either because they originated from non-Tier 1 sources, fell outside the 7-day window (and were not deemed critical for context), or did not align closely with the detailed focal points outlined in the research query.
+Smart Filter: 3 to scrape, 2 metadata-only
+  Scraping: oil-futures-rise-after-u-s-tariffs-on-oil-imports-f7561215?gaa_at=eafs&gaa_n=AWEtsqeo-iXliQHAumt3-II_oIA0LimiHo-toFO3pvGyxET-iXkL4VIuiuxH&gaa_ts=696821de&gaa_sig=xO55DnG5PtSnE2U24nqXAhefhrQilpkLpzo-P5yiVpUxSu5hE8EToguygwnw09i9XBmADtvXiDlGtFughcl_hQ%3D%3D, oil-slides-as-trump-tariff-announcement-sparks-fears-of-global-slowdown-9cea68fa?gaa_at=eafs&gaa_n=AWEtsqdSZTX04w8JItsSMnusXUTrdkhKIEFOwbqQoQy4VlfoqfMbiXSoLv6b&gaa_ts=696821de&gaa_sig=qL5HDOoYzYeoxMWpyq6jIlj7RsNZr_dRRhF34Qqfr--clzuVsTZH--S5BCfeiF_Hw_lu4BL_KGF86uQIZ7hffA%3D%3D, oil-futures-edge-lower-as-traders-brace-for-u-s-tariffs-announcement-320cf810?gaa_at=eafs&gaa_n=AWEtsqcit-4wrxdzrrEzjii1vmIC0b-WQntClQE28bhuGWFSqP-huA5OL4s3&gaa_ts=696821de&gaa_sig=2mEiWmttqhTD06hWLSDBYwx6eWf59pYtjKMAOIlGi-gF-RaQ4Ss168a-W0z-EvBeICNZvoDo_7vFVJ3dyDC_cw%3D%3D
+  Metadata-only: oil-gains-amid-potential-supply-disruption-risks-a553e2e1?gaa_at=eafs&gaa_n=AWEtsqdoM5ndj1RpzZbZE59q8oajXwK7i9HMg9PG3Cfrp0QUQdTD7tVvMvej&gaa_ts=696821de&gaa_sig=T5HIdDal3KCLIiRGWoG86v-HAxm6FOWnIKprpjAw11vCCmM3xsTNnO8a3URgHuxb86NVL54rU_DlKbVwtLjVCQ%3D%3D, tariffs-spark-steep-declines-in-stock-futures-oil-and-dollar-climb-bedc4639?gaa_at=eafs&gaa_n=AWEtsqe4ROsrMPzFPmDymg103mpqOhSldKlAjUCAA3plrM5XVwD7RbY8-Ju1&gaa_ts=696821de&gaa_sig=GaM05Pis3Ocwttk5Sv8Xr5m-hTF-7gdt46fr1mMg-fs1VgXTC3ukSwXdyXt6gJ7WCE0UkFo-DGxEurajpKocGw%3D%3D
+Smart Filter: 1 to scrape, 7 metadata-only
+  Scraping: 
+  Metadata-only: , , , , , , 
+Ran Reuters January 2026 oil market update: geopolitical events, current price levels, inventory data, and supply-demand balance, found 8 contents
+Ran WSJ trade policy tariffs January 2026 oil markets: impact analysis on producer behavior, inventory changes, and price trends, found 5 contents
+Created 3 learnings [
+  '[RECENT CHANGE] Goldman Sachs (Jan 12, 2026) projected a downward oil price trajectory with Brent forecast to bottom at $54/bbl and WTI at $50/bbl in Q4 2026, driven by a forecasted 2.3 mb/d surplus from non‐OPEC supply and rising OECD inventories—while core demand strength remains stable.',
+  '[RECENT CHANGE] Kpler’s analysis indicates a 1.8 mb/d supply surplus for 2026, with observable stockpiling activity in China, underscoring immediate market disequilibrium despite persistent solid demand fundamentals.',
+  '[RECENT CHANGE] Geopolitical tensions continue impacting price dynamics, as unrest in Iran has added a $3–$4/bbl risk premium and Venezuela-related news spurred a 3% price rally, with current trading levels at approximately $63/bbl for Brent and $59/bbl for WTI, even as underlying U.S. inventory build remains steady.'
+]
+Created 2 learnings [
+  '[RECENT CHANGE] On January 8, 2026, oil futures rallied following President Trump’s public backing of a Russia sanctions bill—markets interpreted this stance as a signal that supply from Russian producers would contract, thereby reinforcing upward pressure on prices (inferred movements placing WTI and Brent in a higher range) amid renewed tariff-related trade tensions.',
+  '[RECENT CHANGE] On January 7, 2026, separate market reports indicated that the U.S. was set to receive sanctioned Venezuelan crude, which immediately pressured oil futures downward as traders weighed the implications of an impending inventory build and potential oversupply, exposing a split in producer behavior between leveraging sanctioned supply and restraining output amid geopolitical pressures.'
+]
+
+✅ Research complete!
+
+Summary:
+  - NVDA: ✅ Changed (15 learnings, 15 URLs)
+    Pipeline: 17 articles, 0 triggers
+  - AAPL: ✅ Changed (16 learnings, 16 URLs)
+    Pipeline: 17 articles, 0 triggers
+  - MSFT: ✅ Changed (3 learnings, 3 URLs)
+    Pipeline: 5 articles, 0 triggers
+  - Macro: 17 learnings
+
+📊 Creating Excel log of all pipeline decisions...
+
+   Generating LLM explanations for all decisions...
+
+✅ Excel log saved to: pipeline-results-1768431282265.xlsx
+
+📝 Generating report...
+
+
+✅ Report saved to report.md
+
+📄 Report Preview:
+
+# Wealthy Rabbit Daily Intelligence
+*January 14, 2026*
+
+---
+
+🟠 NVDA — The AI Juggernaut in Action  
+This week, NVIDIA has been lighting up the headlines like never before. Picture this: after announcing solid Q1 financial results and projecting a jaw-dropping $45 billion in revenue for the next quarter (give or take 2%), the company is busy setting the stage for what many call its "next leg higher." There's real buzz around their H200 chips too—news broke that the U.S. has approved exports to China (with some strings attached), and Chinese firms are already lining up to place orders for over 2 million of these powerful chips at around $27,000 each. On top of that, NVIDIA confirmed no upfront payments are required for these chips, a move likely designed to boost sales and adoption. Yet, amid all this progress, its shares are reportedly stuck, and that has many wondering: is this a temporary pause or the calm before an even bigger storm of gains?  
+What didn't change: Despite these ups and downs, the core strengths – such as their AI leadership and technological prowess – remain rock-solid. For NVDA holders, these developments suggest a mixed bag: near-term challenges with share price momentum, but long-term potential bolstered by innovative strides and international expansion.  
+
+---  
+
+🍏 AAPL — Apple at a Crossroads  
+Apple’s been busy too, even if the stage feels a bit quieter compared to NVIDIA’s show. The tech giant is gearing up for its first-quarter earnings call on Ja...
+
+
+✅ Test complete!
+📊 Excel log: pipeline-results-1768431282265.xlsx
+📝 Report: report.md
+

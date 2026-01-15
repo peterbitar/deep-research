@@ -1,0 +1,101 @@
+🐰 Testing Wealthy Rabbit for NVDA (with updated comprehensive queries)
+
+📊 Testing with 1 holding:
+  - NVDA (stock) - NVIDIA Corporation
+
+🔍 Starting research (search limit: 30 results per query)...
+
+✨ New features:
+  - Comprehensive query categories (10 categories)
+  - General search query added
+  - No triage limit (selects all relevant articles)
+
+
+Researching NVDA (stock)...
+Created 4 queries [
+  {
+    query: 'NVDA SEC filing earnings release January 2026 site:sec.gov',
+    researchGoal: 'The goal is to uncover any SEC filings, earnings releases, or guidance updates for NVDA from the last 7 days. Once the results are found, evaluate the details of NVDA’s financial performance and forward guidance to assess any strategic shifts or market outlook changes. Additional research can include comparing these updates to previous filings and analyzing any language that may imply changes in strategic direction.'
+  },
+  {
+    query: 'NVDA product launch roadmap update January 2026 Reuters',
+    researchGoal: 'The aim is to gather information on any product launches, roadmap changes, or technology milestone announcements related to NVDA in the last 7 days from a Tier 1 source (Reuters). Once the articles are identified, assess the potential impact on the company’s competitive edge and innovation prospects. Further research might include cross-referencing with NVDA’s investor presentations or patent filings, if available.'
+  },
+  {
+    query: 'NVDA strategic partnerships contract wins January 2026 Bloomberg',
+    researchGoal: 'This query focuses on discovering any news related to new strategic alliances, partnerships, or contract wins that have been reported in the last 7 days, especially from Bloomberg. After obtaining the data, analyze the partnership context to determine its impact on NVDA’s market dynamics and customer base. Subsequent research could involve reviewing the terms of the contracts if available in detail through secondary filings or official announcements.'
+  },
+  {
+    query: 'NVDA January 2026 WSJ market update and analyst commentary',
+    researchGoal: 'The goal of this search is to locate news articles and market updates about NVDA from the Wall Street Journal published in the last 7 days. Look for insights on the broader market response to NVDA’s recent developments and any analysis on near-term and long-term strategic indicators. Further research directions may include identifying any mentioned regulatory or competitive challenges and comparing analyst insights with official statements.'
+  }
+]
+Triage: Selected 2 articles from 30 results
+Triage reasoning: Two filings in the list directly match the research query as they are official SEC filings from NVDA for fiscal year 2026 and are likely to have been released within the last 7 days. Both the Q3 and Q1 earnings releases – which include forward guidance and outlook updates (Q3 release provides outlook for Q4 FY26 and Q1 release provides guidance for Q2 FY26) – serve the strategic analysis objectives. All other entries are either from previous reporting periods or are filings belonging to different CIKs, and thus were excluded.
+Smart Filter: 2 to scrape, 0 metadata-only
+  Scraping: q3fy26pr.htm, q1fy26pr.htm
+Triage: Selected 0 articles from 30 results
+Triage reasoning: After reviewing all provided articles against the strict selection criteria—Tier 1 Reuters sources, recency (January 7–14, 2026), and clear relevance to NVDA product launch or roadmap updates—none of the articles fully meet all of the criteria. Several articles from Reuters in this list (Articles 1, 6, 8, 23, and 27) were published within the last 7 days and concern strategic initiatives (such as partnerships in self‐driving technology, a Lenovo tie‐up, and a joint research lab with Eli Lilly), but none of them present a direct update on NVDA’s product launch roadmap or a clear technology milestone announcement from Nvidia. Other candidates that do contain product‐related information (e.g. Articles 3, 4, and 18 concerning next‐generation chips or H200 shipments) are dated January 5–6, 2026, which falls outside the strict 7‐day window. Finally, Article 29 does reference NVDA’s H200 chip and addresses payment terms – an issue tied to product launch details – but it is published on a non–Reuters platform (MarketScreener) and is therefore excluded per the Tier 1 source requirement. Consequently, based on the defined research parameters, there are no new factual developments from Reuters in the last 7 days that directly update NVDA’s product launch roadmap.
+No relevant articles selected for query: NVDA product launch roadmap update January 2026 Reuters
+Ran NVDA SEC filing earnings release January 2026 site:sec.gov, found 2 contents
+Created 1 learnings [
+  '[RECENT CHANGE] No new factual developments have emerged in the last 7 days from NVDA’s SEC filings; the provided Q3 FY26 (November 19, 2025) and Q1 FY26 (May 28, 2025) earnings releases remain historical context with core financial metrics and strategic narratives intact.'
+]
+Triage: Selected 2 articles from 30 results
+Triage reasoning: Article 1 is a Bloomberg opinion piece dated January 8, 2026 that discusses a landmark $20 billion non‐exclusive licensing contract between Nvidia and Groq Inc., making it highly relevant as a recent strategic contract win. Article 5 is a Bloomberg Law report detailing the expansion of the Siemens–NVIDIA strategic partnership to build an industrial AI system – a clear example of a new strategic alliance with potential long-term market impact on Nvidia’s customer base and competitive position. Other articles were rejected either due to publication dates falling outside the last 7 days, not originating from Tier 1 sources (specifically Bloomberg in this context), or because their content did not directly address new strategic partnerships or contract wins as required by the research query.
+Smart Filter: 2 to scrape, 0 metadata-only
+  Scraping: how-silicon-valley-will-eat-its-ai-competitors-in-2026, siemens-and-nvidia-partner-to-build-industrial-ai-system
+Ran NVDA strategic partnerships contract wins January 2026 Bloomberg, found 2 contents
+Created 2 learnings [
+  '[RECENT CHANGE] Siemens and NVIDIA expanded their strategic partnership in January 2026 to develop AI-driven industrial solutions, with Siemens committing its industrial AI experts, hardware, and a full GPU acceleration across its simulation portfolio, while NVIDIA supplies AI infrastructure, simulation libraries, and frameworks, targeting the launch of the first fully AI-driven manufacturing sites starting in 2026. This expansion represents a deepening of their cooperative relationship rather than a deviation from their established strategic direction.',
+  "[RECENT CHANGE] The collaboration includes joint development of a blueprint for next-generation AI factories that balances computing demands and industrial workflow optimization. This structured integration of Siemens's industrial expertise with NVIDIA’s technological assets solidifies their competitive positioning, reaffirming core fundamentals while driving innovation in industrial AI deployment."
+]
+Triage: Selected 10 articles from 30 results
+Triage reasoning: The selected articles are all high‐quality Tier 1 WSJ publications published within the last 7 days that provide detailed market updates and analyst commentary on NVDA. They cover strategic developments including earnings performance, market responses, competitive positioning (such as U.S.-China dynamics), and near-term as well as longer-term outlook insights. Articles that were not from WSJ or that focused on outdated forecasts or non‐relevant sources were rejected per the selection criteria.
+Smart Filter: 3 to scrape, 7 metadata-only
+  Scraping: nvidia-nvda-q2-earnings-report-2026-2939143b?gaa_at=eafs&gaa_n=AWEtsqe3e5M7IygR1Z8P24WT-AQAsF5yi1W-UNa6IDiKLp6Npt6Sy2fpr26l&gaa_ts=6966f329&gaa_sig=5mQGYpYEPsi2253g2MWHmyCP5UGimtPo7T9nvmZx3Qy0LoXtDGZFlbGhl8q39NyQK-DiM7NvmCZOAjxUeF5S5g%3D%3D, 05136639-EFAD-4828-9891-6B632B445AA0, nvidia-is-now-the-biggest-u-s-china-bargaining-chip-6c3fa0e2?gaa_at=eafs&gaa_n=AWEtsqd_2fN-3WEjYd9IBqPWJJigg8cJyx_pRhQ_MEi_IoCevz-PeHjKHoNO&gaa_ts=6966f329&gaa_sig=LbLl1gblPFz-5LLjdwQPvq3s4yqZskah2mr0_AUWgjU5OHdb62FtMceUx_c8jaHOHgyWvBIm8RPwgTbl4HP-Dg%3D%3D
+  Metadata-only: nvidia-stock-nvda-growth-827999c7?gaa_at=eafs&gaa_n=AWEtsqfiQ2NujUBSGk4OL1LBFZ3ZQs_O8_71kKl19ISiZ04Oagl9nTrSlK4y&gaa_ts=6966f329&gaa_sig=0TYOjdUfsGPz_6wsa3GkMK6gtczwtVORaMA7b7z_wLsyzNGgt94SDIePD29sa5LQEIFQAOAGwfjy6ZOKVmK4IA%3D%3D, nvidia-earnings-q3-2025-nvda-stock-9c6a40fe?gaa_at=eafs&gaa_n=AWEtsqec5hBBOlbd7ZvPaFhpcsa6xVSIQPRjAuGDiEiw-1s1W-vDgKgm2tZY&gaa_ts=6966f329&gaa_sig=Mzj0owUce83vsbPrSJOSNMbJjNyQvPynrExH6QXw8nnoRGfzAPqMp7JbGgj5E0ceHq95MCm50ycUdK-sqR2hag%3D%3D, nvidias-strong-results-show-ai-fears-are-premature-ed2a7f89?gaa_at=eafs&gaa_n=AWEtsqc5Q7tt398_geoUacpiOj_CHXH1VybAKg1D1mwfz0IsERcYqN8cjwdo&gaa_ts=6966f329&gaa_sig=iUGU3LcWxlB1kUHTjfxoBQOQ8lIu8-xvx1dZ5qiH-G0oU9Uu2N_WKlJGBGg96dXzcLuzGE9f6Cwy_jeiulcptg%3D%3D, nvidia-stock-edges-higher-after-earnings-report-shows-sales-surge-it4PG3xylWNFT7PpfbSH?gaa_at=eafs&gaa_n=AWEtsqeLlSnR_mdwIaMEPNq5xw94DjMHaX_2dCUSLNFj25B3gQJTj_L-dG07&gaa_ts=6966f329&gaa_sig=5ELGL9kGPS9GtBBpMzKWUYfkVOk8YsR3gigoEAKZLxrKlgPIvbdA39mq6JN0Yw9Gn3cztyp1Xoo2Ynfg6_cvmQ%3D%3D, tech-rebound-helps-s-p-500-snap-four-day-slump-bf7169b7?gaa_at=eafs&gaa_n=AWEtsqfUNvCytB6lrxjSA9C-wdl_HeW15hkzZHVvSnW0_tyUc-t6JMoLE9ZV&gaa_ts=6966f329&gaa_sig=eRj73HbaY4HIIBGZh1jxTkNwK81GLchpgfWKCsVhpYHha-h0Kzb7hfUQ51ScVk8KsfygY7f_LHqikbeXomHBvQ%3D%3D, after-a-year-of-blistering-growth-ai-chip-makers-get-ready-for-bigger-2026-d9f62dbd?gaa_at=eafs&gaa_n=AWEtsqc7RLnfe2t94Tq9mJv5pkPMl2GM2FuvRprgZBmhI68GJTrbH-0vSzKx&gaa_ts=6966f329&gaa_sig=gOVNoCuNRFQvamQpO73HWgo_BjjDfxPhYj9lCkHNaVSJ88vnhTUU7D2PRwM0a5RGd5kUFhYnY36RFvrMYz1bbQ%3D%3D, business-and-finance?gaa_at=eafs&gaa_n=AWEtsqftLdDZ_zUPV_hqn_pO2bDfrcYy_tR2cQ2bfdJ9Gg8PRLNZixFgT_lW&gaa_ts=6966f329&gaa_sig=dlTLAPO32ez9bRJDJKmshbclDpDmayfUaJUoZ6B9Oo50VzjVkO30d-wOGF8bKHQRx4vj0ZriZWL_m9TY2dXeXQ%3D%3D
+Ran NVDA January 2026 WSJ market update and analyst commentary, found 10 contents
+Created 1 learnings [
+  '[RECENT CHANGE] On January 8, 2026, Nvidia appointed its first Chief Marketing Officer—a veteran from Google—marking a strategic pivot aimed at strengthening its global brand and marketing capabilities amid investor concerns over a cooling growth trajectory, even as its robust data-center revenue and core AI chip demand remain intact.'
+]
+
+✅ Research complete!
+
+Summary:
+  - NVDA: ✅ Changed (4 learnings, 14 URLs)
+
+📝 Generating Wealthy Rabbit report...
+
+
+✅ Report saved to report.md
+
+📄 Report Preview:
+
+# Wealthy Rabbit Daily Intelligence
+*January 13, 2026*
+
+---
+
+📊 NVIDIA Corporation — A Week of Strategic Shifts  
+
+This week, there’s a buzz around NVIDIA—not because of entirely new SEC filings, but due to strategic moves and partnership deepening that hint at an exciting future. Let’s break it down in a relaxed, coffee-chat style.
+
+Status: ✅ Changed
+
+First off, while the latest regulatory filings show no groundbreaking surprises (the numbers and narratives from Q3 FY26 and Q1 FY26 remain as solid anchors in NVIDIA’s history), NVIDIA has been busy off the formal record. Back in January 2026, they ramped up a game-changing initiative by expanding their strategic partnership with Siemens. Remember Siemens? They’re major players in industrial solutions, and now with NVIDIA’s tech, they’re stitching artificial intelligence right into the heart of manufacturing. Imagine traditional factories supercharged with AI, optimizing workflows and ramping up precision—all while keeping the legacy of strong performance intact.
+
+But there’s more. The two companies didn’t stop at just a handshake. They’re jointly crafting a blueprint for the next-generation “AI factories.” This isn’t just about adding computers; it’s about designing factories where smart algorithms and industrial know-how work in perfect concert. It’s like blending the best of both worlds—Siemens' industrial expertise and NVIDIA’s cutting-edge technological assets—to navigate the evolving industrial landscape.
+
+And if that wasn’t enough to catch attention, NVIDIA made another pivotal move on January 8, 2026—they appointed their first Chief Marketing Officer, a seasoned veteran from Google. While this update might seem like an inside-the-boardroom shuffle, it’s actually a signal to investors. Amid some concerns over a cooling growth trajectory, bringing in a marketing guru is a proactive step to reinvigorate their brand on the global stage. Meanwhile, the core business—think data-center revenue and high AI chip demand—remains robust and unshaken.
+
+What didn't change? The solid financial fundamentals and real performance metrics continue to stand strong. The established SEC-reported earnings, the robust core AI chip demand, and the driving force behind the company remain the same. It’s a reassuring reminder amid the exciting shifts that while strategy is evolving, the core value holds fast.
+
+For those holding NVIDIA shares, these updates mean you’re watching a company that isn’t just coasting along but actively refining its strategy, strengthening its industry ties, and reinvesting in its narrative. In the near term, expect steady performance backed by robust fundamentals. Longer term, this strategic partnership and the new marketing approach aim to open doors to new growth opportunities, keeping the risk profile balanced while potentially setting the stage for future expansion.
+
+---
+
+📝 Summary: Where We Stand  
+
+In today’s deep dive, NVIDIA emerged as the clear story of change. Their partnership ...
+

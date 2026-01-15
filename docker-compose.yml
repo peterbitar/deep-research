@@ -1,4 +1,33 @@
 services:
+  # Self-hosted Firecrawl service
+  # Note: Firecrawl needs to be built from source
+  # Run these commands first:
+  #   git clone https://github.com/mendableai/firecrawl.git ../firecrawl
+  #   cd ../firecrawl && docker compose up -d
+  # Then update FIRECRAWL_BASE_URL in .env.local to http://localhost:3002
+  #
+  # Alternatively, uncomment below to build Firecrawl in this compose file:
+  # firecrawl:
+  #   build:
+  #     context: ../firecrawl
+  #     dockerfile: Dockerfile
+  #   container_name: firecrawl
+  #   ports:
+  #     - "3002:3002"
+  #   environment:
+  #     - PORT=3002
+  #     - HOST=0.0.0.0
+  #     - USE_DB_AUTHENTICATION=false
+  #   restart: unless-stopped
+
+  # Optional: Redis for Firecrawl queue management (uncomment if needed)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: firecrawl-redis
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped
+
   deep-research:
     container_name: deep-research
     build: .
@@ -6,5 +35,8 @@ services:
       - .env.local
     volumes:
       -  ./:/app/
+    # Remove depends_on if Firecrawl runs separately
+    # depends_on:
+    #   - firecrawl
     tty: true
     stdin_open: true

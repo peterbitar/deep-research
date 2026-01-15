@@ -1,4 +1,4 @@
-// Full Integration Test for Oil: Complete batched deep research flow with step-by-step saving
+// Full Integration Test for BlackBerry: Complete batched deep research flow with step-by-step saving
 // Tests the entire pipeline from query to final report and saves all intermediate steps
 
 import * as fs from 'fs/promises';
@@ -20,11 +20,11 @@ const firecrawl = new FirecrawlApp({
   apiUrl: process.env.FIRECRAWL_BASE_URL,
 });
 
-async function testFullIntegrationOil() {
-  console.log('🧪 Full Integration Test: Oil Research with Step-by-Step Saving\n');
+async function testFullIntegrationBlackberry() {
+  console.log('🧪 Full Integration Test: BlackBerry Research with Step-by-Step Saving\n');
 
   const costTracker = new CostTracker();
-  const query = 'What happened with oil this week?';
+  const query = 'What happened with BlackBerry this week?';
   const breadth = 4;
   const depth = 2;
 
@@ -55,7 +55,7 @@ async function testFullIntegrationOil() {
   });
 
   const queryPromptLength = query.length + 500;
-  const estimatedQueryLength = serpQueries.join(' ').length;
+  const estimatedQueryLength = serpQueries.map(q => q.query).join(' ').length;
   costTracker.trackLLMCallEstimate(modelId, queryPromptLength, estimatedQueryLength, 'generate_serp_queries');
 
   console.log(`✅ Generated ${serpQueries.length} queries:`);
@@ -105,7 +105,7 @@ async function testFullIntegrationOil() {
     ['Query', query],
     ['Breadth', breadth],
     ['SERP Queries', ''],
-    ...serpQueries.map((q, i) => ['', `${i + 1}. ${q}`]),
+    ...serpQueries.map((q, i) => ['', `${i + 1}. ${q.query}`]),
     ['', ''],
     ['Search Results', ''],
     ['Total Unique Articles', allSearchResults.length],
@@ -123,7 +123,7 @@ async function testFullIntegrationOil() {
   const step1_2Workbook = XLSX.utils.book_new();
   const step1_2Sheet = XLSX.utils.aoa_to_sheet(step1_2Data);
   XLSX.utils.book_append_sheet(step1_2Workbook, step1_2Sheet, 'Step 1-2 Results');
-  const step1_2Path = path.join(resultsDir, 'test-oil-step1-2-gather.xlsx');
+  const step1_2Path = path.join(resultsDir, 'test-blackberry-step1-2-gather.xlsx');
   XLSX.writeFile(step1_2Workbook, step1_2Path);
   console.log(`💾 Saved Step 1-2 results to: ${path.basename(step1_2Path)}\n`);
 
@@ -162,7 +162,7 @@ async function testFullIntegrationOil() {
   const step3Workbook = XLSX.utils.book_new();
   const step3Sheet = XLSX.utils.aoa_to_sheet(step3Data);
   XLSX.utils.book_append_sheet(step3Workbook, step3Sheet, 'Step 3 Triage');
-  const step3Path = path.join(resultsDir, 'test-oil-step3-triage.xlsx');
+  const step3Path = path.join(resultsDir, 'test-blackberry-step3-triage.xlsx');
   XLSX.writeFile(step3Workbook, step3Path);
   console.log(`💾 Saved Step 3 results to: ${path.basename(step3Path)}\n`);
 
@@ -205,7 +205,7 @@ async function testFullIntegrationOil() {
   const step4Workbook = XLSX.utils.book_new();
   const step4Sheet = XLSX.utils.aoa_to_sheet(step4Data);
   XLSX.utils.book_append_sheet(step4Workbook, step4Sheet, 'Step 4 Filter');
-  const step4Path = path.join(resultsDir, 'test-oil-step4-filter.xlsx');
+  const step4Path = path.join(resultsDir, 'test-blackberry-step4-filter.xlsx');
   XLSX.writeFile(step4Workbook, step4Path);
   console.log(`💾 Saved Step 4 results to: ${path.basename(step4Path)}\n`);
 
@@ -248,7 +248,7 @@ async function testFullIntegrationOil() {
   console.log(`✅ Scraped ${scrapedContent.filter(c => c.markdown).length}/${toScrape.length} articles\n`);
 
   // Save scraped content to JSON (Excel has cell size limits)
-  const scrapedContentPath = path.join(resultsDir, 'test-oil-step5-scraped-content.json');
+  const scrapedContentPath = path.join(resultsDir, 'test-blackberry-step5-scraped-content.json');
   await fs.writeFile(scrapedContentPath, JSON.stringify(scrapedContent, null, 2), 'utf-8');
 
   // Save Step 5 summary to Excel
@@ -271,7 +271,7 @@ async function testFullIntegrationOil() {
   const step5Workbook = XLSX.utils.book_new();
   const step5Sheet = XLSX.utils.aoa_to_sheet(step5Data);
   XLSX.utils.book_append_sheet(step5Workbook, step5Sheet, 'Step 5 Scrape');
-  const step5Path = path.join(resultsDir, 'test-oil-step5-scrape.xlsx');
+  const step5Path = path.join(resultsDir, 'test-blackberry-step5-scrape.xlsx');
   XLSX.writeFile(step5Workbook, step5Path);
   console.log(`💾 Saved Step 5 results to: ${path.basename(step5Path)}`);
   console.log(`💾 Saved scraped content to: ${path.basename(scrapedContentPath)}\n`);
@@ -331,7 +331,7 @@ async function testFullIntegrationOil() {
   const step6Workbook = XLSX.utils.book_new();
   const step6Sheet = XLSX.utils.aoa_to_sheet(step6Data);
   XLSX.utils.book_append_sheet(step6Workbook, step6Sheet, 'Step 6 Process');
-  const step6Path = path.join(resultsDir, 'test-oil-step6-process.xlsx');
+  const step6Path = path.join(resultsDir, 'test-blackberry-step6-process.xlsx');
   XLSX.writeFile(step6Workbook, step6Path);
   console.log(`💾 Saved Step 6 results to: ${path.basename(step6Path)}\n`);
 
@@ -349,7 +349,7 @@ async function testFullIntegrationOil() {
     visitedUrls,
   });
 
-  const reportPath = path.join(resultsDir, 'test-oil-step7-report.md');
+  const reportPath = path.join(resultsDir, 'test-blackberry-step7-report.md');
   await fs.writeFile(reportPath, report, 'utf-8');
 
   console.log(`✅ Report generated (${report.length} characters)\n`);
@@ -369,7 +369,7 @@ async function testFullIntegrationOil() {
   const step7Workbook = XLSX.utils.book_new();
   const step7Sheet = XLSX.utils.aoa_to_sheet(step7Data);
   XLSX.utils.book_append_sheet(step7Workbook, step7Sheet, 'Step 7 Report');
-  const step7Path = path.join(resultsDir, 'test-oil-step7-report.xlsx');
+  const step7Path = path.join(resultsDir, 'test-blackberry-step7-report.xlsx');
   XLSX.writeFile(step7Workbook, step7Path);
   console.log(`💾 Saved Step 7 report to: ${path.basename(reportPath)}`);
   console.log(`💾 Saved Step 7 summary to: ${path.basename(step7Path)}\n`);
@@ -419,20 +419,20 @@ async function testFullIntegrationOil() {
     ...Object.entries(costSummary.costByOperation).map(([op, cost]) => [op, `$${cost.toFixed(4)}`]),
     ['', ''],
     ['Files Saved', ''],
-    ['Step 1-2', 'test-oil-step1-2-gather.xlsx'],
-    ['Step 3', 'test-oil-step3-triage.xlsx'],
-    ['Step 4', 'test-oil-step4-filter.xlsx'],
-    ['Step 5', 'test-oil-step5-scrape.xlsx'],
-    ['Step 5 Content', 'test-oil-step5-scraped-content.json'],
-    ['Step 6', 'test-oil-step6-process.xlsx'],
-    ['Step 7 Report', 'test-oil-step7-report.md'],
-    ['Step 7 Summary', 'test-oil-step7-report.xlsx'],
+    ['Step 1-2', 'test-blackberry-step1-2-gather.xlsx'],
+    ['Step 3', 'test-blackberry-step3-triage.xlsx'],
+    ['Step 4', 'test-blackberry-step4-filter.xlsx'],
+    ['Step 5', 'test-blackberry-step5-scrape.xlsx'],
+    ['Step 5 Content', 'test-blackberry-step5-scraped-content.json'],
+    ['Step 6', 'test-blackberry-step6-process.xlsx'],
+    ['Step 7 Report', 'test-blackberry-step7-report.md'],
+    ['Step 7 Summary', 'test-blackberry-step7-report.xlsx'],
   ];
 
   const summaryWorkbook = XLSX.utils.book_new();
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
   XLSX.utils.book_append_sheet(summaryWorkbook, summarySheet, 'Summary');
-  const summaryPath = path.join(resultsDir, 'test-oil-full-integration-summary.xlsx');
+  const summaryPath = path.join(resultsDir, 'test-blackberry-full-integration-summary.xlsx');
   XLSX.writeFile(summaryWorkbook, summaryPath);
 
   console.log('✅ Full integration test complete!');
@@ -451,7 +451,7 @@ async function testFullIntegrationOil() {
   };
 }
 
-testFullIntegrationOil()
+testFullIntegrationBlackberry()
   .then((result) => {
     console.log('✅ All steps completed and saved!');
     console.log(`📊 Summary: ${result.summaryPath}`);

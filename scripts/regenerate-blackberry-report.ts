@@ -1,4 +1,4 @@
-// Regenerate Step 7 Report for Oil using existing test results
+// Regenerate Step 7 Report for BlackBerry using existing test results
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -7,15 +7,15 @@ import { writeFinalReport } from '../src/deep-research';
 import { CostTracker } from './cost-tracker';
 import { getModel } from '../src/ai/providers';
 
-async function regenerateOilReport() {
-  console.log('📝 Regenerating Oil Report (Step 7)\n');
+async function regenerateBlackberryReport() {
+  console.log('📝 Regenerating BlackBerry Report (Step 7)\n');
 
   const costTracker = new CostTracker();
   const resultsDir = path.join(process.cwd(), 'test-results');
 
   // Load Step 6 results
   console.log('📂 Loading results from Step 6...\n');
-  const step6Path = path.join(resultsDir, 'test-oil-step6-process.xlsx');
+  const step6Path = path.join(resultsDir, 'test-blackberry-step6-process.xlsx');
   const workbook = XLSX.readFile(step6Path);
   const sheet = workbook.Sheets['Step 6 Process'];
   const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[];
@@ -41,11 +41,11 @@ async function regenerateOilReport() {
   }
 
   // Get query
-  const query = data.find(row => Array.isArray(row) && row[0] === 'Query')?.[1] || 'What happened with oil this week?';
+  const query = data.find(row => Array.isArray(row) && row[0] === 'Query')?.[1] || 'What happened with BlackBerry this week?';
 
   // Load Step 4 results to get URLs
   console.log('📂 Loading URLs from Step 4...\n');
-  const step4Path = path.join(resultsDir, 'test-oil-step4-filter.xlsx');
+  const step4Path = path.join(resultsDir, 'test-blackberry-step4-filter.xlsx');
   const workbook4 = XLSX.readFile(step4Path);
   const sheet4 = workbook4.Sheets['Step 4 Filter'];
   const data4 = XLSX.utils.sheet_to_json(sheet4, { header: 1 }) as any[];
@@ -91,7 +91,7 @@ async function regenerateOilReport() {
   });
 
   // Save report
-  const reportPath = path.join(resultsDir, 'test-oil-step7-report.md');
+  const reportPath = path.join(resultsDir, 'test-blackberry-step7-report.md');
   await fs.writeFile(reportPath, report, 'utf-8');
 
   const reportStats = {
@@ -130,14 +130,14 @@ async function regenerateOilReport() {
   const step7Workbook = XLSX.utils.book_new();
   const step7Sheet = XLSX.utils.aoa_to_sheet(step7Data);
   XLSX.utils.book_append_sheet(step7Workbook, step7Sheet, 'Step 7 Report');
-  const step7ExcelPath = path.join(resultsDir, 'test-oil-step7-report.xlsx');
+  const step7ExcelPath = path.join(resultsDir, 'test-blackberry-step7-report.xlsx');
   XLSX.writeFile(step7Workbook, step7ExcelPath);
 
-  console.log('✅ Report saved to: test-oil-step7-report.md');
+  console.log('✅ Report saved to: test-blackberry-step7-report.md');
   console.log(`   Full path: ${reportPath}`);
   console.log(`   File size: ${(await fs.stat(reportPath)).size} bytes\n`);
 
-  console.log('✅ Summary exported to: test-oil-step7-report.xlsx');
+  console.log('✅ Summary exported to: test-blackberry-step7-report.xlsx');
   console.log(`   Full path: ${step7ExcelPath}`);
   console.log(`   File size: ${(await fs.stat(step7ExcelPath)).size} bytes\n`);
 
@@ -149,4 +149,4 @@ async function regenerateOilReport() {
   console.log(`📊 Excel summary: ${step7ExcelPath}`);
 }
 
-regenerateOilReport().catch(console.error);
+regenerateBlackberryReport().catch(console.error);

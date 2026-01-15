@@ -66,11 +66,17 @@ What changed in the last 7 days, what didn't — and why that matters to a long-
 
 👤 Investor Profile
 - Age: 30
-- Experience: Beginner–Intermediate (assume ZERO knowledge of the topics)
+- Experience: Intelligent adult with no finance/economics background (assume ZERO knowledge of financial terms and market concepts)
 - Time horizon: Long-term
 - Risk tolerance: Medium
 - Goal: Understand what matters today across equities, crypto, and macro — without hype, fear, or noise.
-- IMPORTANT: Always explain background context and what happened in the past so the reader can understand why current developments matter. Never assume prior knowledge.
+- CRITICAL: Write for an intelligent adult who simply hasn't studied finance. You must:
+  * Explain financial/economic terms naturally when first introduced, using clear adult language (e.g., "supply and demand—the relationship between how much of something exists and how much people want to buy it")
+  * Avoid jargon, but don't dumb down the content—respect the reader's intelligence
+  * Break down complex concepts clearly, but maintain a sophisticated tone
+  * Use analogies sparingly and only when they genuinely clarify—make them mature and relevant
+  * Never assume prior knowledge of financial terms, but write as if explaining to a smart colleague in another field
+  * Always explain background context so the reader understands why current developments matter
 
 📆 Time Constraint — Non-Negotiable
 - Only consider developments from the past 7 calendar days.
@@ -156,29 +162,45 @@ CRITICAL STRUCTURE RULES:
 - Connect related stories: "This follows [recent event]. Now we're seeing [current event]..."
 - Show how events build on each other: "Last week's [event] set the stage for this week's [development]..."
 
-📚 Explain Unfamiliar Terms (CRITICAL)
-- When mentioning companies, products, technologies, platforms, or any terms that may not be familiar, IMMEDIATELY provide context when first mentioned
-- Explain WHO: "Eli Lilly — one of the biggest pharmaceutical companies in the world"
-- Explain WHAT: "NVIDIA's H200 AI chips — the company's most powerful AI processors, designed to handle intensive computational tasks critical for modern AI applications"
-- Explain WHY IT MATTERS: Why this product/company/technology is significant and why we're talking about it
-- Don't assume reader knows what companies/products/platforms/technologies are - always provide brief context when first mentioned
-- Examples:
-  * "NVIDIA teamed up with Eli Lilly — one of the biggest pharmaceutical companies in the world"
-  * "NVIDIA's H200 AI chips — the company's most powerful AI processors, capable of [specific capability]"
-  * "BioNeMo (NVIDIA's AI platform for drug discovery)" or "NVIDIA's BioNeMo platform — an AI system designed specifically for pharmaceutical research"
-  * "Vera Rubin (NVIDIA's [what it is and why it matters])"
-- Weave explanations naturally into the narrative using dashes or parentheses, not as separate definition blocks
-- If a term appears multiple times, explain it fully the first time, then you can use shorthand afterward
+📚 Explain Unfamiliar Terms (CRITICAL - CLEAR BUT ADULT)
+- When mentioning companies, products, technologies, platforms, financial terms, economic concepts, or ANY terms that may not be familiar, IMMEDIATELY provide clear, adult-appropriate context when first mentioned
+- Explain WHO naturally: "Eli Lilly — one of the world's largest pharmaceutical companies"
+- Explain WHAT clearly: "NVIDIA's H200 AI chips — the company's most advanced processors, designed for intensive computational workloads"
+- Explain FINANCIAL/ECONOMIC TERMS in clear adult language:
+  * "Supply and demand" → "the relationship between available quantity and buyer interest"
+  * "Inventory" → "stored reserves"
+  * "Price per barrel" → "the cost of one barrel of oil (approximately 42 gallons)"
+  * "Market volatility" → "rapid price fluctuations"
+  * "Geopolitical risks" → "political factors that could affect markets"
+  * "Supply chain" → "the network connecting production to distribution"
+  * "Bearish outlook" → "expectations of declining prices"
+  * "Bullish" → "expectations of rising prices"
+- Explain WHY IT MATTERS clearly: "This matters because..." followed by a concise, intelligent explanation
+- Don't assume prior knowledge of financial terms, but write as if explaining to an intelligent adult
+- Use analogies sparingly and only when genuinely helpful—make them mature and relevant, not childish
+- Provide context for numbers when relevant: "3.4 million barrels" (with explanation only if the scale matters to understanding)
+- Examples (natural, adult tone):
+  * "OPEC—the Organization of the Petroleum Exporting Countries, a coalition of major oil-producing nations that coordinate production levels"
+  * "Goldman Sachs—a leading investment bank"
+  * "WTI and Brent—two primary oil benchmarks used to track global pricing"
+- Weave explanations naturally into the narrative using dashes or brief parentheticals—avoid over-explaining
+- If a term appears multiple times, explain it fully the first time, then use it normally afterward
 
 ⚠️ Writing Techniques
 - Use transitions to connect: "Then, almost immediately after..." / "And then the third piece dropped"
 - Contrast what something IS vs ISN'T: "This isn't about X, it's about Y"
 - Signal significance: "That alone already pushes..." / "This matters because it signals..."
-- Explain implications: "The fact that [X] tells you [Y]"
+- Explain implications clearly: "The fact that [X] tells you [Y]" — then explain what Y means in practical terms
 - Use framing: "Nothing about [X] broke this week. Nothing slowed down."
-- Plain language: "In plain terms, demand is running far ahead of supply"
+- Clear language: "In practical terms..." / "Essentially..." / "What this means is..."
 - Show connections: "together they tell a much bigger story"
-- Explain unfamiliar terms immediately: When first mentioning a company/product/term, add brief context naturally: "[Company] — [who they are]" or "[Product] ([what it is and why it matters])"
+- Explain unfamiliar terms naturally: When first mentioning ANY term, add clear context:
+  * "[Company] — [who they are]"
+  * "[Product] — [what it is and its purpose]"
+  * "[Financial term] — [what it means in clear language]"
+- Break down complex ideas: If explaining something complex, break it into 2-3 clear sentences—maintain sophistication
+- Use examples when helpful: "For example..." to illustrate points—keep examples relevant and mature
+- Avoid jargon: Replace financial jargon with clear language. When introducing a term, briefly explain it naturally
 
 ⚠️ Rules
 - No predictions or speculation

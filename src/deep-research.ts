@@ -680,24 +680,37 @@ CRITICAL STRUCTURE REQUIREMENTS:
 STYLE REQUIREMENTS:
 - Write as flowing narrative - tell one complete story, not separate cards
 - Weave context, past events, and future implications naturally throughout
-- Use simple language, explain jargon immediately
+- Use clear, intelligent language - assume reader has ZERO finance/economics knowledge but is an intelligent adult
+- Explain financial/economic terms naturally when first introduced, using clear adult language
+- Use analogies sparingly and only when genuinely helpful—keep them mature and relevant
+- Break down complex ideas into 2-3 clear sentences while maintaining sophistication
 - Use ONE emoji headline format: "[EMOJI] [ASSET] This Week: [3-5 word essence]"
-- Make it dramatic and engaging - tell a story, not list facts
+- Make it engaging - tell a story, not list facts
 - When writing about companies, explain what events reveal about company power/position naturally
-- Include strategic implications and directional indicators woven throughout
+- Include strategic implications woven throughout, explained clearly but intelligently
 - When there's drama, make it dramatic with strong language and punchy sentences
 
-EXPLAIN UNFAMILIAR TERMS (CRITICAL):
-- When first mentioning companies, products, technologies, or terms, IMMEDIATELY provide context
-- Explain WHO: "Eli Lilly — one of the biggest pharmaceutical companies in the world"
-- Explain WHAT: "NVIDIA's H200 AI chips — the company's most powerful AI processors"
-- Explain WHY IT MATTERS: Why this product/company is significant and why we're talking about it
-- Weave explanations naturally into the narrative, not as separate definitions
-- Don't assume reader knows what companies/products are - always provide brief context when first mentioned
-- Examples:
-  * "NVIDIA teamed up with Eli Lilly — one of the biggest pharmaceutical companies in the world"
-  * "NVIDIA's H200 AI chips — the company's most powerful AI processors, capable of [key capability]"
-  * "BioNeMo (NVIDIA's AI platform for drug discovery)"
+EXPLAIN UNFAMILIAR TERMS (CRITICAL - CLEAR BUT ADULT):
+- When first mentioning companies, products, technologies, financial terms, economic concepts, or ANY terms, IMMEDIATELY provide clear, adult-appropriate context
+- Explain WHO naturally: "Eli Lilly — one of the world's largest pharmaceutical companies"
+- Explain WHAT clearly: "NVIDIA's H200 AI chips — the company's most advanced processors, designed for intensive computational workloads"
+- Explain FINANCIAL/ECONOMIC TERMS in clear adult language:
+  * "Supply and demand" → "the relationship between available quantity and buyer interest"
+  * "Inventory" → "stored reserves"
+  * "Price per barrel" → "the cost of one barrel of oil (approximately 42 gallons)"
+  * "Market volatility" → "rapid price fluctuations"
+  * "Geopolitical risks" → "political factors that could affect markets"
+  * "Bearish outlook" → "expectations of declining prices"
+  * "Bullish" → "expectations of rising prices"
+- Explain WHY IT MATTERS clearly: "This matters because..." followed by a concise, intelligent explanation
+- Use analogies sparingly—only when genuinely helpful, and make them mature and relevant
+- Provide context for numbers when relevant—avoid unnecessary comparisons
+- Weave explanations naturally into the narrative using dashes or brief parentheticals—avoid over-explaining
+- Don't assume prior knowledge of financial terms, but write as if explaining to an intelligent adult
+- Examples (natural, adult tone):
+  * "OPEC—the Organization of the Petroleum Exporting Countries, a coalition of major oil-producing nations"
+  * "Goldman Sachs—a leading investment bank"
+  * "WTI and Brent—two primary oil benchmarks used to track global pricing"
 
 CRITICAL: Write as ONE SINGLE CONTINUOUS NARRATIVE. Do NOT create separate sections or cards. Flow from opening through all events to closing as one cohesive story. Always explain unfamiliar terms when first mentioned.
 

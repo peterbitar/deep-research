@@ -9,6 +9,7 @@ export type IterationData = {
   iteration: number; // 0-based, 0 = initial iteration
   depth: number; // Remaining depth at start of iteration
   query: string;
+  researchLabel?: string; // Label for this research (e.g., "BTC", "NVIDIA", "Macro-CentralBank") - used for portfolio research
   serpQueries: Array<{ query: string; researchGoal: string }>;
   gatheredArticles: Array<{ url: string; title?: string; description?: string; snippet?: string }>;
   triagedArticles: Array<{ url: string; title?: string; description?: string; snippet?: string }>;
@@ -56,7 +57,11 @@ export class PipelineDataSaver {
 
     this.iterations.push(iterationData);
 
-    const iterationDir = path.join(this.getRunDir(), `iteration-${iteration}`);
+    // Create iteration directory, with subdirectory for research label if provided
+    let iterationDir = path.join(this.getRunDir(), `iteration-${iteration}`);
+    if (data.researchLabel) {
+      iterationDir = path.join(iterationDir, data.researchLabel);
+    }
     await fs.mkdir(iterationDir, { recursive: true });
 
     // Save Step 1-2: Gather
@@ -78,6 +83,7 @@ export class PipelineDataSaver {
   private async saveStep1_2(iterationDir: string, data: IterationData): Promise<void> {
     const stepData: any[] = [
       ['Iteration', data.iteration],
+      ['Research Label', data.researchLabel || 'Main Research'],
       ['Depth', data.depth],
       ['Query', data.query],
       ['Breadth', data.serpQueries.length],
@@ -124,6 +130,7 @@ export class PipelineDataSaver {
   private async saveStep3(iterationDir: string, data: IterationData): Promise<void> {
     const stepData = [
       ['Iteration', data.iteration],
+      ['Research Label', data.researchLabel || 'Main Research'],
       ['Query', data.query],
       ['Total Articles', data.gatheredArticles.length],
       ['Selected Articles', data.triagedArticles.length],
@@ -148,6 +155,7 @@ export class PipelineDataSaver {
   private async saveStep4(iterationDir: string, data: IterationData): Promise<void> {
     const stepData = [
       ['Iteration', data.iteration],
+      ['Research Label', data.researchLabel || 'Main Research'],
       ['Query', data.query],
       ['Total Triaged', data.triagedArticles.length],
       ['To Scrape', data.toScrape.length],
@@ -183,6 +191,7 @@ export class PipelineDataSaver {
     // Save summary to Excel
     const stepData = [
       ['Iteration', data.iteration],
+      ['Research Label', data.researchLabel || 'Main Research'],
       ['Query', data.query],
       ['Total to Scrape', data.toScrape.length],
       ['Successfully Scraped', data.scrapedContent.filter(c => c.markdown).length],
@@ -208,6 +217,7 @@ export class PipelineDataSaver {
   private async saveStep6(iterationDir: string, data: IterationData): Promise<void> {
     const stepData = [
       ['Iteration', data.iteration],
+      ['Research Label', data.researchLabel || 'Main Research'],
       ['Query', data.query],
       ['Total Content Items', data.scrapedContent.filter(c => c.markdown).length + data.metadataOnly.length],
       ['Learnings Generated', data.learnings.length],
@@ -289,9 +299,10 @@ export class PipelineDataSaver {
       ['Total URLs Visited', allVisitedUrls.length],
       ['', ''],
       ['Iteration Summary', ''],
-      ['Iteration', 'Depth', 'Query', 'SERP Queries', 'Articles Gathered', 'Articles Triaged', 'To Scrape', 'Metadata Only', 'Learnings', 'Follow-up Questions'],
+      ['Iteration', 'Research Label', 'Depth', 'Query', 'SERP Queries', 'Articles Gathered', 'Articles Triaged', 'To Scrape', 'Metadata Only', 'Learnings', 'Follow-up Questions'],
       ...this.iterations.map((iter) => [
         iter.iteration,
+        iter.researchLabel || 'Main Research',
         iter.depth,
         iter.query.substring(0, 50) + (iter.query.length > 50 ? '...' : ''),
         iter.serpQueries.length,
@@ -304,12 +315,13 @@ export class PipelineDataSaver {
       ]),
       ['', ''],
       ['All Learnings', ''],
-      ['#', 'Learning', 'Type', 'Iteration', 'Length'],
+      ['#', 'Learning', 'Type', 'Iteration', 'Research Label', 'Length'],
       ...allLearnings.map((learning, i) => {
         // Find which iteration this learning came from
         const iteration = this.iterations.findIndex(
           (iter) => iter.learnings.includes(learning),
         );
+        const iterData = iteration >= 0 ? this.iterations[iteration] : null;
         const type = learning.includes('[RECENT CHANGE]')
           ? 'RECENT CHANGE'
           : learning.includes('[LONG-TERM TREND]')
@@ -317,23 +329,24 @@ export class PipelineDataSaver {
             : learning.includes('[CONTEXT]')
               ? 'CONTEXT'
               : 'UNKNOWN';
-        return [i + 1, learning, type, iteration >= 0 ? iteration : 'Unknown', learning.length];
+        return [i + 1, learning, type, iteration >= 0 ? iteration : 'Unknown', iterData?.researchLabel || 'Main Research', learning.length];
       }),
       ['', ''],
       ['All Visited URLs', ''],
-      ['#', 'URL', 'Domain', 'Iteration'],
+      ['#', 'URL', 'Domain', 'Iteration', 'Research Label'],
       ...allVisitedUrls.map((url, i) => {
         // Find which iteration this URL came from
         const iteration = this.iterations.findIndex(
           (iter) => iter.visitedUrls.includes(url),
         );
+        const iterData = iteration >= 0 ? this.iterations[iteration] : null;
         let domain = '';
         try {
           domain = new URL(url).hostname;
         } catch {
           domain = url;
         }
-        return [i + 1, url, domain, iteration >= 0 ? iteration : 'Unknown'];
+        return [i + 1, url, domain, iteration >= 0 ? iteration : 'Unknown', iterData?.researchLabel || 'Main Research'];
       }),
     ];
 
@@ -361,6 +374,7 @@ export class PipelineDataSaver {
       const iterData = [
         ['Iteration Details', ''],
         ['Iteration', iter.iteration],
+        ['Research Label', iter.researchLabel || 'Main Research'],
         ['Depth', iter.depth],
         ['Query', iter.query],
         ['Timestamp', iter.timestamp],

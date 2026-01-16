@@ -120,27 +120,47 @@ STRICT REQUIREMENTS:
 - Prioritize Tier 1 sources: Reuters, Bloomberg, FT, WSJ, company filings, EIA, OPEC, government data
 - Avoid consulting blogs, generic outlooks, aggregators (MarketMinute, FinancialContent)
 
-${isCommodityQuery ? `FOR COMMODITIES/ENERGY QUERIES (like this one), you MUST include queries about:
-- Current price levels and recent price movements (search for actual current prices)
-- Supply vs demand balance (is supply exceeding demand? vice versa?)
-- Inventory levels (are inventories rising or falling?)
-- OPEC/producer behavior (what are producers doing?)
-- Price reactions (why are prices reacting or NOT reacting to developments?)` : ''}
+GENERAL QUERY GENERATION STRATEGY (applies to ALL queries):
+1. ALWAYS start with at least ONE broad, simple query for general recent news (e.g., "[Topic] news January 2026" or "[Topic] last week")
+2. Use flexible date ranges like "January 2026" or "last week" - avoid restrictive "last 7 days" quotes in queries
+3. Start broad, then narrow - include general news queries first, then add specific technical queries
+4. Don't be too restrictive - include general news queries to catch all developments
 
-${isCompanyQuery ? `FOR COMPANY QUERIES, include queries about:
-- Specific company filings or earnings releases
-- Holdings-level impact (what does this mean for holders?)
-- Company-specific implications (bullish/neutral/bearish? near-term vs long-term?)` : ''}
+${isCommodityQuery ? `FOR COMMODITIES/ENERGY QUERIES (like this one), you MUST:
+1. Create at least ONE simple, broad query that searches for general recent news (e.g., "Gold news January 2026" or "Oil prices last week")
+2. Include queries about:
+   - General recent news and developments (start broad, then narrow)
+   - Current price levels and recent price movements (search for actual current prices)
+   - Supply vs demand balance (is supply exceeding demand? vice versa?)
+   - Inventory levels (are inventories rising or falling?)
+   - OPEC/producer behavior (what are producers doing?)
+   - Price reactions (why are prices reacting or NOT reacting to developments?)
+3. Use date ranges like "January 2026" or "last week" instead of restrictive "last 7 days" quotes
+4. Don't be too restrictive - include general news queries to catch all developments` : ''}
 
-${isCryptoQuery ? `FOR CRYPTOCURRENCY QUERIES (like this one), you MUST include queries about:
-- Search for both the symbol (e.g., BTC) AND the full name (e.g., Bitcoin) - use both terms
-- Include "cryptocurrency" or "crypto" in at least one query to capture broader market news
-- Protocol upgrades and technical developments
-- Institutional adoption and major announcements
-- Regulatory news and government actions
-- Exchange listings and trading volume
-- Price movements and market trends
-- Security incidents (confirmed hacks, exploits)` : ''}
+${isCompanyQuery ? `FOR COMPANY QUERIES, you MUST:
+1. Create at least ONE simple, broad query that searches for general recent news (e.g., "NVIDIA news January 2026" or "Apple stock last week")
+2. Include queries about:
+   - General recent news and developments (start broad, then narrow)
+   - Specific company filings or earnings releases
+   - Holdings-level impact (what does this mean for holders?)
+   - Company-specific implications (bullish/neutral/bearish? near-term vs long-term?)
+3. Use date ranges like "January 2026" or "last week" instead of restrictive "last 7 days" quotes
+4. Don't be too restrictive - include general news queries to catch all developments` : ''}
+
+${isCryptoQuery ? `FOR CRYPTOCURRENCY QUERIES (like this one), you MUST:
+1. Create at least ONE simple, broad query that searches for general recent news (e.g., "Bitcoin news January 2026" or "BTC cryptocurrency news last week")
+2. Search for both the symbol (e.g., BTC) AND the full name (e.g., Bitcoin) - use both terms in queries
+3. Include queries about:
+   - General recent news and developments (start broad, then narrow)
+   - Protocol upgrades and technical developments
+   - Institutional adoption and major announcements
+   - Regulatory news and government actions
+   - Exchange listings and trading volume
+   - Price movements and market trends
+   - Security incidents (confirmed hacks, exploits)
+4. Use date ranges like "January 2026" or "last week" instead of restrictive "last 7 days" quotes
+5. Don't be too restrictive - include general news queries to catch all developments` : ''}
 
 IMPORTANT: When researching companies, look for:
 - Strategic implications and directional indicators (where is the company heading?)
@@ -910,6 +930,7 @@ export async function deepResearch({
   iteration = 0,
   initialQuery,
   totalDepth,
+  researchLabel,
 }: {
   query: string;
   breadth: number;
@@ -921,12 +942,15 @@ export async function deepResearch({
   iteration?: number;
   initialQuery?: string;
   totalDepth?: number;
+  researchLabel?: string; // Label for this research (e.g., "BTC", "NVIDIA") - used for portfolio research
 }): Promise<ResearchResult> {
+  log(`🔍 deepResearch called: query="${query.substring(0, 100)}...", iteration=${iteration}, breadth=${breadth}, depth=${depth}`);
+  
   // Track initial values for first iteration
   const isFirstIteration = iteration === 0;
   const finalInitialQuery = initialQuery || query;
   const finalTotalDepth = totalDepth || depth;
-
+  
   // Check if this is a portfolio query (only on first iteration)
   if (isFirstIteration) {
     const portfolioHoldings = detectPortfolioQuery(query);
@@ -947,25 +971,67 @@ export async function deepResearch({
         // Create specific query for this holding
         let holdingQuery = '';
         if (holding.type === 'Stock') {
-          holdingQuery = `Research ${holding.symbol} (${holding.name}) developments in the last 7 days. Focus on: earnings releases, SEC filings (8-K, 10-Q, 10-K), regulatory actions, official announcements, partnerships, price movements, analyst updates. Prioritize Tier 1 sources (Reuters, Bloomberg, FT, WSJ, SEC filings).`;
+          holdingQuery = `Research ${holding.symbol} (${holding.name}) stock news and developments from the last 7 days.
+
+IMPORTANT: Generate queries that include:
+1. At least one broad, simple query for general recent news (e.g., "${holding.name} news January 2026" or "${holding.symbol} stock news last week")
+2. Include queries about: earnings releases, SEC filings (8-K, 10-Q, 10-K), regulatory actions, official announcements, partnerships, price movements, analyst updates
+3. Use date ranges like "January 2026" or "last week" - avoid restrictive "last 7 days" quotes
+4. Start with broad news queries, then add specific technical queries
+
+Focus on: earnings releases, SEC filings (8-K, 10-Q, 10-K), regulatory actions, official announcements, partnerships, price movements, analyst updates. Prioritize Tier 1 sources (Reuters, Bloomberg, FT, WSJ, SEC filings).`;
         } else if (holding.type === 'Cryptocurrency') {
           // For crypto, use both symbol and common name (e.g., BTC and Bitcoin)
           const cryptoName = holding.symbol === 'BTC' ? 'Bitcoin' : 
                            holding.symbol === 'XRP' ? 'Ripple' : 
                            holding.symbol === 'ETH' ? 'Ethereum' :
                            holding.name || holding.symbol;
-          holdingQuery = `Research ${holding.symbol} (${cryptoName}) and cryptocurrency news developments in the last 7 days. Focus on: protocol upgrades, institutional adoption announcements, regulatory news, major hacks (confirmed), price movements, exchange listings, crypto market trends. Search for both "${holding.symbol}" and "${cryptoName}" terms. Prioritize Tier 1 sources (Reuters, Bloomberg, official project announcements).`;
+          holdingQuery = `Research ${holding.symbol} (${cryptoName}) cryptocurrency news and developments from the last 7 days. 
+
+IMPORTANT: Generate queries that include:
+1. At least one broad, simple query for general recent news (e.g., "${cryptoName} news January 2026" or "${holding.symbol} cryptocurrency news last week")
+2. Search for both "${holding.symbol}" and "${cryptoName}" terms in all queries
+3. Include queries about: protocol upgrades, institutional adoption, regulatory news, major hacks (confirmed), price movements, exchange listings, crypto market trends
+4. Use date ranges like "January 2026" or "last week" - avoid restrictive "last 7 days" quotes
+5. Start with broad news queries, then add specific technical queries
+
+Focus on: protocol upgrades, institutional adoption announcements, regulatory news, major hacks (confirmed), price movements, exchange listings, crypto market trends. Prioritize Tier 1 sources (Reuters, Bloomberg, official project announcements).`;
         } else if (holding.type === 'Commodity') {
-          holdingQuery = `Research ${holding.symbol} (${holding.name}) developments in the last 7 days. Focus on: price data (actual numbers), supply/demand data (official sources like EIA, OPEC), producer decisions, inventory levels, geopolitical factors affecting supply. Prioritize Tier 1 sources (Reuters, Bloomberg, EIA, OPEC, government data).`;
+          holdingQuery = `Research ${holding.symbol} (${holding.name}) commodity news and developments from the last 7 days.
+
+IMPORTANT: Generate queries that include:
+1. At least one broad, simple query for general recent news (e.g., "${holding.name} prices January 2026" or "${holding.symbol} commodity news last week")
+2. Include queries about: price data (actual numbers), supply/demand data (official sources like EIA, OPEC), producer decisions, inventory levels, geopolitical factors affecting supply
+3. Use date ranges like "January 2026" or "last week" - avoid restrictive "last 7 days" quotes
+4. Start with broad news queries, then add specific technical queries
+
+Focus on: price data (actual numbers), supply/demand data (official sources like EIA, OPEC), producer decisions, inventory levels, geopolitical factors affecting supply. Prioritize Tier 1 sources (Reuters, Bloomberg, EIA, OPEC, government data).`;
         } else if (holding.type === 'Real Estate') {
-          holdingQuery = `Research ${holding.symbol} (Real Estate Investment Trusts) developments in the last 7 days. Focus on: earnings releases, SEC filings, property acquisitions/dispositions, dividend announcements, interest rate impacts, sector trends. Prioritize Tier 1 sources (Reuters, Bloomberg, FT, WSJ, SEC filings).`;
+          holdingQuery = `Research ${holding.symbol} (Real Estate Investment Trusts) REIT news and developments from the last 7 days.
+
+IMPORTANT: Generate queries that include:
+1. At least one broad, simple query for general recent news (e.g., "REIT news January 2026" or "${holding.symbol} real estate news last week")
+2. Include queries about: earnings releases, SEC filings, property acquisitions/dispositions, dividend announcements, interest rate impacts, sector trends
+3. Use date ranges like "January 2026" or "last week" - avoid restrictive "last 7 days" quotes
+4. Start with broad news queries, then add specific technical queries
+
+Focus on: earnings releases, SEC filings, property acquisitions/dispositions, dividend announcements, interest rate impacts, sector trends. Prioritize Tier 1 sources (Reuters, Bloomberg, FT, WSJ, SEC filings).`;
         } else {
           // Generic query for unknown types
-          holdingQuery = `Research ${holding.symbol} (${holding.name}) developments in the last 7 days. Focus on factual updates from Tier 1 sources (Reuters, Bloomberg, FT, WSJ).`;
+          holdingQuery = `Research ${holding.symbol} (${holding.name}) news and developments from the last 7 days.
+
+IMPORTANT: Generate queries that include:
+1. At least one broad, simple query for general recent news (e.g., "${holding.name} news January 2026" or "${holding.symbol} news last week")
+2. Use date ranges like "January 2026" or "last week" - avoid restrictive "last 7 days" quotes
+3. Start with broad news queries, then add specific technical queries
+
+        Focus on factual updates from Tier 1 sources (Reuters, Bloomberg, FT, WSJ).`;
         }
 
         try {
+          log(`  🔍 Query for ${holding.symbol}: ${holdingQuery.substring(0, 150)}...`);
           // Call deepResearch with iteration > 0 to prevent portfolio detection recursion
+          // Pass researchLabel to track which holding this is for
           const { learnings: holdingLearnings, visitedUrls: holdingUrls } = await deepResearch({
             query: holdingQuery,
             breadth: breadthPerHolding,
@@ -977,9 +1043,13 @@ export async function deepResearch({
             iteration: 1, // Set iteration to 1 to skip portfolio detection
             initialQuery: holdingQuery,
             totalDepth: depthPerHolding,
+            researchLabel: holding.symbol, // Pass research label to track which holding
           });
 
           log(`  ✅ ${holding.symbol}: ${holdingLearnings.length} learnings, ${holdingUrls.length} URLs`);
+          if (holdingLearnings.length === 0) {
+            log(`  ⚠️  Warning: No learnings found for ${holding.symbol}. This may indicate no articles were found or all were rejected in triage.`);
+          }
           allPortfolioLearnings.push(...holdingLearnings);
           allPortfolioUrls.push(...holdingUrls);
         } catch (error) {
@@ -998,7 +1068,7 @@ export async function deepResearch({
         log('🌍 Query mentions macro factors. Adding macro research...\n');
         try {
           const { scanMacro } = await import('./macro-scan');
-          const macroResult = await scanMacro(2, 1);
+          const macroResult = await scanMacro(2, 1, dataSaver);
           log(`  ✅ Macro learnings: ${macroResult.learnings.length}`);
           log(`  ✅ Macro URLs: ${macroResult.visitedUrls.length}\n`);
           allPortfolioLearnings.push(...macroResult.learnings);
@@ -1016,6 +1086,7 @@ export async function deepResearch({
     }
   }
 
+  // Continue with normal research flow (either not first iteration, or first iteration but not a portfolio query)
   const progress: ResearchProgress = {
     currentDepth: depth,
     totalDepth: finalTotalDepth,
@@ -1037,6 +1108,11 @@ export async function deepResearch({
     numQueries: breadth,
   });
 
+  log(`📝 Generated ${serpQueries.length} search queries:`);
+  serpQueries.forEach((q, i) => {
+    log(`   ${i + 1}. ${q.query}`);
+  });
+  
   reportProgress({
     totalQueries: serpQueries.length,
     currentQuery: serpQueries[0]?.query,
@@ -1128,7 +1204,24 @@ export async function deepResearch({
   log(`📊 Gathered ${allArticles.length} unique articles from ${totalBeforeDedup} total results (${totalBeforeDedup - allArticles.length} duplicates removed)`);
 
   if (allArticles.length === 0) {
-    log(`No articles found for any query`);
+    log(`⚠️  No articles found for any query. Query was: "${query.substring(0, 200)}..."`);
+    log(`   This may indicate: 1) Search queries didn't match any articles, 2) All results were filtered out, or 3) Search API issue.`);
+    // Still save iteration data even if no articles found, so we can debug
+    if (dataSaver) {
+      await dataSaver.saveIterationData(iteration, {
+        depth,
+        query,
+        researchLabel,
+        serpQueries: serpQueries.map(q => q.query),
+        gatheredArticles: [],
+        triagedArticles: [],
+        toScrape: [],
+        metadataOnly: [],
+        learnings: [],
+        followUpQuestions: [],
+        visitedUrls: [],
+      });
+    }
     return {
       learnings: [],
       visitedUrls: [],
@@ -1254,6 +1347,7 @@ export async function deepResearch({
     await dataSaver.saveIterationData(iteration, {
       depth,
       query,
+      researchLabel,
       serpQueries,
       gatheredArticles: allArticles,
       triagedArticles,
@@ -1294,6 +1388,7 @@ export async function deepResearch({
       iteration: iteration + 1,
       initialQuery: finalInitialQuery,
       totalDepth: finalTotalDepth,
+      researchLabel, // Pass research label to next iteration
     });
   } else {
     reportProgress({
@@ -1308,6 +1403,7 @@ export async function deepResearch({
       log(`📁 Research data saved to: ${dataSaver.getRunDir()}`);
     }
     
+    log(`  Returning final results: ${allLearnings.length} learnings, ${allUrls.length} URLs`);
     return {
       learnings: allLearnings,
       visitedUrls: allUrls,

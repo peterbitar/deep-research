@@ -52,7 +52,7 @@ export interface MacroResult {
 /**
  * Scan macro and liquidity conditions
  */
-export async function scanMacro(breadth = 2, depth = 1): Promise<MacroResult> {
+export async function scanMacro(breadth = 2, depth = 1, dataSaver?: any): Promise<MacroResult> {
   console.log('\n🌍 Scanning macro & liquidity conditions...\n');
   
   const allLearnings: string[] = [];
@@ -65,11 +65,14 @@ export async function scanMacro(breadth = 2, depth = 1): Promise<MacroResult> {
     
     // Combine queries for this category
     const combinedQuery = `Macro ${categoryGroup.category}: ${categoryGroup.queries.join(', ')}`;
+    const researchLabel = `Macro-${categoryGroup.category.replace(/\s+/g, '')}`;
     
     const { learnings, visitedUrls } = await deepResearch({
       query: combinedQuery,
       breadth,
       depth,
+      dataSaver,
+      researchLabel,
     });
     
     allLearnings.push(...learnings);

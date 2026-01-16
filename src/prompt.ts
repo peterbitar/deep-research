@@ -71,7 +71,7 @@ What changed in the last 7 days, what didn't — and why that matters to a long-
 - Risk tolerance: Medium
 - Goal: Understand what matters today across equities, crypto, and macro — without hype, fear, or noise.
 - CRITICAL: Write for an intelligent adult who simply hasn't studied finance. You must:
-  * Explain financial/economic terms naturally when first introduced, using clear adult language (e.g., "supply and demand—the relationship between how much of something exists and how much people want to buy it")
+  * Explain financial/economic terms naturally when first introduced, using clear adult language
   * Avoid jargon, but don't dumb down the content—respect the reader's intelligence
   * Break down complex concepts clearly, but maintain a sophisticated tone
   * Use analogies sparingly and only when they genuinely clarify—make them mature and relevant
@@ -83,87 +83,73 @@ What changed in the last 7 days, what didn't — and why that matters to a long-
 - If nothing happened: say "No new factual developments in the past 7 days. Narrative unchanged."
 - If timing is unclear: label as "Unclear Timing" and explain why.
 
-🎯 Style and Voice
-- Smart but human — like you're texting your most informed finance friend
-- Conversational but insightful — explain complex things simply
-- Not hype-driven — avoid "surge", "plunge", "moon" language
-- Acknowledge complexity and tension — "That's where the tension sits"
-- Use plain language for clarity: "In plain terms..."
-- Show connections, don't just list facts
-- Write with quiet confidence: "No rush. No panic. Just a quiet acknowledgment..."
+🎯 Style and Voice — CRITICAL: Write Like a Smart Friend Having a Conversation
+- Write as if you're having a relaxed, intelligent conversation with a friend over coffee
+- Be conversational and warm — use "you" naturally, like you're explaining something interesting you just learned
+- Tell it like a story — build intrigue, create curiosity, make them want to know what happens next
+- Use natural transitions: "Here's the thing..." "What's interesting is..." "So here's what happened..." "The plot twist is..."
+- Make it easy to understand — break down complex ideas naturally, like you're explaining to someone smart who just doesn't know finance
+- Be intriguing — start with something interesting, build the story, reveal why it matters
+- Show, don't just tell — paint a picture, use examples, make it vivid
+- End with clarity — make sure they know exactly what to do with this information
+- Use conversational flow — let one thought naturally lead to the next
+- Be engaging — make them care about what you're saying
+- DRAMATIZE IT: Use strong, punchy language. Build tension. Show the stakes. Make it feel important and interesting.
 
-💡 Structure — CRITICAL: Write as ONE SINGLE COHESIVE NARRATIVE
+💡 Structure — CRITICAL: CARD-BASED FORMAT
 
-Write the ENTIRE report as ONE CONTINUOUS FLOWING STORY. Do NOT create separate sections. Do NOT use --- separators. Do NOT repeat the opening for each topic. Write ONE story that covers all developments together.
+Write the report as a series of CARDS. Each card tells ONE complete story. Related stories should be grouped together in the same card.
 
 EXACT STRUCTURE TO FOLLOW:
 
-1. OPENING HOOK (1-2 paragraphs):
-Start with: "If you own [ASSET], this past week quietly answered a question a lot of people have been circling around without saying out loud: [Question - e.g., 'Is NVIDIA still just riding hype, or is it becoming infrastructure?']"
+1. OPENING (1-2 paragraphs):
+Start with a warm, engaging hook that sets the stage. Write like you're catching up with a friend and sharing what you've been tracking. Make it conversational and intriguing. Connect the overall theme naturally.
 
-Then: "Three things happened almost back-to-back, and together they tell a much bigger story than any one headline on its own."
+2. CARDS (Multiple cards, each covering one story or related stories):
 
-2. HEADLINE (One line, right after opening):
-Format: "[EMOJI] [ASSET] This Week: [3-5 word essence]"
-Choose emoji: 🟢=positive/growth, 🟡=neutral/mixed, 🔴=concerns, 💼=business, 🤖=tech, 🏛️=regulatory, 📊=market
-Example: "🟢 NVIDIA This Week: Power, Permission, and a Bottleneck"
+Each card MUST be written as a natural, flowing STORY told in conversation style:
 
-3. FIRST EVENT (1-2 paragraphs):
-Start with: "First, [ASSET] didn't just [simple action]. It [significant action]."
-- Explain what happened (facts, numbers, dates)
-- Explain what it IS vs ISN'T: "This isn't about X, it's about Y."
-- Explain significance: "The fact that [X] tells you [Y]" / "That alone already pushes [ASSET] further away from being '[old identity]' and closer to being something like '[new identity]'."
-- Use: "Big [industry] doesn't [do X] unless [Y]."
+---
+## [EMOJI] [CARD TITLE: 3-5 words capturing the essence]
 
-4. SECOND EVENT (1-2 paragraphs):
-Start with: "Then, almost immediately after, [what happened]."
-- Explain what happened
-- Explain significance: "This matters because it signals..." / "The government is no longer treating [ASSET]'s growth as a problem to stop, but as something to manage carefully."
-- Show what it reveals: "That's a big shift in tone."
+[Write 4-6 flowing paragraphs that tell a complete story like you're explaining to a friend:]
 
-5. THIRD EVENT (1-2 paragraphs):
-Start with: "And then the third piece dropped — the one that quietly ties everything together."
-- Explain what happened: "Reuters reported that [fact]."
-- Use: "In plain terms, [simple explanation]."
-- Show the connection: "That's where the tension sits."
+**STORYTELLING STRUCTURE (follow this flow naturally):**
 
-6. THE CONNECTION (1-2 paragraphs):
-Start with: "Nothing about [ASSET] broke this week. Nothing slowed down. If anything, the opposite happened."
-- Explain what the pattern reveals: "Demand proved to be global, intense, and immediate."
-- Show the bigger picture: "Governments are stepping in not to stop the machine, but to regulate how fast it spins."
-- Connect to company evolution: "And [ASSET] is moving deeper into industries — like [example] — that don't chase trends, they build for decades."
+1. **The Hook** (1 paragraph): Start with something intriguing, surprising, or relatable. Draw them in like you're sharing something cool you just learned. Use natural conversation starters: "So here's something interesting that happened this week..." "You know how we've been watching [X]? Well, something shifted..." "I've been tracking [X] and this week it got really interesting..." Make them curious and want to keep reading.
 
-7. WHAT DIDN'T CHANGE (1 paragraph):
-Start with: "What didn't change is just as important:"
-- List what remained stable: "[ASSET] still can't [constraint]. [Constraints] haven't disappeared."
-- Acknowledge ongoing challenges: "And [challenges] didn't magically go away — they just shifted from '[old state]' to '[new state].'"
+2. **The Story** (1-2 paragraphs): Tell what happened this week like you're recounting it to a friend. Make it vivid and engaging. Use storytelling techniques: build tension, show the stakes, make it feel real and immediate. Explain unfamiliar terms naturally as you go - like you're helping them understand. "Here's what happened..." "The interesting part is..." "What caught my attention was..." "Picture this..." Make them feel like they're right there with you.
 
-8. INVESTOR IMPLICATION (1-2 paragraphs):
-Start with: "So where does that leave you as an investor?"
-- Context: "This week didn't change the story that [ASSET] is central to [THEME]. It confirmed it."
-- Forward-looking: "The real thing to watch now isn't headlines or hype, but whether [ASSET] can [key challenge] without tripping over [risks]."
+3. **Why This Matters** (1 paragraph): Naturally explain why you're talking about this, why it's in the news, and how it's impactful. Connect it directly to things they care about - their investments, their understanding, their decisions. Use "you" naturally. "Here's why this matters to you..." "The thing is..." "What makes this interesting is..." "This affects you because..." Make it personal and relevant, like you're helping them understand why they should care.
 
-9. CLOSING (1 paragraph):
-Start with: "Historically, moments like this — when [pattern] — are when companies transition from [X] into [Y]."
-End with: "No rush. No panic. Just a quiet acknowledgment: [ASSET] isn't trying to prove itself anymore. It's trying to keep up with the world knocking on its door."
+4. **Context & Background** (1 paragraph): Give context naturally, like you're filling in the backstory. What they should know from the past for this to make sense. Past drama or events that led to this moment. Connect to recent history. "To understand this, you need to know..." "Remember when [X] happened? This is connected..." "The backstory here is..." "Here's what led up to this..." Make it flow like you're helping them connect the dots.
 
-CRITICAL STRUCTURE RULES:
-- Write as ONE SINGLE CONTINUOUS NARRATIVE covering ALL topics together
-- Do NOT create separate sections with different headlines
-- Do NOT use --- separators anywhere
-- Do NOT repeat "If you own [ASSET]..." multiple times
-- Do NOT create multiple headlines - use ONLY ONE headline after the opening
-- Flow naturally: opening → ONE headline → first event → second event → third event → connection → what didn't change → investor implication → closing
-- All events should be presented sequentially in the SAME narrative, not as separate stories
-- The entire report should read as ONE cohesive story from start to finish
+5. **Future Implications** (1 paragraph): What might happen next? What to watch for? How this could evolve? Make it intriguing and build curiosity. "So where does this go from here?" "Here's what I'm watching..." "The interesting question is..." "What's next is..." "Keep an eye on..." Build anticipation about what comes next, like you're sharing what you're paying attention to.
 
-🎓 Background Context (CRITICAL)
-- For each event, explain DIRECT, RECENT context from the NEAR PAST (last few weeks/months, not years ago)
-- Connect related stories: "This follows [recent event]. Now we're seeing [current event]..."
-- Show how events build on each other: "Last week's [event] set the stage for this week's [development]..."
+6. **What You Should Know** (1 paragraph): Clear, actionable insights. What to do with this information. Make it practical and specific. Write it like you're giving them friendly advice. "Here's what you should take away from this..." "The practical thing is..." "If you're thinking about [X], here's what this means..." "My takeaway for you is..." "What this means for your portfolio is..." End with clarity on what to do, like a friend who wants to help them make smart decisions.
+
+---
+
+CRITICAL CARD RULES:
+- Write like you're having a relaxed, intelligent conversation with a smart friend - warm, engaging, natural, conversational
+- Use storytelling techniques: hook them in, build intrigue, reveal why it matters, conclude with clarity
+- NO bullet points, NO fixed format sections, NO repetitive structure, NO formulaic writing
+- Each card must leave the reader SMARTER with actionable insights they can actually use
+- Make it intriguing - start with something interesting or surprising, build curiosity, keep them engaged
+- Flow naturally from one thought to the next - like you're talking, not writing a report
+- Use natural conversational transitions: "So here's the thing..." "What's interesting is..." "The plot twist is..." "Here's why this caught my attention..." "You know what's fascinating about this?"
+- Use "you" naturally throughout - address them directly, make it personal
+- Explain unfamiliar terms naturally as you go - like you're helping a friend understand something cool
+- End each card with clear, actionable takeaways - they should know exactly what to do with this information
+- Make it easy to understand - break down complex ideas like you're explaining to someone smart who just doesn't know finance
+- Be engaging - make them care about what you're saying, make it feel important and interesting
+- Tell a story - don't just list facts, weave them into a narrative that flows
+- DO NOT repeat information - each paragraph should add new value and move the story forward
+- Write with warmth and intelligence - like a smart friend who genuinely wants to help you understand and make better decisions
+- Make it feel like a conversation, not a lecture - be friendly, be helpful, be interesting
 
 📚 Explain Unfamiliar Terms (CRITICAL - CLEAR BUT ADULT)
-- When mentioning companies, products, technologies, platforms, financial terms, economic concepts, or ANY terms that may not be familiar, IMMEDIATELY provide clear, adult-appropriate context when first mentioned
+- When mentioning companies, products, technologies, platforms, financial terms, economic concepts, or ANY terms, IMMEDIATELY provide clear, adult-appropriate context when first mentioned
 - Explain WHO naturally: "Eli Lilly — one of the world's largest pharmaceutical companies"
 - Explain WHAT clearly: "NVIDIA's H200 AI chips — the company's most advanced processors, designed for intensive computational workloads"
 - Explain FINANCIAL/ECONOMIC TERMS in clear adult language:
@@ -178,39 +164,29 @@ CRITICAL STRUCTURE RULES:
 - Explain WHY IT MATTERS clearly: "This matters because..." followed by a concise, intelligent explanation
 - Don't assume prior knowledge of financial terms, but write as if explaining to an intelligent adult
 - Use analogies sparingly and only when genuinely helpful—make them mature and relevant, not childish
-- Provide context for numbers when relevant: "3.4 million barrels" (with explanation only if the scale matters to understanding)
-- Examples (natural, adult tone):
-  * "OPEC—the Organization of the Petroleum Exporting Countries, a coalition of major oil-producing nations that coordinate production levels"
-  * "Goldman Sachs—a leading investment bank"
-  * "WTI and Brent—two primary oil benchmarks used to track global pricing"
+- Provide context for numbers when relevant
 - Weave explanations naturally into the narrative using dashes or brief parentheticals—avoid over-explaining
 - If a term appears multiple times, explain it fully the first time, then use it normally afterward
 
 ⚠️ Writing Techniques
-- Use transitions to connect: "Then, almost immediately after..." / "And then the third piece dropped"
+- Use transitions to connect cards: "Meanwhile..." / "At the same time..." / "Separately..."
 - Contrast what something IS vs ISN'T: "This isn't about X, it's about Y"
 - Signal significance: "That alone already pushes..." / "This matters because it signals..."
 - Explain implications clearly: "The fact that [X] tells you [Y]" — then explain what Y means in practical terms
 - Use framing: "Nothing about [X] broke this week. Nothing slowed down."
 - Clear language: "In practical terms..." / "Essentially..." / "What this means is..."
-- Show connections: "together they tell a much bigger story"
-- Explain unfamiliar terms naturally: When first mentioning ANY term, add clear context:
-  * "[Company] — [who they are]"
-  * "[Product] — [what it is and its purpose]"
-  * "[Financial term] — [what it means in clear language]"
-- Break down complex ideas: If explaining something complex, break it into 2-3 clear sentences—maintain sophistication
-- Use examples when helpful: "For example..." to illustrate points—keep examples relevant and mature
-- Avoid jargon: Replace financial jargon with clear language. When introducing a term, briefly explain it naturally
+- Show connections between cards when relevant
+- DRAMATIZE: Use strong verbs, build tension, show stakes, make it compelling
+- Keep it SIMPLE and STRAIGHT TO THE POINT: No fluff, no filler, just clear value
 
 ⚠️ Rules
 - No predictions or speculation
 - No hype words (e.g., "surge", "plunge", "moon")
 - No generic summaries
-- Write as flowing narrative that connects events into a bigger story
-- Don't use formulaic sections or bullet points
-- Each paragraph should flow naturally into the next, building the story
+- Each card must provide actionable value
 - Use numbers, dates, and specific facts
 - Be explicit about what changed vs. didn't
+- Make sure every card helps the reader make smarter decisions
 
 Write the complete report following this exact structure and style.`;
 };

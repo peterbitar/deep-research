@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { getModel, trimPrompt } from './ai/providers';
 import { systemPrompt, reportStylePrompt } from './prompt';
+import { PipelineDataSaver } from './pipeline-data-saver';
 
 function log(...args: any[]) {
   console.log(...args);
@@ -107,6 +108,7 @@ export async function generateSerpQueries({
   // Check if query is about commodities/energy
   const isCommodityQuery = /\b(oil|energy|gas|crude|commodit|natural gas|LNG|petroleum|OPEC|WTI|Brent)\b/i.test(query);
   const isCompanyQuery = /\b(NVIDIA|AAPL|MSFT|GOOGL|JPM|XOM|Exxon|company|earnings|stock)\b/i.test(query);
+  const isCryptoQuery = /\b(BTC|Bitcoin|XRP|Ripple|ETH|Ethereum|cryptocurrency|crypto|blockchain|digital currency)\b/i.test(query);
   
   const res = await generateObject({
     model: getModel(),
@@ -129,6 +131,16 @@ ${isCompanyQuery ? `FOR COMPANY QUERIES, include queries about:
 - Specific company filings or earnings releases
 - Holdings-level impact (what does this mean for holders?)
 - Company-specific implications (bullish/neutral/bearish? near-term vs long-term?)` : ''}
+
+${isCryptoQuery ? `FOR CRYPTOCURRENCY QUERIES (like this one), you MUST include queries about:
+- Search for both the symbol (e.g., BTC) AND the full name (e.g., Bitcoin) - use both terms
+- Include "cryptocurrency" or "crypto" in at least one query to capture broader market news
+- Protocol upgrades and technical developments
+- Institutional adoption and major announcements
+- Regulatory news and government actions
+- Exchange listings and trading volume
+- Price movements and market trends
+- Security incidents (confirmed hacks, exploits)` : ''}
 
 IMPORTANT: When researching companies, look for:
 - Strategic implications and directional indicators (where is the company heading?)
@@ -205,8 +217,10 @@ CRITICAL SELECTION CRITERIA (select ALL articles that meet these):
 
 2. RECENCY:
    - Prioritize articles about events in the LAST 7 DAYS
+   - IMPORTANT: The search queries already filtered for recent content (last 7 days). If an article doesn't have an explicit date, assume it's recent and include it if it's relevant.
+   - Only REJECT articles if you can CLEARLY see a date that's outside the 7-day window (e.g., "2017", "2024" when we're in 2026, or explicit dates more than 7 days ago)
    - REJECT articles that are just "2025 outlook" or "2030 projections" without recent news
-   - REJECT articles clearly outside the 7-day window unless they provide critical context
+   - If date is ambiguous or missing, err on the side of inclusion if the article is relevant and from a Tier 1 source
 
 3. CONTENT RELEVANCE AND IMPORTANCE:
    - Select articles with strategic implications and directional indicators
@@ -244,7 +258,7 @@ export async function triageTitlesBatched({
   researchGoals,
 }: {
   query: string;
-  results: Array<{ url: string; title?: string; description?: string; snippet?: string }>;
+  results: Array<{ url: string; title?: string; description?: string; snippet?: string; publishedDate?: string }>;
   researchGoals: string[];
 }): Promise<string[]> {
   if (results.length === 0) return [];
@@ -262,7 +276,8 @@ export async function triageTitlesBatched({
     .map((r, i) => {
       const title = r.title || 'No title';
       const desc = r.description || r.snippet || 'No description';
-      return `${i + 1}. Title: ${title}\n   Description: ${desc}\n   URL: ${r.url}`;
+      const dateInfo = r.publishedDate ? `\n   Published Date: ${r.publishedDate}` : '';
+      return `${i + 1}. Title: ${title}\n   Description: ${desc}\n   URL: ${r.url}${dateInfo}`;
     })
     .join('\n\n');
 
@@ -286,8 +301,10 @@ CRITICAL SELECTION CRITERIA (select ALL articles that meet these):
 
 2. RECENCY:
    - Prioritize articles about events in the LAST 7 DAYS
+   - IMPORTANT: The search queries already filtered for recent content (last 7 days). If an article doesn't have an explicit date, assume it's recent and include it if it's relevant.
+   - Only REJECT articles if you can CLEARLY see a date that's outside the 7-day window (e.g., "2017", "2024" when we're in 2026, or explicit dates more than 7 days ago)
    - REJECT articles that are just "2025 outlook" or "2030 projections" without recent news
-   - REJECT articles clearly outside the 7-day window unless they provide critical context
+   - If date is ambiguous or missing, err on the side of inclusion if the article is relevant and from a Tier 1 source
 
 3. CONTENT RELEVANCE AND IMPORTANCE:
    - Select articles with strategic implications and directional indicators
@@ -663,61 +680,158 @@ export async function writeFinalReport({
     .map(learning => `<learning>\n${learning}\n</learning>`)
     .join('\n');
 
+  // Step 1: Generate potential cards from learnings
+  log('📝 Generating potential story cards...');
+  const cardsRes = await generateObject({
+    model: getModel(),
+    system: reportStylePrompt(),
+    prompt: trimPrompt(
+      `Analyze the learnings below and identify distinct stories/developments that should become cards.
+
+For each potential card, provide:
+1. A brief title (3-5 words)
+2. Which learnings it covers
+3. Why it matters (impact/importance)
+4. Whether it provides actionable value
+
+Group related stories together - they should be in the same card.
+
+CRITICAL: Only include cards that:
+- Provide actionable insights (help make smarter decisions)
+- Are impactful and newsworthy
+- Have clear context and implications
+- Are NOT empty drama - must have real value
+
+<prompt>${prompt}</prompt>
+
+<learnings>
+${learningsString}
+</learnings>`,
+    ),
+    schema: z.object({
+      potentialCards: z.array(
+        z.object({
+          title: z.string().describe('Card title (3-5 words)'),
+          relatedLearnings: z.array(z.string()).describe('Which learnings this card covers'),
+          whyItMatters: z.string().describe('Why this story is important and impactful'),
+          actionableValue: z.string().describe('What actionable insights this provides'),
+          shouldInclude: z.boolean().describe('Whether this card should be included in the final report'),
+        })
+      ).describe('List of potential story cards'),
+    }),
+  });
+
+  // Step 2: Self-feedback to select the best cards
+  log('🔍 Selecting best cards with self-feedback...');
+  const selectedCardsRes = await generateObject({
+    model: getModel(),
+    system: reportStylePrompt(),
+    prompt: trimPrompt(
+      `Review the potential cards below and select ONLY the best ones for the final report.
+
+SELECTION CRITERIA (ALL must be true):
+1. Provides actionable value - helps reader make smarter decisions
+2. Is impactful and newsworthy - why it's in the news matters
+3. Has clear context - can explain past drama/background
+4. Has future implications - can discuss what might happen next
+5. NOT empty drama - must have real, useful information
+6. Leaves reader smarter - teaches something valuable
+
+EXCLUDE cards that:
+- Are just noise or hype without substance
+- Don't provide actionable insights
+- Are too vague or generic
+- Don't have clear impact or implications
+
+<prompt>${prompt}</prompt>
+
+<potentialCards>
+${cardsRes.object.potentialCards.map((card, i) => `
+Card ${i + 1}:
+Title: ${card.title}
+Why It Matters: ${card.whyItMatters}
+Actionable Value: ${card.actionableValue}
+Related Learnings: ${card.relatedLearnings.join(', ')}
+`).join('\n')}
+</potentialCards>`,
+    ),
+    schema: z.object({
+      selectedCardIndices: z.array(z.number()).describe('Indices (0-based) of cards to include in final report'),
+      reasoning: z.string().describe('Brief explanation of why these cards were selected and others excluded'),
+    }),
+  });
+
+  // Filter to selected cards
+  const selectedCards = selectedCardsRes.object.selectedCardIndices
+    .map(idx => cardsRes.object.potentialCards[idx])
+    .filter(card => card !== undefined);
+
+  log(`✅ Selected ${selectedCards.length} cards from ${cardsRes.object.potentialCards.length} potential cards`);
+  log(`Selection reasoning: ${selectedCardsRes.object.reasoning}`);
+
+  // Step 3: Generate final report with selected cards
+  log('📝 Writing final report with selected cards...');
+  const selectedLearnings = selectedCards.flatMap(card => card.relatedLearnings);
+  const selectedLearningsString = learnings
+    .filter(learning => selectedLearnings.some(selected => learning.includes(selected) || selected.includes(learning)))
+    .map(learning => `<learning>\n${learning}\n</learning>`)
+    .join('\n');
+
   const res = await generateObject({
     model: getModel(),
     system: reportStylePrompt(),
     prompt: trimPrompt(
-      `Write a final report using ALL the learnings below. Follow the Wealthy Rabbit style exactly - write as ONE SINGLE COHESIVE NARRATIVE that tells one complete story.
+      `Write a final report using the selected cards below. Follow the Wealthy Rabbit card-based style exactly.
 
 CRITICAL STRUCTURE REQUIREMENTS:
-- Write as ONE CONTINUOUS FLOWING NARRATIVE - do NOT break into separate sections
-- Do NOT use --- separators
-- Do NOT create multiple headlines - use ONLY ONE headline after the opening
-- Do NOT repeat "If you own [ASSET]..." multiple times
-- Present all events sequentially in the SAME story: opening → ONE headline → first event → second event → third event → connection → what didn't change → investor implication → closing
-- The entire report should read as ONE cohesive story from start to finish
+- Start with a warm, engaging opening (1-2 paragraphs) - write like you're catching up with a friend
+- Create ONE CARD for each selected story (group related stories together)
+- Each card MUST be written as natural, flowing paragraphs (4-6 paragraphs per card)
+- NO bullet points, NO fixed format sections, NO repetitive structure, NO formulaic writing
+- Each card must organically answer all required questions within the narrative flow:
+  * What happened (the story) - tell it like you're recounting something interesting
+  * Why this matters and why it's in the news - explain it like you're helping them understand
+  * Context & background from the past - fill in the backstory naturally
+  * Future implications - share what you're watching, build curiosity
+  * What you should know (actionable insights) - give them clear, friendly advice
+- Flow naturally from one idea to the next - like a conversation, not a report
+- Each paragraph should add new value - avoid repetition
+- Use storytelling techniques: hook them in, build intrigue, reveal insights, conclude with clarity
+- Write with warmth - like a smart friend who wants to help them understand and make better decisions
 
 STYLE REQUIREMENTS:
-- Write as flowing narrative - tell one complete story, not separate cards
-- Weave context, past events, and future implications naturally throughout
-- Use clear, intelligent language - assume reader has ZERO finance/economics knowledge but is an intelligent adult
-- Explain financial/economic terms naturally when first introduced, using clear adult language
-- Use analogies sparingly and only when genuinely helpful—keep them mature and relevant
-- Break down complex ideas into 2-3 clear sentences while maintaining sophistication
-- Use ONE emoji headline format: "[EMOJI] [ASSET] This Week: [3-5 word essence]"
-- Make it engaging - tell a story, not list facts
-- When writing about companies, explain what events reveal about company power/position naturally
-- Include strategic implications woven throughout, explained clearly but intelligently
-- When there's drama, make it dramatic with strong language and punchy sentences
+- Write like you're having a conversation with a smart friend - warm, engaging, natural
+- Use storytelling techniques: start with a hook, build intrigue, reveal why it matters, end with clarity
+- Make it intriguing - draw them in, make them curious, keep them engaged
+- Use natural conversational transitions: "So here's the thing..." "What's interesting is..." "The plot twist is..." "Here's why this matters..."
+- Keep language simple and conversational - explain complex ideas naturally
+- DRAMATIZE IT - use strong, engaging language, build tension, show the stakes
+- Make sure each card leaves the reader SMARTER with actionable insights
+- Explain unfamiliar terms naturally as you go - like you're explaining to a friend
+- Keep the storyline natural and flowing - write like you're telling an interesting story
+- End each card with clear, actionable takeaways - they should know exactly what to do with the information
+- Make it easy to understand - break down complex ideas like you're helping a friend understand
+- Be engaging - make them care about what you're saying
+- DO NOT use bullet points or section headers within cards
+- DO NOT repeat the same information in different ways
+- Write with warmth and intelligence - like a smart friend who wants to help you understand
 
-EXPLAIN UNFAMILIAR TERMS (CRITICAL - CLEAR BUT ADULT):
-- When first mentioning companies, products, technologies, financial terms, economic concepts, or ANY terms, IMMEDIATELY provide clear, adult-appropriate context
-- Explain WHO naturally: "Eli Lilly — one of the world's largest pharmaceutical companies"
-- Explain WHAT clearly: "NVIDIA's H200 AI chips — the company's most advanced processors, designed for intensive computational workloads"
-- Explain FINANCIAL/ECONOMIC TERMS in clear adult language:
-  * "Supply and demand" → "the relationship between available quantity and buyer interest"
-  * "Inventory" → "stored reserves"
-  * "Price per barrel" → "the cost of one barrel of oil (approximately 42 gallons)"
-  * "Market volatility" → "rapid price fluctuations"
-  * "Geopolitical risks" → "political factors that could affect markets"
-  * "Bearish outlook" → "expectations of declining prices"
-  * "Bullish" → "expectations of rising prices"
-- Explain WHY IT MATTERS clearly: "This matters because..." followed by a concise, intelligent explanation
-- Use analogies sparingly—only when genuinely helpful, and make them mature and relevant
-- Provide context for numbers when relevant—avoid unnecessary comparisons
-- Weave explanations naturally into the narrative using dashes or brief parentheticals—avoid over-explaining
-- Don't assume prior knowledge of financial terms, but write as if explaining to an intelligent adult
-- Examples (natural, adult tone):
-  * "OPEC—the Organization of the Petroleum Exporting Countries, a coalition of major oil-producing nations"
-  * "Goldman Sachs—a leading investment bank"
-  * "WTI and Brent—two primary oil benchmarks used to track global pricing"
+SELECTED CARDS TO WRITE:
+${selectedCards.map((card, i) => `
+Card ${i + 1}: ${card.title}
+- Why It Matters: ${card.whyItMatters}
+- Actionable Value: ${card.actionableValue}
+- Related Learnings: ${card.relatedLearnings.join(', ')}
+`).join('\n')}
 
-CRITICAL: Write as ONE SINGLE CONTINUOUS NARRATIVE. Do NOT create separate sections or cards. Flow from opening through all events to closing as one cohesive story. Always explain unfamiliar terms when first mentioned.
+<prompt>${prompt}</prompt>
 
-<prompt>${prompt}</prompt>\n\nHere are all the learnings from previous research:\n\n<learnings>\n${learningsString}\n</learnings>`,
+<learnings>
+${selectedLearningsString}
+</learnings>`,
     ),
     schema: z.object({
-      reportMarkdown: z.string().describe('Final report on the topic in Markdown following Wealthy Rabbit style'),
+      reportMarkdown: z.string().describe('Final report in card-based format following Wealthy Rabbit style'),
     }),
   });
 
@@ -753,6 +867,38 @@ export async function writeFinalAnswer({
   return res.object.exactAnswer;
 }
 
+/**
+ * Detect if query contains multiple holdings that should be researched individually
+ */
+function detectPortfolioQuery(query: string): Array<{ symbol: string; type: string; name: string }> | null {
+  // Pattern: "SYMBOL (Type)" or "SYMBOL (Type): Name" - matches format like "BTC (Cryptocurrency), XRP (Cryptocurrency)"
+  const holdingPattern = /(\w+)\s*\(([^)]+)\)(?:\s*:\s*([^,\.]+))?/gi;
+  const holdings: Array<{ symbol: string; type: string; name: string }> = [];
+  let match;
+  
+  while ((match = holdingPattern.exec(query)) !== null) {
+    const symbol = match[1].trim();
+    const type = match[2].trim().toLowerCase();
+    const name = match[3]?.trim() || symbol;
+    
+    // Only include if it's a recognized asset type
+    const validTypes = ['stock', 'cryptocurrency', 'crypto', 'commodity', 'real estate', 'realestate'];
+    if (validTypes.some(vt => type.includes(vt))) {
+      holdings.push({
+        symbol: symbol.toUpperCase(),
+        type: type.includes('crypto') ? 'Cryptocurrency' : 
+              type.includes('commodity') ? 'Commodity' :
+              type.includes('real') ? 'Real Estate' :
+              'Stock',
+        name,
+      });
+    }
+  }
+
+  // If we found 3+ holdings, treat as portfolio query
+  return holdings.length >= 3 ? holdings : null;
+}
+
 export async function deepResearch({
   query,
   breadth,
@@ -760,6 +906,10 @@ export async function deepResearch({
   learnings = [],
   visitedUrls = [],
   onProgress,
+  dataSaver,
+  iteration = 0,
+  initialQuery,
+  totalDepth,
 }: {
   query: string;
   breadth: number;
@@ -767,10 +917,108 @@ export async function deepResearch({
   learnings?: string[];
   visitedUrls?: string[];
   onProgress?: (progress: ResearchProgress) => void;
+  dataSaver?: PipelineDataSaver;
+  iteration?: number;
+  initialQuery?: string;
+  totalDepth?: number;
 }): Promise<ResearchResult> {
+  // Track initial values for first iteration
+  const isFirstIteration = iteration === 0;
+  const finalInitialQuery = initialQuery || query;
+  const finalTotalDepth = totalDepth || depth;
+
+  // Check if this is a portfolio query (only on first iteration)
+  if (isFirstIteration) {
+    const portfolioHoldings = detectPortfolioQuery(query);
+    
+    if (portfolioHoldings && portfolioHoldings.length >= 3) {
+      log(`\n📊 Detected portfolio query with ${portfolioHoldings.length} holdings. Researching each individually...\n`);
+      
+      const allPortfolioLearnings: string[] = [];
+      const allPortfolioUrls: string[] = [];
+      
+      // Research each holding individually (with a flag to prevent recursion)
+      const breadthPerHolding = Math.max(2, Math.floor(breadth / portfolioHoldings.length));
+      const depthPerHolding = 1; // Depth 1 for individual holdings
+      
+      for (const holding of portfolioHoldings) {
+        log(`📊 Researching ${holding.symbol} (${holding.type})...`);
+        
+        // Create specific query for this holding
+        let holdingQuery = '';
+        if (holding.type === 'Stock') {
+          holdingQuery = `Research ${holding.symbol} (${holding.name}) developments in the last 7 days. Focus on: earnings releases, SEC filings (8-K, 10-Q, 10-K), regulatory actions, official announcements, partnerships, price movements, analyst updates. Prioritize Tier 1 sources (Reuters, Bloomberg, FT, WSJ, SEC filings).`;
+        } else if (holding.type === 'Cryptocurrency') {
+          // For crypto, use both symbol and common name (e.g., BTC and Bitcoin)
+          const cryptoName = holding.symbol === 'BTC' ? 'Bitcoin' : 
+                           holding.symbol === 'XRP' ? 'Ripple' : 
+                           holding.symbol === 'ETH' ? 'Ethereum' :
+                           holding.name || holding.symbol;
+          holdingQuery = `Research ${holding.symbol} (${cryptoName}) and cryptocurrency news developments in the last 7 days. Focus on: protocol upgrades, institutional adoption announcements, regulatory news, major hacks (confirmed), price movements, exchange listings, crypto market trends. Search for both "${holding.symbol}" and "${cryptoName}" terms. Prioritize Tier 1 sources (Reuters, Bloomberg, official project announcements).`;
+        } else if (holding.type === 'Commodity') {
+          holdingQuery = `Research ${holding.symbol} (${holding.name}) developments in the last 7 days. Focus on: price data (actual numbers), supply/demand data (official sources like EIA, OPEC), producer decisions, inventory levels, geopolitical factors affecting supply. Prioritize Tier 1 sources (Reuters, Bloomberg, EIA, OPEC, government data).`;
+        } else if (holding.type === 'Real Estate') {
+          holdingQuery = `Research ${holding.symbol} (Real Estate Investment Trusts) developments in the last 7 days. Focus on: earnings releases, SEC filings, property acquisitions/dispositions, dividend announcements, interest rate impacts, sector trends. Prioritize Tier 1 sources (Reuters, Bloomberg, FT, WSJ, SEC filings).`;
+        } else {
+          // Generic query for unknown types
+          holdingQuery = `Research ${holding.symbol} (${holding.name}) developments in the last 7 days. Focus on factual updates from Tier 1 sources (Reuters, Bloomberg, FT, WSJ).`;
+        }
+
+        try {
+          // Call deepResearch with iteration > 0 to prevent portfolio detection recursion
+          const { learnings: holdingLearnings, visitedUrls: holdingUrls } = await deepResearch({
+            query: holdingQuery,
+            breadth: breadthPerHolding,
+            depth: depthPerHolding,
+            learnings: [],
+            visitedUrls: [],
+            onProgress,
+            dataSaver,
+            iteration: 1, // Set iteration to 1 to skip portfolio detection
+            initialQuery: holdingQuery,
+            totalDepth: depthPerHolding,
+          });
+
+          log(`  ✅ ${holding.symbol}: ${holdingLearnings.length} learnings, ${holdingUrls.length} URLs`);
+          allPortfolioLearnings.push(...holdingLearnings);
+          allPortfolioUrls.push(...holdingUrls);
+        } catch (error) {
+          log(`  ❌ Error researching ${holding.symbol}:`, error);
+        }
+      }
+
+      log(`\n✅ Portfolio holdings research complete!`);
+      log(`  Total holdings learnings: ${allPortfolioLearnings.length}`);
+      log(`  Total holdings URLs: ${allPortfolioUrls.length}\n`);
+
+      // Check if query mentions macro factors - if so, add macro research
+      const needsMacro = /\b(macro|Fed|Federal Reserve|inflation|currency|geopolitical|economic|central bank)\b/i.test(query);
+      
+      if (needsMacro) {
+        log('🌍 Query mentions macro factors. Adding macro research...\n');
+        try {
+          const { scanMacro } = await import('./macro-scan');
+          const macroResult = await scanMacro(2, 1);
+          log(`  ✅ Macro learnings: ${macroResult.learnings.length}`);
+          log(`  ✅ Macro URLs: ${macroResult.visitedUrls.length}\n`);
+          allPortfolioLearnings.push(...macroResult.learnings);
+          allPortfolioUrls.push(...macroResult.visitedUrls);
+        } catch (error) {
+          log(`  ⚠️  Error in macro scan:`, error);
+        }
+      }
+
+      // Return combined results
+      return {
+        learnings: allPortfolioLearnings,
+        visitedUrls: allPortfolioUrls,
+      };
+    }
+  }
+
   const progress: ResearchProgress = {
     currentDepth: depth,
-    totalDepth: depth,
+    totalDepth: finalTotalDepth,
     currentBreadth: breadth,
     totalBreadth: breadth,
     totalQueries: 0,
@@ -819,6 +1067,7 @@ export async function deepResearch({
               title: (item as any).title || (item as any).metadata?.title,
               description: (item as any).description || (item as any).snippet,
               snippet: (item as any).snippet,
+              publishedDate: (item as any).publishedDate || (item as any).metadata?.publishedDate || (item as any).metadata?.publishedTime,
             })),
           };
         } catch (e: any) {
@@ -843,6 +1092,7 @@ export async function deepResearch({
     title?: string;
     description?: string;
     snippet?: string;
+    publishedDate?: string;
     sourceQueries: string[];
     researchGoals: string[];
   }>();
@@ -864,6 +1114,7 @@ export async function deepResearch({
           url: article.url,
           title: article.title,
           description: article.description,
+          publishedDate: article.publishedDate,
           snippet: article.snippet,
           sourceQueries: [searchResult.query],
           researchGoals: [searchResult.researchGoal],
@@ -930,9 +1181,9 @@ export async function deepResearch({
         async () => {
           // Firecrawl scrape method - try different possible method names
           if (typeof (firecrawl as any).scrapeUrl === 'function') {
-            return await (firecrawl as any).scrapeUrl(url, { formats: ['markdown'] });
+            return await (firecrawl as any).scrapeUrl(url, { formats: ['markdown'], onlyMainContent: true });
           } else if (typeof (firecrawl as any).scrape === 'function') {
-            return await (firecrawl as any).scrape(url, { formats: ['markdown'] });
+            return await (firecrawl as any).scrape(url, { formats: ['markdown'], onlyMainContent: true });
           } else {
             // Fallback: use search with scrapeOptions for single URL
             const result = await firecrawl.search(`site:${new URL(url).hostname} ${url}`, {
@@ -947,21 +1198,28 @@ export async function deepResearch({
     )
   );
 
+  // Prepare scraped content for saving
+  const scrapedContent = scrapedResults.map((scraped, index) => {
+    const markdown = 
+      scraped?.markdown || 
+      scraped?.data?.markdown || 
+      scraped?.content?.markdown || 
+      (typeof scraped === 'string' ? scraped : '');
+    return {
+      url: toScrape[index].url,
+      markdown: markdown || undefined,
+      error: markdown ? undefined : 'No markdown content returned',
+    };
+  });
+
   // Step 7: Combine scraped results + metadata-only into SearchResponse format
   const combinedResult: SearchResponse = {
     data: [
       // Scraped articles
-      ...scrapedResults.map((scraped, index) => {
-        const markdown = 
-          scraped?.markdown || 
-          scraped?.data?.markdown || 
-          scraped?.content?.markdown || 
-          (typeof scraped === 'string' ? scraped : '');
-        return {
-          url: toScrape[index].url,
-          markdown: markdown,
-        };
-      }),
+      ...scrapedContent.filter(c => c.markdown).map(c => ({
+        url: c.url,
+        markdown: c.markdown!,
+      })),
       // Metadata-only articles (create markdown from title/description)
       ...metadataOnly.map(meta => ({
         url: meta.url,
@@ -986,6 +1244,29 @@ export async function deepResearch({
   const allLearnings = [...learnings, ...newLearnings.learnings];
   const allUrls = [...visitedUrls, ...newUrls];
 
+  // Save iteration data if dataSaver is provided
+  if (dataSaver) {
+    // Get follow-up questions from previous iteration if this is not the first iteration
+    const previousFollowUps = iteration > 0 && learnings.length > 0 
+      ? (dataSaver as any).iterations?.[iteration - 1]?.followUpQuestions || []
+      : undefined;
+
+    await dataSaver.saveIterationData(iteration, {
+      depth,
+      query,
+      serpQueries,
+      gatheredArticles: allArticles,
+      triagedArticles,
+      toScrape,
+      metadataOnly,
+      scrapedContent,
+      learnings: newLearnings.learnings,
+      followUpQuestions: newLearnings.followUpQuestions,
+      visitedUrls: newUrls,
+      previousIterationFollowUps: previousFollowUps,
+    });
+  }
+
   // Step 9: Recursive depth exploration
   if (newDepth > 0) {
     log(`\n🔍 Researching deeper, breadth: ${newBreadth}, depth: ${newDepth}`);
@@ -1009,6 +1290,10 @@ export async function deepResearch({
       learnings: allLearnings,
       visitedUrls: allUrls,
       onProgress,
+      dataSaver,
+      iteration: iteration + 1,
+      initialQuery: finalInitialQuery,
+      totalDepth: finalTotalDepth,
     });
   } else {
     reportProgress({
@@ -1017,6 +1302,12 @@ export async function deepResearch({
     });
 
     log(`\n✅ Research complete! Collected ${allLearnings.length} learnings from ${allUrls.length} URLs`);
+    
+    // If we have a data saver, log the run directory
+    if (dataSaver) {
+      log(`📁 Research data saved to: ${dataSaver.getRunDir()}`);
+    }
+    
     return {
       learnings: allLearnings,
       visitedUrls: allUrls,

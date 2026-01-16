@@ -8,6 +8,7 @@ import {
   writeFinalReport,
 } from './deep-research';
 import { generateFeedback } from './feedback';
+import { PipelineDataSaver } from './pipeline-data-saver';
 
 // Helper function for consistent logging
 function log(...args: any[]) {
@@ -83,10 +84,18 @@ ${followUpQuestions.map((q: string, i: number) => `Q: ${q}\nA: ${answers[i]}`).j
 
   log('\nStarting research...\n');
 
+  // Initialize data saver
+  const dataSaver = new PipelineDataSaver();
+  await dataSaver.initialize();
+  log(`📁 Saving research data to: ${dataSaver.getRunDir()}\n`);
+
   const { learnings, visitedUrls } = await deepResearch({
     query: combinedQuery,
     breadth,
     depth,
+    dataSaver,
+    initialQuery: initialQuery,
+    totalDepth: depth,
   });
 
   log(`\n\nLearnings:\n\n${learnings.join('\n')}`);
@@ -100,9 +109,25 @@ ${followUpQuestions.map((q: string, i: number) => `Q: ${q}\nA: ${answers[i]}`).j
       visitedUrls,
     });
 
+    // Save final report using data saver
+    const reportPath = await dataSaver.saveFinalReport(report, learnings, visitedUrls);
+    
+    // Also save to root for convenience
     await fs.writeFile('report.md', report, 'utf-8');
+    
     console.log(`\n\nFinal Report:\n\n${report}`);
-    console.log('\nReport has been saved to report.md');
+    console.log(`\nReport has been saved to report.md`);
+    console.log(`📁 Full research data saved to: ${dataSaver.getRunDir()}`);
+
+    // Save comprehensive summary
+    const summaryPath = await dataSaver.saveComprehensiveSummary(
+      initialQuery,
+      depth,
+      breadth,
+      learnings,
+      visitedUrls,
+    );
+    console.log(`📊 Comprehensive summary: ${summaryPath}`);
   } else {
     const answer = await writeFinalAnswer({
       prompt: combinedQuery,
@@ -112,6 +137,17 @@ ${followUpQuestions.map((q: string, i: number) => `Q: ${q}\nA: ${answers[i]}`).j
     await fs.writeFile('answer.md', answer, 'utf-8');
     console.log(`\n\nFinal Answer:\n\n${answer}`);
     console.log('\nAnswer has been saved to answer.md');
+    console.log(`📁 Full research data saved to: ${dataSaver.getRunDir()}`);
+
+    // Save comprehensive summary even for answers
+    const summaryPath = await dataSaver.saveComprehensiveSummary(
+      initialQuery,
+      depth,
+      breadth,
+      learnings,
+      visitedUrls,
+    );
+    console.log(`📊 Comprehensive summary: ${summaryPath}`);
   }
 
   rl.close();

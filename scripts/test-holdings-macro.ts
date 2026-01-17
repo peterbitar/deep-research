@@ -10,14 +10,9 @@ async function testHoldingsMacro() {
 
   // Portfolio holdings
   const holdings = [
-    { symbol: 'BTC', type: 'Cryptocurrency', name: 'Bitcoin' },
     { symbol: 'XRP', type: 'Cryptocurrency', name: 'Ripple' },
     { symbol: 'Silver', type: 'Commodity', name: 'Silver' },
-    { symbol: 'Gold', type: 'Commodity', name: 'Gold' },
-    { symbol: 'Oil', type: 'Commodity', name: 'Crude Oil' },
-    { symbol: 'REIT', type: 'Real Estate', name: 'Real Estate Investment Trusts' },
     { symbol: 'NVIDIA', type: 'Stock', name: 'NVIDIA Corporation' },
-    { symbol: 'AAPL', type: 'Stock', name: 'Apple Inc.' },
   ];
 
   console.log('📊 Portfolio Holdings:');

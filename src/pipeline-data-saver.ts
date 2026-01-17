@@ -400,7 +400,13 @@ export class PipelineDataSaver {
         ...iter.followUpQuestions.map((q, i) => [i + 1, q]),
       );
       const iterSheet = XLSX.utils.aoa_to_sheet(iterData);
-      XLSX.utils.book_append_sheet(workbook, iterSheet, `Iteration ${iter.iteration}`);
+      // Use research label in sheet name to ensure uniqueness (Excel doesn't allow duplicate sheet names)
+      const sheetName = iter.researchLabel 
+        ? `Iter ${iter.iteration} - ${iter.researchLabel}` 
+        : `Iteration ${iter.iteration}`;
+      // Excel sheet names are limited to 31 characters, truncate if needed
+      const safeSheetName = sheetName.length > 31 ? sheetName.substring(0, 31) : sheetName;
+      XLSX.utils.book_append_sheet(workbook, iterSheet, safeSheetName);
     }
 
     const summaryPath = path.join(this.getRunDir(), 'comprehensive-summary.xlsx');

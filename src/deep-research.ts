@@ -855,9 +855,187 @@ ${selectedLearningsString}
     }),
   });
 
+  // Step 4: Rewrite each card's content to be human-like and undetectable by AI tools
+  log('✍️  Rewriting card content for human-like authenticity...');
+  const reportWithRewrittenCards = await rewriteCardContent(res.object.reportMarkdown);
+
   // Append the visited URLs section to the report
   const urlsSection = `\n\n## Sources\n\n${visitedUrls.map(url => `- ${url}`).join('\n')}`;
-  return res.object.reportMarkdown + urlsSection;
+  return reportWithRewrittenCards + urlsSection;
+}
+
+// Helper function to rewrite each card's content to be more human-like
+export async function rewriteCardContent(reportMarkdown: string): Promise<string> {
+  // Parse the report to extract opening, cards, and find where sources start
+  const sourcesRegex = /^##\s+Sources\s*$/m;
+  const sourcesMatch = reportMarkdown.match(sourcesRegex);
+  const sourcesIndex = sourcesMatch ? sourcesMatch.index! : reportMarkdown.length;
+  
+  const mainContent = reportMarkdown.substring(0, sourcesIndex).trim();
+  const sourcesSection = sourcesMatch ? reportMarkdown.substring(sourcesIndex).trim() : '';
+  
+  // Find all card headers (## followed by optional emoji and title)
+  const cardHeaderRegex = /^##\s+([^\n]+)$/gm;
+  const cardHeaders: Array<{ index: number; header: string }> = [];
+  let match;
+  
+  while ((match = cardHeaderRegex.exec(mainContent)) !== null) {
+    cardHeaders.push({
+      index: match.index,
+      header: match[0],
+    });
+  }
+  
+  // If no cards found, return original (might just be opening paragraph)
+  if (cardHeaders.length === 0) {
+    return reportMarkdown;
+  }
+  
+  // Extract opening (content before first card)
+  const firstCard = cardHeaders[0];
+  if (!firstCard) {
+    return reportMarkdown;
+  }
+  
+  const opening = mainContent.substring(0, firstCard.index).trim();
+  
+  // Extract each card's content
+  const cards: Array<{ header: string; content: string }> = [];
+  for (let i = 0; i < cardHeaders.length; i++) {
+    const currentCard = cardHeaders[i];
+    const nextCard = i < cardHeaders.length - 1 ? cardHeaders[i + 1] : null;
+    
+    if (!currentCard) continue;
+    
+    const startIndex = currentCard.index + currentCard.header.length;
+    const endIndex = nextCard ? nextCard.index : mainContent.length;
+    const content = mainContent.substring(startIndex, endIndex).trim();
+    cards.push({
+      header: currentCard.header,
+      content,
+    });
+  }
+  
+  // Rewrite each card's title and content
+  const rewrittenCards: string[] = [];
+  for (const card of cards) {
+    try {
+      // Parse the header to extract emoji and title
+      // Format: "## [EMOJI] Title" or "## Title"
+      const headerMatch = card.header.match(/^##\s*([^\s]+)?\s*(.+)$/);
+      const emoji = headerMatch?.[1]?.match(/^[^\w\s]/) ? headerMatch[1] : undefined;
+      const originalTitle = headerMatch?.[2] || card.header.replace(/^##\s*/, '');
+      
+      // Rewrite the title first
+      const rewrittenTitle = await generateObject({
+        model: getModel(),
+        system: `You are an expert human writer and editor with 20+ years of experience.`,
+        prompt: `You are an expert human writer and editor with 20+ years of experience. Your task is to rewrite the following card title to be more human-like and less AI-detectable. 
+
+CRITICAL REQUIREMENTS:
+- Keep it concise (3-5 words, same length as original)
+- Maintain the EXACT SAME meaning and core concepts - only change word choices, not concepts
+- If the original is about "Revenue and Margins", the rewrite must also be about revenue/profit and margins
+- If the original is about "Guidance and Export", the rewrite must also be about guidance/forecasts and exports/trade
+- Use unexpected but appropriate word alternatives (e.g., "Robust" → "Hefty", "Squeeze" → "Pinch", "Tough" → "Firm")
+- Keep all key terms contextually correct
+- Make it sound like a human wrote it naturally, not AI-generated
+- Avoid formulaic phrasing but preserve the essence
+
+Examples of GOOD rewrites:
+- "Robust Revenue, Margin Squeeze" → "Hefty Revenue, Pinched Margins" ✓
+- "Tough Guidance, Export Impact" → "Firm Guidance, Trade Fallout" ✓
+
+Examples of BAD rewrites:
+- "Tough Guidance, Export Impact" → "Business Lawyer, Trade Upheaval" ✗ (wrong concepts)
+
+Original title: "${originalTitle}"
+
+Return ONLY the rewritten title (3-5 words), no explanation.`,
+        schema: z.object({
+          rewrittenTitle: z.string().describe('Rewritten title that sounds authentically human but maintains exact same meaning (3-5 words)'),
+        }),
+      });
+      
+      // Rewrite the content
+      const rewrittenContent = await generateObject({
+        model: getModel(),
+        system: `You are an expert human writer and editor with 20+ years of experience.`,
+        prompt: `You are an expert human writer and editor with 20+ years of experience. Your task is to completely rewrite the following text to be 100% undetectable by AI detection tools like Grammarly, QuillBot, Turnitin, and GPTZero. Follow these critical instructions:
+
+**PERPLEXITY & PREDICTABILITY CONTROL:**
+- Deliberately choose unexpected, creative word alternatives instead of obvious ones
+- Use varied vocabulary - avoid repetitive word patterns that AI typically generates  
+- Include some colloquialisms, idioms, and region-specific expressions
+- Add subtle imperfections that humans naturally make (minor redundancies, natural speech patterns)
+
+**BURSTINESS & SENTENCE VARIATION:**
+- Create dramatic sentence length variation: mix very short sentences (3-5 words) with longer, complex ones (25+ words)
+- Alternate between simple, compound, complex, and compound-complex sentence structures
+- Start sentences with different elements: adverbs, prepositional phrases, dependent clauses, questions
+- Include intentional sentence fragments and run-on sentences where natural
+- Use parenthetical asides and em-dashes for authentic human flow
+
+**EMOTIONAL INTELLIGENCE & HUMAN TOUCH:**
+- Infuse genuine emotional undertones appropriate to the content
+- Add personal opinions, hesitations, or qualifiers ("I believe," "perhaps," "it seems")
+- Include conversational elements and rhetorical questions
+- Use contractions naturally and vary formal/informal tone within the text
+- Add subtle humor, sarcasm, or personality where appropriate
+
+**STRUCTURAL PATTERN DISRUPTION:**
+- Avoid AI's typical introduction → body → conclusion structure
+- Start with unexpected angles or mid-thought observations
+- Include tangential thoughts and natural digressions
+- Use irregular paragraph lengths (some very short, others longer)
+- Break conventional grammar rules occasionally in natural ways
+
+**CONTEXTUAL AUTHENTICITY:**
+- Reference current events, popular culture, or common experiences
+- Include specific, concrete details rather than generic statements
+- Use metaphors and analogies that feel personally chosen
+- Add transitional phrases that feel conversational rather than mechanical
+
+**DETECTION-SPECIFIC COUNTERS:**
+- use irregular sentence structures and avoiding formulaic transitions
+- Counter syntax analysis by including natural human imperfections and conversational quirks
+- Counter emotional tone analysis by adding authentic personal voice and varied emotional expression
+
+**FINAL REQUIREMENTS:**
+- Maintain the original meaning and key information
+- Ensure the rewrite sounds like it came from a real person with authentic voice
+- Make it feel like natural human communication, not polished AI output
+- Include at least 2-3 instances of slightly imperfect but natural phrasing
+- Aim for high perplexity (unpredictable word choices) and high burstiness (varied sentence structures)
+
+Text to rewrite:
+
+${card.content}`,
+        schema: z.object({
+          rewrittenContent: z.string().describe('Rewritten content that sounds authentically human'),
+        }),
+      });
+      
+      // Construct the new header with rewritten title
+      const newTitle = rewrittenTitle?.object?.rewrittenTitle || originalTitle;
+      const newHeader = emoji ? `## ${emoji} ${newTitle}` : `## ${newTitle}`;
+      
+      if (rewrittenContent?.object?.rewrittenContent) {
+        rewrittenCards.push(newHeader + '\n\n' + rewrittenContent.object.rewrittenContent);
+      } else {
+        log(`⚠️  No rewritten content returned for card "${card.header}", using original`);
+        rewrittenCards.push(newHeader + '\n\n' + card.content);
+      }
+    } catch (error) {
+      log(`⚠️  Error rewriting card "${card.header}", using original content:`, error);
+      // Fall back to original header and content if rewriting fails
+      rewrittenCards.push(card.header + '\n\n' + card.content);
+    }
+  }
+  
+  // Reconstruct the report
+  const rewrittenReport = opening + '\n\n' + rewrittenCards.join('\n\n---\n\n');
+  return rewrittenReport + (sourcesSection ? '\n\n' + sourcesSection : '');
 }
 
 export async function writeFinalAnswer({

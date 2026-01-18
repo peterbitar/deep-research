@@ -681,6 +681,133 @@ app.get('/api/chat/session/:sessionId', async (req: Request, res: Response) => {
   }
 });
 
+// Podcast-style storytelling system prompt
+const podcastSystemPrompt = `You are an engaging podcast host with deep financial expertise. Your job is to create a compelling, storytelling-style summary of the week's financial news that feels like a podcast episode.
+
+**PODCAST STYLE & TONE:**
+- Engaging, conversational, like you're talking directly to the listener
+- Use storytelling techniques: hooks, tension, narrative arcs, vivid descriptions
+- Make it feel like a real podcast: "Welcome back..." "Let's dive in..." "Here's what caught my attention..."
+- Connect stories naturally - flow from one to the next like a narrative
+- Use real, specific details: numbers, dates, company names - make it concrete
+- Paint pictures with words - help listeners visualize what's happening
+- Build intrigue and curiosity - make them want to keep listening
+
+**LENGTH CONSTRAINT:**
+- Target: 4 minutes MAXIMUM (approximately 500-600 words, NO MORE)
+- This is CRITICAL - you MUST stay under 4 minutes
+- Be concise but comprehensive - prioritize the most important stories
+- Cut fluff, keep substance - every word must add value
+- If you need to cover multiple stories, make them flow together efficiently
+- Aim for 500-600 words to stay safely under 4 minutes (150 words/minute pace)
+
+**STRUCTURE:**
+1. **Opening Hook** (30-50 words): Start with something intriguing that grabs attention immediately
+2. **Main Stories** (500-650 words): Weave together the key stories from the week
+   - Flow from one story to the next naturally
+   - Use transitions: "Meanwhile..." "At the same time..." "But here's the twist..."
+   - Connect related stories to show the bigger picture
+3. **Closing Thought** (30-50 words): End with a clear takeaway or what to watch next
+
+**STORYTELLING TECHNIQUES:**
+- Start stories with what happened, build tension, reveal why it matters
+- Use specific details: "Apple announced..." not "A company announced..."
+- Create narrative flow: cause → effect → implications
+- Show connections between stories when they exist
+- Use vivid language but stay factual - no hype
+
+**VOICE:**
+- Confident but approachable
+- Smart but not condescending
+- Passionate about the stories without being over-the-top
+- Natural conversational tone, like you're talking to a friend
+
+**CONTENT FOCUS:**
+- Only use information from the research report provided
+- Focus on what changed this week (not old news)
+- Prioritize significant developments, strategic moves, regulatory changes
+- Include context when it helps the story but don't dwell on old history
+- Explain financial terms naturally as you go (like you would on a podcast)
+
+Remember: This should feel like a real podcast episode that someone would actually want to listen to for 4 minutes. Make it engaging, informative, and entertaining.`;
+
+// GET endpoint for podcast-style summary
+app.get('/api/podcast/latest', async (req: Request, res: Response) => {
+  try {
+    // Load knowledge base (latest research report)
+    const knowledgeBase = await loadKnowledgeBase();
+
+    if (knowledgeBase.includes('No research data') || knowledgeBase.includes('Error loading')) {
+      return res.status(404).json({
+        error: 'No research data available',
+        message: 'Run a research query first to generate podcast content.',
+      });
+    }
+
+    // Get latest report path for metadata
+    const researchResultsDir = path.join(process.cwd(), 'research-results');
+    const entries = await fs.readdir(researchResultsDir, { withFileTypes: true });
+    const directories = entries
+      .filter(entry => entry.isDirectory() && entry.name.startsWith('research-'))
+      .map(entry => entry.name)
+      .sort()
+      .reverse();
+
+    if (directories.length === 0) {
+      return res.status(404).json({
+        error: 'No reports found',
+        message: 'No research reports found. Run a research query first.',
+      });
+    }
+
+    const latestDir = directories[0];
+    const timestampStr = latestDir.replace('research-', '');
+    const timestamp = parseInt(timestampStr, 10);
+    const publishedDate = new Date(timestamp).toISOString();
+
+    // Generate podcast-style content
+    const { text: podcastContent } = await generateText({
+      model: getModel(),
+      system: podcastSystemPrompt,
+      prompt: `Create a 4-minute podcast-style summary (MAXIMUM 500-600 words) of this week's financial news. Make it engaging, storytelling-focused, and conversational.
+
+Research Report:
+${knowledgeBase}
+
+Generate a podcast episode that:
+- Opens with an engaging hook (30-50 words)
+- Weaves together the key stories from the week (450-550 words)
+- Flows naturally from one story to the next
+- Ends with a clear takeaway (30-50 words)
+- MUST stay within 500-600 words total (4 minutes maximum at 150 words/minute)
+
+Remember: Be concise. Every word counts. Cut to the essential stories and insights.`,
+    });
+
+    // Estimate word count and duration
+    const wordCount = podcastContent.split(/\s+/).length;
+    const estimatedMinutes = Math.ceil(wordCount / 150); // ~150 words per minute at normal pace
+
+    return res.json({
+      success: true,
+      runId: latestDir,
+      publishedDate: publishedDate,
+      content: podcastContent,
+      metadata: {
+        wordCount: wordCount,
+        estimatedMinutes: estimatedMinutes,
+        estimatedSeconds: Math.ceil(wordCount / 150 * 60),
+      },
+    });
+  } catch (error: unknown) {
+    console.error('Error generating podcast:', error);
+    return res.status(500).json({
+      error: 'An error occurred generating podcast content',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Deep Research API running on port ${port}`);

@@ -5,8 +5,8 @@ WORKDIR /app
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (tsx is needed at runtime)
+RUN npm ci
 
 # Copy source code
 COPY . .

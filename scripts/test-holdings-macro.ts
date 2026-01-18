@@ -1,20 +1,97 @@
 // Test script for holdings and macro research
 // Tests deep research with a portfolio of holdings and macro considerations
+// Usage: tsx scripts/test-holdings-macro.ts [userId] [baseURL]
+//   - userId: Optional user ID to fetch holdings from API (default: use hardcoded holdings)
+//   - baseURL: Optional base URL for holdings API (default: http://localhost:3001)
 
 import { deepResearch, writeFinalReport } from '../src/deep-research';
+import { fetchUserHoldings } from '../src/fetch-holdings';
 import { PipelineDataSaver } from '../src/pipeline-data-saver';
 import { scanMacro } from '../src/macro-scan';
 
 async function testHoldingsMacro() {
   console.log('🧪 Testing Holdings & Macro Research\n');
 
-  // Portfolio holdings
-  const holdings = [
-    { symbol: 'XRP', type: 'Cryptocurrency', name: 'Ripple' },
-    { symbol: 'NVIDIA', type: 'Stock', name: 'NVIDIA Corporation' },
-  ];
+  // Get userId from command line args or environment variable (if empty, fetch from all users)
+  const userId = process.argv[2] || process.env.USER_ID;
+  const baseURL = process.argv[3] || process.env.HOLDINGS_API_BASE_URL || 'http://localhost:3001';
 
-  console.log('📊 Portfolio Holdings:');
+  // Portfolio holdings - fetch from API
+  let holdings: Array<{ symbol: string; type: string; name: string }>;
+  
+  try {
+    if (userId) {
+      // Fetch holdings for specific user
+      console.log(`📡 Fetching holdings from API for user: ${userId}...\n`);
+      const fetchedHoldings = await fetchUserHoldings({ userId, baseURL });
+      console.log(`✅ Fetched ${fetchedHoldings.length} holdings from API`);
+      holdings = fetchedHoldings;
+    } else {
+      // Fetch holdings from ALL users
+      console.log(`📡 Fetching all users from API...\n`);
+      const usersResponse = await fetch(`${baseURL}/api/users`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+      
+      if (!usersResponse.ok) {
+        throw new Error(`Failed to fetch users: ${usersResponse.status} ${usersResponse.statusText}`);
+      }
+      
+      const users = await usersResponse.json();
+      console.log(`✅ Found ${users.length} user(s)\n`);
+      
+      // Fetch holdings for each user and combine
+      const allFetchedHoldings: Array<{ symbol: string; type: string; name: string }> = [];
+      
+      for (const user of users) {
+        const user_id = user.user_id || user.userId;
+        if (!user_id) continue;
+        
+        try {
+          console.log(`  📡 Fetching holdings for user: ${user_id}...`);
+          const userHoldings = await fetchUserHoldings({ userId: user_id, baseURL, healthCheck: false });
+          console.log(`  ✅ Fetched ${userHoldings.length} holdings`);
+          allFetchedHoldings.push(...userHoldings);
+        } catch (error) {
+          console.log(`  ⚠️  Error fetching holdings for ${user_id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+      
+      console.log(`\n✅ Total fetched: ${allFetchedHoldings.length} holdings from all users`);
+      holdings = allFetchedHoldings;
+    }
+    
+    // Remove duplicates based on symbol (case-insensitive) across all users
+    const seenSymbols = new Set<string>();
+    holdings = holdings.filter(holding => {
+      const symbolUpper = holding.symbol.toUpperCase();
+      if (seenSymbols.has(symbolUpper)) {
+        return false; // Duplicate, skip it
+      }
+      seenSymbols.add(symbolUpper);
+      return true; // First occurrence, keep it
+    });
+    
+    const duplicatesRemoved = (userId ? (await fetchUserHoldings({ userId, baseURL })).length : holdings.length) - holdings.length;
+    if (duplicatesRemoved > 0) {
+      console.log(`🔍 Removed ${duplicatesRemoved} duplicate holding(s) across all users\n`);
+    } else {
+      console.log('\n');
+    }
+  } catch (error) {
+    console.error(`⚠️  Failed to fetch holdings from API: ${error instanceof Error ? error.message : String(error)}`);
+    console.log('📋 Falling back to hardcoded holdings...\n');
+    holdings = [
+      { symbol: 'XRP', type: 'Cryptocurrency', name: 'Ripple' },
+      { symbol: 'NVIDIA', type: 'Stock', name: 'NVIDIA Corporation' },
+    ];
+  }
+
+  console.log(`📊 Portfolio Holdings (${holdings.length} unique):`);
   holdings.forEach(h => console.log(`  - ${h.symbol} (${h.type}): ${h.name}`));
   console.log('');
 

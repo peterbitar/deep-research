@@ -10,6 +10,7 @@ import { getModel } from './ai/providers';
 import { pool, testConnection, initializeSchema } from './db/client';
 import { saveReport, getLatestReport, getReportCards } from './db/reports';
 import { saveChatSession, getChatSession, cleanupOldChatSessions } from './db/chat';
+import { fetchUserHoldings } from './fetch-holdings';
 
 const app = express();
 const port = process.env.PORT || 3051;
@@ -343,9 +344,79 @@ function determineCardMetadata(title: string, content: string): {
   return {};
 }
 
+// Helper function to personalize cards based on user holdings
+type CardType = { 
+  title: string; 
+  content: string; 
+  emoji?: string; 
+  ticker?: string | null; 
+  macro?: string | null; 
+  sources: string[]; 
+  publishedDate: string; 
+  isRelevant?: boolean;
+};
+
+function personalizeCards(
+  cards: Array<Omit<CardType, 'isRelevant'>>,
+  userHoldings: Array<{ symbol: string }>
+): CardType[] {
+  if (!userHoldings || userHoldings.length === 0) {
+    return cards;
+  }
+
+  // Create set of user holdings symbols (uppercase for comparison)
+  const holdingsSymbols = new Set(
+    userHoldings.map(h => h.symbol.toUpperCase().trim())
+  );
+
+  // Categorize cards: relevant (matching holdings) vs others
+  const relevantCards: CardType[] = [];
+  const otherCards: CardType[] = [];
+
+  for (const card of cards) {
+    const cardTicker = card.ticker?.toUpperCase().trim();
+    const isRelevant = cardTicker && holdingsSymbols.has(cardTicker);
+    
+    if (isRelevant) {
+      relevantCards.push({ ...card, isRelevant: true });
+    } else {
+      otherCards.push(card);
+    }
+  }
+
+  // Return: relevant cards first, then others (macro cards, non-matching holdings, etc.)
+  return [...relevantCards, ...otherCards];
+}
+
 // GET endpoint to retrieve latest report with detailed card metadata for iOS app
 app.get('/api/report/cards', async (req: Request, res: Response) => {
   try {
+    // Get userId from query parameter (optional)
+    const userId = req.query.userId as string | undefined;
+    
+    // Fetch user holdings if userId provided
+    let userHoldings: Array<{ symbol: string }> = [];
+    if (userId) {
+      try {
+        const mainBackendURL = process.env.MAIN_BACKEND_URL || 'https://wealthyrabbitios-production-03a4.up.railway.app';
+        log(`📡 Fetching holdings for user: ${userId} from ${mainBackendURL}`);
+        
+        const fetchedHoldings = await fetchUserHoldings({
+          userId,
+          baseURL: mainBackendURL,
+          healthCheck: false, // Skip health check for faster response
+        });
+        
+        // Extract symbols for personalization
+        userHoldings = fetchedHoldings.map(h => ({ symbol: h.symbol }));
+        log(`✅ Fetched ${userHoldings.length} holdings for personalization`);
+      } catch (holdingsError) {
+        // Log but don't fail - continue without personalization
+        console.error('⚠️  Failed to fetch holdings, continuing without personalization:', holdingsError);
+        log(`⚠️  Holdings fetch failed, showing all cards (not personalized)`);
+      }
+    }
+
     // Try database first
     if (pool) {
       try {
@@ -364,17 +435,24 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
             };
           });
 
+          // Personalize cards if user holdings available
+          const personalizedCards = userHoldings.length > 0
+            ? personalizeCards(detailedCards, userHoldings)
+            : detailedCards;
+
           return res.json({
             success: true,
             runId: dbData.runId,
             publishedDate: dbData.publishedDate,
             opening: dbData.opening,
-            cards: detailedCards,
+            cards: personalizedCards,
             metadata: {
-              totalCards: detailedCards.length,
+              totalCards: personalizedCards.length,
               totalSources: dbData.sources.length,
-              holdingsCards: detailedCards.filter(c => c.ticker).length,
-              macroCards: detailedCards.filter(c => c.macro).length,
+              holdingsCards: personalizedCards.filter(c => c.ticker).length,
+              macroCards: personalizedCards.filter(c => c.macro).length,
+              personalized: userHoldings.length > 0,
+              userHoldingsCount: userHoldings.length,
             },
           });
         }
@@ -442,17 +520,24 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
       };
     });
 
+    // Personalize cards if user holdings available
+    const personalizedCards = userHoldings.length > 0
+      ? personalizeCards(detailedCards, userHoldings)
+      : detailedCards;
+
     return res.json({
       success: true,
       runId: latestDir,
       publishedDate: publishedDate,
       opening: parsed.opening,
-      cards: detailedCards,
+      cards: personalizedCards,
       metadata: {
-        totalCards: detailedCards.length,
+        totalCards: personalizedCards.length,
         totalSources: parsed.sources.length,
-        holdingsCards: detailedCards.filter(c => c.ticker).length,
-        macroCards: detailedCards.filter(c => c.macro).length,
+        holdingsCards: personalizedCards.filter(c => c.ticker).length,
+        macroCards: personalizedCards.filter(c => c.macro).length,
+        personalized: userHoldings.length > 0,
+        userHoldingsCount: userHoldings.length,
       },
     });
   } catch (error: unknown) {

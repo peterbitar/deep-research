@@ -7,9 +7,32 @@ import { randomUUID } from 'crypto';
 
 import { deepResearch, writeFinalAnswer, writeFinalReport } from './deep-research';
 import { getModel } from './ai/providers';
+import { pool, testConnection, initializeSchema } from './db/client';
+import { saveReport, getLatestReport, getReportCards } from './db/reports';
+import { saveChatSession, getChatSession, cleanupOldChatSessions } from './db/chat';
 
 const app = express();
 const port = process.env.PORT || 3051;
+
+// Initialize database on startup
+(async () => {
+  if (process.env.DATABASE_URL) {
+    console.log('🔌 DATABASE_URL detected, initializing database...');
+    if (pool) {
+      const connected = await testConnection();
+      if (connected) {
+        await initializeSchema();
+        // Cleanup old chat sessions on startup
+        await cleanupOldChatSessions();
+        console.log('✅ Database initialization complete');
+      }
+    } else {
+      console.warn('⚠️  DATABASE_URL is set but pool is null');
+    }
+  } else {
+    console.warn('⚠️  DATABASE_URL not set - using filesystem storage only');
+  }
+})();
 
 // Middleware
 app.use(cors());
@@ -64,7 +87,7 @@ app.post('/api/research', async (req: Request, res: Response) => {
 });
 
 // Helper function to parse markdown report into cards
-function parseReportToCards(reportMarkdown: string): {
+export function parseReportToCards(reportMarkdown: string): {
   opening: string;
   cards: Array<{ title: string; content: string; emoji?: string }>;
   sources: string[];
@@ -323,9 +346,46 @@ function determineCardMetadata(title: string, content: string): {
 // GET endpoint to retrieve latest report with detailed card metadata for iOS app
 app.get('/api/report/cards', async (req: Request, res: Response) => {
   try {
+    // Try database first
+    if (pool) {
+      try {
+        const dbData = await getReportCards();
+        if (dbData) {
+          const detailedCards = dbData.cards.map((card) => {
+            const metadata = determineCardMetadata(card.title, card.content);
+            return {
+              title: card.title,
+              content: card.content,
+              emoji: card.emoji,
+              ticker: metadata.ticker || card.ticker || null,
+              macro: metadata.macro || card.macro || null,
+              sources: dbData.sources,
+              publishedDate: dbData.publishedDate,
+            };
+          });
+
+          return res.json({
+            success: true,
+            runId: dbData.runId,
+            publishedDate: dbData.publishedDate,
+            opening: dbData.opening,
+            cards: detailedCards,
+            metadata: {
+              totalCards: detailedCards.length,
+              totalSources: dbData.sources.length,
+              holdingsCards: detailedCards.filter(c => c.ticker).length,
+              macroCards: detailedCards.filter(c => c.macro).length,
+            },
+          });
+        }
+      } catch (dbError) {
+        console.error('Database query failed, falling back to filesystem:', dbError);
+      }
+    }
+
+    // Fallback to filesystem
     const researchResultsDir = path.join(process.cwd(), 'research-results');
     
-    // Check if research-results directory exists
     try {
       await fs.access(researchResultsDir);
     } catch {
@@ -335,13 +395,12 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
       });
     }
 
-    // Get all directories in research-results
     const entries = await fs.readdir(researchResultsDir, { withFileTypes: true });
     const directories = entries
       .filter(entry => entry.isDirectory() && entry.name.startsWith('research-'))
       .map(entry => entry.name)
       .sort()
-      .reverse(); // Most recent first
+      .reverse();
 
     if (directories.length === 0) {
       return res.status(404).json({
@@ -350,11 +409,9 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
       });
     }
 
-    // Get the most recent directory
     const latestDir = directories[0];
     const reportPath = path.join(researchResultsDir, latestDir, 'final-report.md');
 
-    // Check if report file exists
     try {
       await fs.access(reportPath);
     } catch {
@@ -365,26 +422,22 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
       });
     }
 
-    // Extract timestamp from run ID (format: research-1768758513249)
     const timestampStr = latestDir.replace('research-', '');
     const timestamp = parseInt(timestampStr, 10);
     const publishedDate = new Date(timestamp).toISOString();
 
-    // Read and parse the report
     const reportMarkdown = await fs.readFile(reportPath, 'utf-8');
     const parsed = parseReportToCards(reportMarkdown);
 
-    // Build detailed cards with metadata
     const detailedCards = parsed.cards.map((card) => {
       const metadata = determineCardMetadata(card.title, card.content);
-      
       return {
         title: card.title,
         content: card.content,
         emoji: card.emoji,
         ticker: metadata.ticker || null,
         macro: metadata.macro || null,
-        sources: parsed.sources, // Global sources for now (could be per-card if needed)
+        sources: parsed.sources,
         publishedDate: publishedDate,
       };
     });
@@ -437,8 +490,28 @@ app.post('/api/generate-report-json', async (req: Request, res: Response) => {
     // Parse report into cards
     const parsed = parseReportToCards(reportMarkdown);
 
+    // Save to database if available
+    const runId = `research-${Date.now()}`;
+    if (pool) {
+      try {
+        await saveReport({
+          runId,
+          query,
+          depth,
+          breadth,
+          reportMarkdown,
+          sources: parsed.sources,
+        });
+        log(`✅ Report saved to database: ${runId}`);
+      } catch (dbError) {
+        console.error('Error saving to database:', dbError);
+        // Continue even if database save fails
+      }
+    }
+
     return res.json({
       success: true,
+      runId,
       query,
       opening: parsed.opening,
       cards: parsed.cards,
@@ -490,10 +563,22 @@ function cleanupOldSessions() {
 
 // Helper to load knowledge base from latest research
 async function loadKnowledgeBase(): Promise<string> {
+  // Try database first
+  if (pool) {
+    try {
+      const report = await getLatestReport();
+      if (report) {
+        return report.reportMarkdown;
+      }
+    } catch (dbError) {
+      console.error('Database query failed, falling back to filesystem:', dbError);
+    }
+  }
+
+  // Fallback to filesystem
   try {
     const researchResultsDir = path.join(process.cwd(), 'research-results');
     
-    // Get latest research directory
     const entries = await fs.readdir(researchResultsDir, { withFileTypes: true });
     const directories = entries
       .filter(entry => entry.isDirectory() && entry.name.startsWith('research-'))
@@ -576,17 +661,28 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     let session: ChatSession;
     const existingSessionId = sessionId || randomUUID();
     
-    if (chatSessions.has(existingSessionId)) {
-      session = chatSessions.get(existingSessionId)!;
-      session.lastAccessed = Date.now();
-    } else {
-      session = {
-        sessionId: existingSessionId,
-        messages: [],
-        createdAt: Date.now(),
-        lastAccessed: Date.now(),
-      };
-      chatSessions.set(existingSessionId, session);
+    // Try database first
+    if (pool) {
+      const dbSession = await getChatSession(existingSessionId);
+      if (dbSession) {
+        session = dbSession;
+      }
+    }
+
+    // Fallback to in-memory or create new
+    if (!session) {
+      if (chatSessions.has(existingSessionId)) {
+        session = chatSessions.get(existingSessionId)!;
+        session.lastAccessed = Date.now();
+      } else {
+        session = {
+          sessionId: existingSessionId,
+          messages: [],
+          createdAt: Date.now(),
+          lastAccessed: Date.now(),
+        };
+        chatSessions.set(existingSessionId, session);
+      }
     }
 
     // Load knowledge base
@@ -634,6 +730,11 @@ Assistant:`;
       session.messages = session.messages.slice(-MAX_MESSAGES_PER_SESSION);
     }
 
+    // Save to database if available
+    if (pool) {
+      await saveChatSession(session.sessionId, session.messages);
+    }
+
     return res.json({
       success: true,
       sessionId: existingSessionId,
@@ -656,7 +757,17 @@ Assistant:`;
 app.get('/api/chat/session/:sessionId', async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
-    const session = chatSessions.get(sessionId);
+    
+    // Try database first
+    let session: ChatSession | undefined;
+    if (pool) {
+      session = await getChatSession(sessionId) || undefined;
+    }
+
+    // Fallback to in-memory
+    if (!session) {
+      session = chatSessions.get(sessionId);
+    }
 
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
@@ -744,26 +855,65 @@ app.get('/api/podcast/latest', async (req: Request, res: Response) => {
       });
     }
 
-    // Get latest report path for metadata
-    const researchResultsDir = path.join(process.cwd(), 'research-results');
-    const entries = await fs.readdir(researchResultsDir, { withFileTypes: true });
-    const directories = entries
-      .filter(entry => entry.isDirectory() && entry.name.startsWith('research-'))
-      .map(entry => entry.name)
-      .sort()
-      .reverse();
+    // Get metadata from database or filesystem
+    let runId: string;
+    let publishedDate: string;
 
-    if (directories.length === 0) {
-      return res.status(404).json({
-        error: 'No reports found',
-        message: 'No research reports found. Run a research query first.',
-      });
+    if (pool) {
+      try {
+        const latestReport = await getLatestReport();
+        if (latestReport) {
+          runId = latestReport.runId;
+          publishedDate = latestReport.created_at.toISOString();
+        } else {
+          throw new Error('No report in database');
+        }
+      } catch (dbError) {
+        // Fallback to filesystem
+        const researchResultsDir = path.join(process.cwd(), 'research-results');
+        const entries = await fs.readdir(researchResultsDir, { withFileTypes: true });
+        const directories = entries
+          .filter(entry => entry.isDirectory() && entry.name.startsWith('research-'))
+          .map(entry => entry.name)
+          .sort()
+          .reverse();
+
+        if (directories.length === 0) {
+          return res.status(404).json({
+            error: 'No reports found',
+            message: 'No research reports found. Run a research query first.',
+          });
+        }
+
+        const latestDir = directories[0];
+        const timestampStr = latestDir.replace('research-', '');
+        const timestamp = parseInt(timestampStr, 10);
+        runId = latestDir;
+        publishedDate = new Date(timestamp).toISOString();
+      }
+    } else {
+      // Filesystem only
+      const researchResultsDir = path.join(process.cwd(), 'research-results');
+      const entries = await fs.readdir(researchResultsDir, { withFileTypes: true });
+      const directories = entries
+        .filter(entry => entry.isDirectory() && entry.name.startsWith('research-'))
+        .map(entry => entry.name)
+        .sort()
+        .reverse();
+
+      if (directories.length === 0) {
+        return res.status(404).json({
+          error: 'No reports found',
+          message: 'No research reports found. Run a research query first.',
+        });
+      }
+
+      const latestDir = directories[0];
+      const timestampStr = latestDir.replace('research-', '');
+      const timestamp = parseInt(timestampStr, 10);
+      runId = latestDir;
+      publishedDate = new Date(timestamp).toISOString();
     }
-
-    const latestDir = directories[0];
-    const timestampStr = latestDir.replace('research-', '');
-    const timestamp = parseInt(timestampStr, 10);
-    const publishedDate = new Date(timestamp).toISOString();
 
     // Generate podcast-style content
     const { text: podcastContent } = await generateText({
@@ -790,7 +940,7 @@ Remember: Be concise. Every word counts. Cut to the essential stories and insigh
 
     return res.json({
       success: true,
-      runId: latestDir,
+      runId: runId,
       publishedDate: publishedDate,
       content: podcastContent,
       metadata: {

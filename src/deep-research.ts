@@ -811,28 +811,41 @@ You often use everyday analogies (homes, bills, shopping, relationships) or shor
       prompt: trimPrompt(
         `Write a TLDR of the story below.
 
-Requirements:
-- 3–4 short sentences max
-- Use one clear everyday analogy (for example: buying a house, paying cash, splitting a bill, avoiding fine print)
-- Include one casual, human quote if it fits (example: "Let's not overthink this")
-- Keep the tone playful but smart
-- Focus on what this says about confidence or clarity, not technical details
-- Make the reader feel calm, informed, and slightly smarter after reading
-- Do not use finance jargon, acronyms, or numbers unless absolutely necessary
-- No emojis
-- No buzzwords like "optimize," "synergies," "leveraged," "strategic"
-- End with a soft emotional takeaway (confidence, clarity, calm)
+CRITICAL FORMAT REQUIREMENT:
+- Write as 3–4 flowing sentences in paragraph form (NOT bullet points, NOT a list, NOT numbered)
+- Do NOT start with "-", "*", "•", or numbers
+- Write like you're telling a friend: "This is like when you [analogy]. [Quote if it fits]. [What it means]. [Emotional takeaway]."
 
-CARD STORY:
+Example of CORRECT format:
+"It's like buying a house with cash instead of a mortgage—you know exactly what you're getting, no surprises. As one investor put it, 'Let's not overthink this.' Netflix made a clear move that shows confidence in their strategy. You can feel calm knowing they're being straightforward about their plans."
+
+Example of WRONG format (do NOT do this):
+- It's like buying a house...
+- Netflix made a clear move...
+- You can feel calm...
+
+Requirements:
+- 3–4 short sentences as flowing paragraph text
+- Use one clear everyday analogy (buying a house, paying cash, splitting a bill, avoiding fine print)
+- Include one casual, human quote if it fits ("Let's not overthink this")
+- Keep tone playful but smart
+- Focus on confidence or clarity, not technical details
+- Make reader feel calm, informed, slightly smarter
+- No finance jargon, acronyms, or numbers unless necessary
+- No emojis
+- No buzzwords: "optimize," "synergies," "leveraged," "strategic"
+- End with soft emotional takeaway (confidence, clarity, calm)
+
+STORY TO SUMMARIZE:
 Title: ${card.title}
 Why It Matters: ${card.whyItMatters}
 Actionable Value: ${card.actionableValue}
 Related Learnings: ${card.relatedLearnings.join(', ')}
 
-Write the TLDR now:`,
+Write the TLDR now as 3-4 flowing sentences in paragraph form (no bullets, no list):`,
       ),
       schema: z.object({
-        tldr: z.string().describe('TLDR summary: 3-4 short sentences (not bullet points) with one everyday analogy, one casual quote if it fits, playful but smart tone, ending with soft emotional takeaway about confidence/clarity/calm'),
+        tldr: z.string().describe('TLDR summary: 3-4 short flowing sentences (not bullet points) with one everyday analogy and one casual quote if it fits'),
       }),
     });
     
@@ -878,7 +891,7 @@ Each card MUST follow this structure:
 ## [EMOJI] [CARD TITLE]
 
 ### TLDR
-[The TLDR for this card - use the EXACT bullet points provided below, do not modify]
+[The TLDR for this card - use the EXACT text provided below, do not modify. It's 3-4 sentences with an analogy and quote.]
 
 [Then write the deep dive content as flowing paragraphs - 4-6 paragraphs]
 
@@ -902,8 +915,10 @@ STYLE REQUIREMENTS:
 SELECTED CARDS TO WRITE (each with its own TLDR):
 ${selectedCards.map((card, i) => card ? `
 Card ${i + 1}: ${card.title}
-TLDR (use EXACTLY as provided - do not modify):
+TLDR (use EXACTLY as provided - do not modify or rewrite):
 ${cardTldrs[i] || ''}
+
+IMPORTANT: The TLDR above is already written in the correct style (3-4 sentences with analogy and quote). Use it exactly as shown - do not convert it to bullet points or rewrite it.
 
 Why It Matters: ${card.whyItMatters}
 Actionable Value: ${card.actionableValue}

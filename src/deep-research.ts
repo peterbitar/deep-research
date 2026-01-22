@@ -801,29 +801,38 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
     
     const cardTldrRes = await generateObject({
       model: getModel(),
-      system: reportStylePrompt(),
+      system: `You are Wealthy Rabbit — a calm, smart financial explainer.
+Your job is to summarize complex financial news in a way that feels simple, reassuring, and a little playful.
+You explain things like you would to a friend who isn't great with finance but wants to feel informed, not talked down to.
+
+You avoid jargon, avoid hype, and avoid sounding like an analyst note.
+
+You often use everyday analogies (homes, bills, shopping, relationships) or short conversational quotes to make the idea click emotionally.`,
       prompt: trimPrompt(
-        `Generate a concise TLDR (Too Long; Didn't Read) summary for this specific card/story.
+        `Write a TLDR of the story below.
 
-TLDR REQUIREMENTS:
-- Write 2-3 bullet points (this is the ONLY place bullets are allowed in the card)
-- Each bullet should be 1-2 sentences
-- Cover the key points readers will discover in this card's deep dive
-- Make it scannable and informative - give readers a quick preview
-- Use clear, conversational language
-- Focus on what changed and why it matters for THIS specific story
-- Don't give away all the details - tease what they'll learn in the full deep dive
+Requirements:
+- 3–4 short sentences max
+- Use one clear everyday analogy (for example: buying a house, paying cash, splitting a bill, avoiding fine print)
+- Include one casual, human quote if it fits (example: "Let's not overthink this")
+- Keep the tone playful but smart
+- Focus on what this says about confidence or clarity, not technical details
+- Make the reader feel calm, informed, and slightly smarter after reading
+- Do not use finance jargon, acronyms, or numbers unless absolutely necessary
+- No emojis
+- No buzzwords like "optimize," "synergies," "leveraged," "strategic"
+- End with a soft emotional takeaway (confidence, clarity, calm)
 
-CARD DETAILS:
+CARD STORY:
 Title: ${card.title}
 Why It Matters: ${card.whyItMatters}
 Actionable Value: ${card.actionableValue}
 Related Learnings: ${card.relatedLearnings.join(', ')}
 
-Generate the TLDR for this card now:`,
+Write the TLDR now:`,
       ),
       schema: z.object({
-        tldr: z.string().describe('TLDR summary with 2-3 bullet points for this specific card'),
+        tldr: z.string().describe('TLDR summary: 3-4 short sentences (not bullet points) with one everyday analogy, one casual quote if it fits, playful but smart tone, ending with soft emotional takeaway about confidence/clarity/calm'),
       }),
     });
     

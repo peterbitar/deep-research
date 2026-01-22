@@ -128,6 +128,12 @@ export function parseReportToCards(reportMarkdown: string): {
   while ((match = headerRegexWithHash.exec(mainContent)) !== null) {
     const emoji = match[1] && /[\p{Emoji}]/u.test(match[1]) ? match[1] : undefined;
     const title = emoji ? match[2].trim() : (match[1] || match[2]).trim();
+    
+    // Skip TLDR section - it's part of the opening, not a card
+    if (title.toUpperCase() === 'TLDR' || title.toUpperCase().includes('TLDR')) {
+      continue;
+    }
+    
     cardHeaders.push({
       index: match.index!,
       emoji,
@@ -317,18 +323,25 @@ function determineCardMetadata(title: string, content: string): {
     return { macro: 'Geopolitical' };
   }
   
-  // Check for ticker symbols (after macro checks)
-  const tickers = ['AAPL', 'APPLE', 'NVDA', 'NVIDIA', 'TSLA', 'TESLA', 'MSFT', 'MICROSOFT', 'XRP', 'BTC', 'BITCOIN', 'ETH', 'ETHEREUM'];
+  // Check for ticker symbols (after macro checks) - expanded list including NFLX
+  const tickers = ['NFLX', 'NETFLIX', 'AAPL', 'APPLE', 'NVDA', 'NVIDIA', 'TSLA', 'TESLA', 'MSFT', 'MICROSOFT', 'GOOGL', 'GOOGLE', 'AMZN', 'AMAZON', 'META', 'XRP', 'BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SOL', 'SOLANA'];
   for (const ticker of tickers) {
     if (upperTitle.includes(ticker) || upperContent.includes(ticker)) {
       // Map full names to symbols
-      if (ticker === 'APPLE') return { ticker: 'AAPL' };
-      if (ticker === 'NVIDIA') return { ticker: 'NVDA' };
-      if (ticker === 'TESLA') return { ticker: 'TSLA' };
-      if (ticker === 'MICROSOFT') return { ticker: 'MSFT' };
-      if (ticker === 'BITCOIN') return { ticker: 'BTC' };
-      if (ticker === 'ETHEREUM') return { ticker: 'ETH' };
-      return { ticker };
+      const tickerMap: Record<string, string> = {
+        'NETFLIX': 'NFLX',
+        'APPLE': 'AAPL',
+        'NVIDIA': 'NVDA',
+        'TESLA': 'TSLA',
+        'MICROSOFT': 'MSFT',
+        'GOOGLE': 'GOOGL',
+        'AMAZON': 'AMZN',
+        'BITCOIN': 'BTC',
+        'ETHEREUM': 'ETH',
+        'SOLANA': 'SOL',
+      };
+      const mappedTicker = tickerMap[ticker.toUpperCase()] || ticker.toUpperCase();
+      return { ticker: mappedTicker };
     }
   }
   if (upperTitle.includes('ECONOMIC') || upperContent.includes('GDP') || upperContent.includes('INFLATION')) {
@@ -552,7 +565,7 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
 // generate report API with cards as JSON
 app.post('/api/generate-report-json', async (req: Request, res: Response) => {
   try {
-    const { query, depth = 3, breadth = 3 } = req.body;
+    const { query, depth = 3, breadth = 3, includeMacro = true } = req.body;
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
     }
@@ -562,14 +575,34 @@ app.post('/api/generate-report-json', async (req: Request, res: Response) => {
       breadth,
       depth,
     });
-    log(`\n\nLearnings:\n\n${learnings.join('\n')}`);
+    
+    // Include macro research if requested (default: true for comprehensive reports)
+    let allLearnings = [...learnings];
+    let allUrls = [...visitedUrls];
+    
+    if (includeMacro) {
+      log('\n🌍 Including macro & liquidity scan...\n');
+      try {
+        const { scanMacro } = await import('./macro-scan');
+        const macroResult = await scanMacro(Math.min(breadth, 2), 1);
+        log(`  ✅ Macro learnings: ${macroResult.learnings.length}`);
+        log(`  ✅ Macro URLs: ${macroResult.visitedUrls.length}\n`);
+        allLearnings.push(...macroResult.learnings);
+        allUrls.push(...macroResult.visitedUrls);
+      } catch (error) {
+        log(`  ⚠️  Error in macro scan:`, error);
+        // Continue without macro if scan fails
+      }
+    }
+    
+    log(`\n\nTotal Learnings (including macro): ${allLearnings.length}\n\n${allLearnings.join('\n')}`);
     log(
-      `\n\nVisited URLs (${visitedUrls.length}):\n\n${visitedUrls.join('\n')}`,
+      `\n\nTotal Visited URLs (${allUrls.length}):\n\n${allUrls.join('\n')}`,
     );
     const reportMarkdown = await writeFinalReport({
       prompt: query,
-      learnings,
-      visitedUrls,
+      learnings: allLearnings,
+      visitedUrls: allUrls,
     });
 
     // Parse report into cards
@@ -581,7 +614,7 @@ app.post('/api/generate-report-json', async (req: Request, res: Response) => {
       try {
         await saveReport({
           runId,
-          query,
+          query: includeMacro ? `${query} (with macro scan)` : query,
           depth,
           breadth,
           reportMarkdown,

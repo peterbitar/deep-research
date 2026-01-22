@@ -147,6 +147,36 @@ npm run tsx scripts/test-full-integration.ts
 
 ---
 
+### 8. `test-all-steps.ts` ⭐ **PRE-TEST-FLIGHT VALIDATION**
+**Tests:** All steps sequentially with validation
+
+**What it does:**
+- Runs all 7 steps sequentially (Step 1-7)
+- **Validates each step before proceeding** - stops on first failure
+- Provides detailed step-by-step progress and metrics
+- Tracks costs and timing for each step
+- Generates comprehensive test report
+- **Perfect for pre-test-flight validation** - ensures all steps work before deployment
+- Exports results to Excel:
+  - Summary: Overall test results and pass/fail status
+  - Steps: Detailed breakdown of each step (status, duration, cost, metrics)
+  - Learnings: All extracted learnings
+  - Visited URLs: All URLs accessed
+  - Cost Details: Complete cost breakdown
+
+**Run:**
+```bash
+npm run tsx scripts/test-all-steps.ts
+```
+
+**Exit codes:**
+- `0` - All steps passed ✅
+- `1` - One or more steps failed ❌
+
+**Use case:** Run this before deploying to production to ensure all pipeline steps are working correctly.
+
+---
+
 ## Output Format
 
 All test scripts export results to Excel (`.xlsx`) files with:
@@ -174,6 +204,8 @@ Files are saved in the `test-results/` folder with fixed names:
 - `test-results/test-step5-process.xlsx` (always contains latest Step 5 results)
 - `test-results/test-full-integration.xlsx` (always contains latest integration test results)
 - `test-results/test-integration-report.md` (always contains latest integration test report)
+- `test-results/test-all-steps.xlsx` (always contains latest comprehensive test results)
+- `test-results/test-all-steps-report.md` (always contains latest comprehensive test report)
 
 ## Running All Tests
 
@@ -193,6 +225,14 @@ Or run just the integration test for a complete end-to-end test:
 ```bash
 npm run tsx scripts/test-full-integration.ts
 ```
+
+**For pre-test-flight validation**, run the comprehensive test:
+
+```bash
+npm run tsx scripts/test-all-steps.ts
+```
+
+This will validate all steps sequentially and exit with code 0 if all pass, or 1 if any fail.
 
 ## Requirements
 

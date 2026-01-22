@@ -789,7 +789,50 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
   log(`✅ Selected ${selectedCards.length} cards from ${cardsRes.object.potentialCards.length} potential cards`);
   log(`Selection reasoning: ${selectedCardsRes.object.reasoning}`);
 
-  // Step 3: Generate final report with selected cards
+  // Step 3: Generate TLDR for each card
+  log('📋 Generating TLDR for each card...');
+  const cardTldrs: string[] = [];
+  
+  for (let i = 0; i < selectedCards.length; i++) {
+    const card = selectedCards[i];
+    if (!card) continue;
+    
+    log(`  Generating TLDR for card ${i + 1}/${selectedCards.length}: ${card.title}`);
+    
+    const cardTldrRes = await generateObject({
+      model: getModel(),
+      system: reportStylePrompt(),
+      prompt: trimPrompt(
+        `Generate a concise TLDR (Too Long; Didn't Read) summary for this specific card/story.
+
+TLDR REQUIREMENTS:
+- Write 2-3 bullet points (this is the ONLY place bullets are allowed in the card)
+- Each bullet should be 1-2 sentences
+- Cover the key points readers will discover in this card's deep dive
+- Make it scannable and informative - give readers a quick preview
+- Use clear, conversational language
+- Focus on what changed and why it matters for THIS specific story
+- Don't give away all the details - tease what they'll learn in the full deep dive
+
+CARD DETAILS:
+Title: ${card.title}
+Why It Matters: ${card.whyItMatters}
+Actionable Value: ${card.actionableValue}
+Related Learnings: ${card.relatedLearnings.join(', ')}
+
+Generate the TLDR for this card now:`,
+      ),
+      schema: z.object({
+        tldr: z.string().describe('TLDR summary with 2-3 bullet points for this specific card'),
+      }),
+    });
+    
+    cardTldrs.push(cardTldrRes.object.tldr);
+  }
+  
+  log(`✅ Generated ${cardTldrs.length} card TLDRs`);
+
+  // Step 4: Generate final report with selected cards
   log('📝 Writing final report with selected cards...');
   const selectedLearnings = selectedCards.flatMap(card => card.relatedLearnings);
   const selectedLearningsString = learnings
@@ -805,9 +848,10 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
 
 CRITICAL STRUCTURE REQUIREMENTS:
 - Start with a warm, engaging opening (1-2 paragraphs) - write like you're catching up with a friend
-- Create ONE CARD for each selected story (group related stories together)
-- Each card MUST be written as natural, flowing paragraphs (4-6 paragraphs per card)
-- NO bullet points, NO fixed format sections, NO repetitive structure, NO formulaic writing
+- After the opening, create ONE CARD for each selected story (group related stories together)
+- Each card MUST start with its TLDR section, then the deep dive content
+- Each card MUST be written as natural, flowing paragraphs (4-6 paragraphs per card AFTER the TLDR)
+- NO bullet points in the main content, NO fixed format sections, NO repetitive structure, NO formulaic writing
 - Each card must organically answer all required questions within the narrative flow:
   * What happened (the story) - tell it like you're recounting something interesting
   * Why this matters and why it's in the news - explain it like you're helping them understand
@@ -818,6 +862,16 @@ CRITICAL STRUCTURE REQUIREMENTS:
 - Each paragraph should add new value - avoid repetition
 - Use storytelling techniques: hook them in, build intrigue, reveal insights, conclude with clarity
 - Write with warmth - like a smart friend who wants to help them understand and make better decisions
+
+CARD STRUCTURE (CRITICAL - follow this exactly):
+Each card MUST follow this structure:
+
+## [EMOJI] [CARD TITLE]
+
+### TLDR
+[The TLDR for this card - use the EXACT bullet points provided below, do not modify]
+
+[Then write the deep dive content as flowing paragraphs - 4-6 paragraphs]
 
 STYLE REQUIREMENTS:
 - Write like you're having a conversation with a smart friend - warm, engaging, natural
@@ -832,17 +886,20 @@ STYLE REQUIREMENTS:
 - End each card with clear, actionable takeaways - they should know exactly what to do with the information
 - Make it easy to understand - break down complex ideas like you're helping a friend understand
 - Be engaging - make them care about what you're saying
-- DO NOT use bullet points or section headers within cards
+- DO NOT use bullet points in the main content (only in TLDR section)
 - DO NOT repeat the same information in different ways
 - Write with warmth and intelligence - like a smart friend who wants to help you understand
 
-SELECTED CARDS TO WRITE:
-${selectedCards.map((card, i) => `
+SELECTED CARDS TO WRITE (each with its own TLDR):
+${selectedCards.map((card, i) => card ? `
 Card ${i + 1}: ${card.title}
-- Why It Matters: ${card.whyItMatters}
-- Actionable Value: ${card.actionableValue}
-- Related Learnings: ${card.relatedLearnings.join(', ')}
-`).join('\n')}
+TLDR (use EXACTLY as provided - do not modify):
+${cardTldrs[i] || ''}
+
+Why It Matters: ${card.whyItMatters}
+Actionable Value: ${card.actionableValue}
+Related Learnings: ${card.relatedLearnings.join(', ')}
+` : '').join('\n')}
 
 <prompt>${prompt}</prompt>
 
@@ -855,13 +912,98 @@ ${selectedLearningsString}
     }),
   });
 
-  // Step 4: Rewrite each card's content to be human-like and undetectable by AI tools
+  // Step 5: Ensure each card has its TLDR (fallback if model didn't include them)
+  let finalReport = res.object.reportMarkdown;
+  
+  // Check each card for TLDR and insert if missing
+  const cardHeaderRegex = /^##\s+([^\n]+)$/gm;
+  const cardMatches: Array<{ index: number; title: string }> = [];
+  let match;
+  
+  while ((match = cardHeaderRegex.exec(finalReport)) !== null) {
+    const title = match[1].trim();
+    // Skip Sources header
+    if (title.toUpperCase() !== 'SOURCES' && !title.toUpperCase().includes('TLDR')) {
+      cardMatches.push({ index: match.index!, title });
+    }
+  }
+  
+  // For each card, check if it has a TLDR section and add if missing
+  for (let i = cardMatches.length - 1; i >= 0; i--) {
+    const cardMatch = cardMatches[i];
+    if (!cardMatch) continue;
+    
+    const nextCardIndex = i < cardMatches.length - 1 && cardMatches[i + 1] ? cardMatches[i + 1].index : finalReport.length;
+    const cardContent = finalReport.substring(cardMatch.index, nextCardIndex);
+    
+    // Check if this card has a TLDR section
+    const hasCardTLDR = /###\s+TLDR/i.test(cardContent);
+    
+    const cardTldr = cardTldrs[i];
+    if (!hasCardTLDR && cardTldr) {
+      log(`⚠️  TLDR not found in card "${cardMatch.title}", adding it...`);
+      // Find where the card content starts (after the header)
+      const headerEnd = cardMatch.index + cardMatch.title.length + 4; // "## " + title + "\n"
+      const beforeContent = finalReport.substring(0, headerEnd).trim();
+      const afterContent = finalReport.substring(headerEnd);
+      
+      // Insert TLDR right after the card header
+      finalReport = `${beforeContent}\n\n### TLDR\n\n${cardTldr}\n\n${afterContent}`;
+      log(`✅ TLDR inserted for card "${cardMatch.title}"`);
+      
+      // Update indices for remaining cards
+      const tldrLength = `\n\n### TLDR\n\n${cardTldr}\n\n`.length;
+      for (let j = i + 1; j < cardMatches.length; j++) {
+        if (cardMatches[j]) {
+          cardMatches[j].index += tldrLength;
+        }
+      }
+    }
+  }
+  
+  log('✅ Verified all cards have TLDR sections');
+
+  // Step 6: Rewrite each card's content to be human-like and undetectable by AI tools
+  // Note: rewriteCardContent preserves TLDR sections (they're part of the opening of each card)
   log('✍️  Rewriting card content for human-like authenticity...');
-  const reportWithRewrittenCards = await rewriteCardContent(res.object.reportMarkdown);
+  const reportWithRewrittenCards = await rewriteCardContent(finalReport);
+  
+  // Step 7: Final check - ensure each card still has its TLDR after rewriting
+  const cardHeaderRegexFinal = /^##\s+([^\n]+)$/gm;
+  const finalCardMatches: Array<{ index: number; title: string }> = [];
+  let finalMatch;
+  
+  while ((finalMatch = cardHeaderRegexFinal.exec(reportWithRewrittenCards)) !== null) {
+    const title = finalMatch[1].trim();
+    if (title.toUpperCase() !== 'SOURCES' && !title.toUpperCase().includes('TLDR')) {
+      finalCardMatches.push({ index: finalMatch.index!, title });
+    }
+  }
+  
+  let finalReportWithTLDRs = reportWithRewrittenCards;
+  for (let i = finalCardMatches.length - 1; i >= 0; i--) {
+    const cardMatch = finalCardMatches[i];
+    if (!cardMatch) continue;
+    
+    const nextCardIndex = i < finalCardMatches.length - 1 && finalCardMatches[i + 1] ? finalCardMatches[i + 1].index : finalReportWithTLDRs.length;
+    const cardContent = finalReportWithTLDRs.substring(cardMatch.index, nextCardIndex);
+    
+    const hasCardTLDR = /###\s+TLDR/i.test(cardContent);
+    
+    const cardTldr = cardTldrs[i];
+    if (!hasCardTLDR && cardTldr) {
+      log(`⚠️  TLDR lost during rewrite for card "${cardMatch.title}", re-inserting...`);
+      const headerEnd = cardMatch.index + cardMatch.title.length + 4;
+      const before = finalReportWithTLDRs.substring(0, headerEnd).trim();
+      const after = finalReportWithTLDRs.substring(headerEnd);
+      finalReportWithTLDRs = `${before}\n\n### TLDR\n\n${cardTldr}\n\n${after}`;
+      log(`✅ TLDR re-inserted for card "${cardMatch.title}"`);
+    }
+  }
 
   // Append the visited URLs section to the report
   const urlsSection = `\n\n## Sources\n\n${visitedUrls.map(url => `- ${url}`).join('\n')}`;
-  return reportWithRewrittenCards + urlsSection;
+  return finalReportWithTLDRs + urlsSection;
 }
 
 // Helper function to rewrite each card's content to be more human-like
@@ -891,16 +1033,17 @@ export async function rewriteCardContent(reportMarkdown: string): Promise<string
     return reportMarkdown;
   }
   
-  // Extract opening (content before first card)
+  // Extract opening (content before first card) - this includes TLDR if present
   const firstCard = cardHeaders[0];
   if (!firstCard) {
     return reportMarkdown;
   }
   
+  // Opening includes everything before first card (including TLDR section)
   const opening = mainContent.substring(0, firstCard.index).trim();
   
-  // Extract each card's content
-  const cards: Array<{ header: string; content: string }> = [];
+  // Extract each card's content (including TLDR section)
+  const cards: Array<{ header: string; content: string; tldr?: string }> = [];
   for (let i = 0; i < cardHeaders.length; i++) {
     const currentCard = cardHeaders[i];
     const nextCard = i < cardHeaders.length - 1 ? cardHeaders[i + 1] : null;
@@ -909,10 +1052,26 @@ export async function rewriteCardContent(reportMarkdown: string): Promise<string
     
     const startIndex = currentCard.index + currentCard.header.length;
     const endIndex = nextCard ? nextCard.index : mainContent.length;
-    const content = mainContent.substring(startIndex, endIndex).trim();
+    const fullContent = mainContent.substring(startIndex, endIndex).trim();
+    
+    // Check if this card has a TLDR section (### TLDR)
+    const tldrMatch = fullContent.match(/^###\s+TLDR\s*\n(.*?)(?=\n\n|$)/is);
+    let tldr: string | undefined;
+    let content: string;
+    
+    if (tldrMatch) {
+      // Extract TLDR and the rest of the content
+      tldr = tldrMatch[0]; // Includes "### TLDR\n\n" and the bullet points
+      const tldrEndIndex = tldrMatch.index! + tldrMatch[0].length;
+      content = fullContent.substring(tldrEndIndex).trim();
+    } else {
+      content = fullContent;
+    }
+    
     cards.push({
       header: currentCard.header,
       content,
+      tldr,
     });
   }
   
@@ -957,7 +1116,7 @@ Return ONLY the rewritten title (3-5 words), no explanation.`,
         }),
       });
       
-      // Rewrite the content
+      // Rewrite the content (TLDR will be preserved separately)
       const rewrittenContent = await generateObject({
         model: getModel(),
         system: `You are an expert human writer and editor with 20+ years of experience.`,
@@ -1021,15 +1180,26 @@ ${card.content}`,
       const newHeader = emoji ? `## ${emoji} ${newTitle}` : `## ${newTitle}`;
       
       if (rewrittenContent?.object?.rewrittenContent) {
-        rewrittenCards.push(newHeader + '\n\n' + rewrittenContent.object.rewrittenContent);
+        // Include TLDR if it exists, then the rewritten content
+        const rewrittenContentText = rewrittenContent.object?.rewrittenContent || card.content;
+        const cardWithTLDR = card.tldr 
+          ? newHeader + '\n\n' + card.tldr + '\n\n' + rewrittenContentText
+          : newHeader + '\n\n' + rewrittenContentText;
+        rewrittenCards.push(cardWithTLDR);
       } else {
         log(`⚠️  No rewritten content returned for card "${card.header}", using original`);
-        rewrittenCards.push(newHeader + '\n\n' + card.content);
+        const cardWithTLDR = card.tldr 
+          ? newHeader + '\n\n' + card.tldr + '\n\n' + card.content
+          : newHeader + '\n\n' + card.content;
+        rewrittenCards.push(cardWithTLDR);
       }
     } catch (error) {
       log(`⚠️  Error rewriting card "${card.header}", using original content:`, error);
       // Fall back to original header and content if rewriting fails
-      rewrittenCards.push(card.header + '\n\n' + card.content);
+      const cardWithTLDR = card.tldr 
+        ? card.header + '\n\n' + card.tldr + '\n\n' + card.content
+        : card.header + '\n\n' + card.content;
+      rewrittenCards.push(cardWithTLDR);
     }
   }
   

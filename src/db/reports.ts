@@ -62,11 +62,56 @@ export async function saveReport(data: ReportData): Promise<void> {
     await client.query('DELETE FROM report_cards WHERE run_id = $1', [data.runId]);
     await client.query('DELETE FROM report_sources WHERE run_id = $1', [data.runId]);
 
+    // Extract ticker from query if it mentions a company/stock
+    const queryUpper = data.query.toUpperCase();
+    const queryTicker = queryUpper.match(/\b(NFLX|NETFLIX|AAPL|APPLE|NVDA|NVIDIA|TSLA|TESLA|MSFT|MICROSOFT|GOOGL|GOOGLE|AMZN|AMAZON|META|XRP|BTC|BITCOIN|ETH|ETHEREUM|SOL|SOLANA)\b/i)?.[0];
+    let defaultTicker: string | null = null;
+    if (queryTicker) {
+      // Map full names to symbols
+      const tickerMap: Record<string, string> = {
+        'NETFLIX': 'NFLX',
+        'APPLE': 'AAPL',
+        'NVIDIA': 'NVDA',
+        'TESLA': 'TSLA',
+        'MICROSOFT': 'MSFT',
+        'GOOGLE': 'GOOGL',
+        'AMAZON': 'AMZN',
+        'BITCOIN': 'BTC',
+        'ETHEREUM': 'ETH',
+        'SOLANA': 'SOL',
+      };
+      defaultTicker = tickerMap[queryTicker.toUpperCase()] || queryTicker.toUpperCase();
+    }
+
     // Save cards
     for (let i = 0; i < parsed.cards.length; i++) {
       const card = parsed.cards[i];
-      // Determine ticker/macro from card title/content (simple detection)
-      const ticker = card.title.match(/\b(AAPL|NVDA|TSLA|MSFT|GOOGL|XRP|BTC|ETH)\b/i)?.[0]?.toUpperCase() || null;
+      // Determine ticker/macro from card title/content, fallback to query ticker
+      const cardTitleUpper = card.title.toUpperCase();
+      const cardContentUpper = card.content.toUpperCase();
+      
+      // Check for ticker in card (expanded list including NFLX)
+      const cardTickerMatch = cardTitleUpper.match(/\b(NFLX|NETFLIX|AAPL|APPLE|NVDA|NVIDIA|TSLA|TESLA|MSFT|MICROSOFT|GOOGL|GOOGLE|AMZN|AMAZON|META|XRP|BTC|BITCOIN|ETH|ETHEREUM|SOL|SOLANA)\b/i)?.[0];
+      let ticker: string | null = null;
+      if (cardTickerMatch) {
+        const tickerMap: Record<string, string> = {
+          'NETFLIX': 'NFLX',
+          'APPLE': 'AAPL',
+          'NVIDIA': 'NVDA',
+          'TESLA': 'TSLA',
+          'MICROSOFT': 'MSFT',
+          'GOOGLE': 'GOOGL',
+          'AMAZON': 'AMZN',
+          'BITCOIN': 'BTC',
+          'ETHEREUM': 'ETH',
+          'SOLANA': 'SOL',
+        };
+        ticker = tickerMap[cardTickerMatch.toUpperCase()] || cardTickerMatch.toUpperCase();
+      } else if (defaultTicker) {
+        // Fallback to query ticker if card doesn't have explicit ticker
+        ticker = defaultTicker;
+      }
+      
       const macro = card.title.match(/\b(Fed|ECB|Central Bank|Economic|Geopolitical)\b/i)?.[0] || null;
 
       await client.query(

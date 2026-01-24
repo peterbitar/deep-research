@@ -5,7 +5,7 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "tsx": "tsx --env-file=.env.local",
-    "start": "tsx src/api.ts",
+    "start": "tsx scripts/start.ts",
     "start:api": "tsx src/api.ts",
     "wealthy-rabbit": "tsx --env-file=.env.local src/run-wealthy-rabbit.ts",
     "holdings-macro-to-db": "tsx --env-file=.env.local scripts/run-holdings-macro-to-db.ts",

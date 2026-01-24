@@ -41,34 +41,11 @@ async function runCommand(command: string, description: string): Promise<void> {
   }
 }
 
-// Convert Railway internal hostname to public hostname if running locally
-function getPublicDatabaseUrl(): string | undefined {
-  const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) return undefined;
-  
-  // If running locally and using Railway internal hostname, convert to public
-  // Railway internal: postgres-4cvn.railway.internal
-  // Railway public: containers-us-west-xxx.railway.app (or similar)
-  if (dbUrl.includes('.railway.internal')) {
-    console.warn('⚠️  Detected Railway internal hostname. This only works inside Railway network.');
-    console.warn('   For local runs, use the public connection string from Railway dashboard.');
-    console.warn('   Go to: Railway → Postgres → Connect → Public Network → Copy connection string');
-    throw new Error(
-      'DATABASE_URL uses Railway internal hostname. ' +
-      'For local runs, use the public connection string from Railway dashboard. ' +
-      'Or run this via Railway Cron (which will use the internal hostname automatically).'
-    );
-  }
-  
-  return dbUrl;
-}
-
 async function main() {
   console.log('\n📋 Full Pipeline Runner');
   console.log('This will run: research-only → generate-report → rewrite-report\n');
   
-  const dbUrl = getPublicDatabaseUrl();
-  if (!dbUrl) {
+  if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required. Set it in Railway environment variables or .env.local');
   }
 

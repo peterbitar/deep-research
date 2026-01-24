@@ -31,13 +31,22 @@ async function main() {
   // Get runId (use provided or latest)
   let targetRunId = runId;
   if (!targetRunId) {
+    // Look for latest completed research run (research-only sets status to 'completed')
     const result = await pool.query(
-      `SELECT run_id FROM research_runs WHERE status = 'researching' ORDER BY created_at DESC LIMIT 1`
+      `SELECT run_id FROM research_runs WHERE status = 'completed' ORDER BY created_at DESC LIMIT 1`
     );
     if (result.rows.length === 0) {
-      throw new Error('No research run found. Run "npm run research-only" first.');
+      // Fallback: try 'researching' status in case research-only hasn't finished yet
+      const fallbackResult = await pool.query(
+        `SELECT run_id FROM research_runs WHERE status = 'researching' ORDER BY created_at DESC LIMIT 1`
+      );
+      if (fallbackResult.rows.length === 0) {
+        throw new Error('No research run found. Run "npm run research-only" first.');
+      }
+      targetRunId = fallbackResult.rows[0].run_id;
+    } else {
+      targetRunId = result.rows[0].run_id;
     }
-    targetRunId = result.rows[0].run_id;
     console.log(`📊 Using latest research run: ${targetRunId}\n`);
   } else {
     console.log(`📊 Using run ID: ${targetRunId}\n`);

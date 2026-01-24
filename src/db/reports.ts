@@ -1,6 +1,6 @@
 // Database functions for reports and cards
 import { pool } from './client';
-import { parseReportToCards } from '../api';
+import { parseReportToCards } from '../report-parser';
 
 export interface ReportCard {
   title: string;
@@ -92,8 +92,13 @@ export async function saveReport(data: ReportData): Promise<void> {
       
       // Check for ticker in card (expanded list including NFLX)
       const cardTickerMatch = cardTitleUpper.match(/\b(NFLX|NETFLIX|AAPL|APPLE|NVDA|NVIDIA|TSLA|TESLA|MSFT|MICROSOFT|GOOGL|GOOGLE|AMZN|AMAZON|META|XRP|BTC|BITCOIN|ETH|ETHEREUM|SOL|SOLANA)\b/i)?.[0];
+      
+      // Check if this is a macro card BEFORE assigning ticker
+      const macro = card.title.match(/\b(Fed|ECB|Central Bank|Economic|Geopolitical)\b/i)?.[0] || null;
+      
       let ticker: string | null = null;
       if (cardTickerMatch) {
+        // Card explicitly mentions a ticker - use it
         const tickerMap: Record<string, string> = {
           'NETFLIX': 'NFLX',
           'APPLE': 'AAPL',
@@ -107,12 +112,11 @@ export async function saveReport(data: ReportData): Promise<void> {
           'SOLANA': 'SOL',
         };
         ticker = tickerMap[cardTickerMatch.toUpperCase()] || cardTickerMatch.toUpperCase();
-      } else if (defaultTicker) {
-        // Fallback to query ticker if card doesn't have explicit ticker
+      } else if (defaultTicker && !macro) {
+        // Fallback to query ticker ONLY if this is NOT a macro card
+        // Macro cards should never inherit portfolio tickers
         ticker = defaultTicker;
       }
-      
-      const macro = card.title.match(/\b(Fed|ECB|Central Bank|Economic|Geopolitical)\b/i)?.[0] || null;
 
       await client.query(
         `INSERT INTO report_cards (run_id, title, content, emoji, ticker, macro, card_order)
@@ -238,4 +242,84 @@ async function getLatestRunId(): Promise<string | null> {
   );
 
   return result.rows.length > 0 ? result.rows[0].run_id : null;
+}
+
+/**
+ * Save research learnings to database (intermediate step)
+ */
+export async function saveLearnings(
+  runId: string,
+  learnings: string[],
+  urls: string[]
+): Promise<void> {
+  if (!pool) {
+    throw new Error('Database not configured');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Create research run if it doesn't exist
+    await client.query(
+      `INSERT INTO research_runs (run_id, query, depth, breadth, status)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (run_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
+      [runId, 'Research in progress', 0, 0, 'researching']
+    );
+
+    // Delete existing learnings for this run
+    await client.query('DELETE FROM research_learnings WHERE run_id = $1', [runId]);
+
+    // Save learnings (URLs are stored separately in report_sources, so we don't need to link them 1:1)
+    for (let i = 0; i < learnings.length; i++) {
+      await client.query(
+        `INSERT INTO research_learnings (run_id, learning, learning_order, source_url)
+         VALUES ($1, $2, $3, $4)`,
+        [runId, learnings[i], i, null] // URLs are stored separately, not per-learning
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Get research learnings from database
+ */
+export async function getLearnings(runId: string): Promise<{
+  learnings: string[];
+  urls: string[];
+} | null> {
+  if (!pool) return null;
+
+  // Get learnings
+  const learningsResult = await pool.query(
+    `SELECT learning
+     FROM research_learnings
+     WHERE run_id = $1
+     ORDER BY learning_order`,
+    [runId]
+  );
+
+  if (learningsResult.rows.length === 0) return null;
+
+  // Get URLs from report_sources
+  const urlsResult = await pool.query(
+    `SELECT source_url
+     FROM report_sources
+     WHERE run_id = $1
+     ORDER BY source_order`,
+    [runId]
+  );
+
+  return {
+    learnings: learningsResult.rows.map(row => row.learning),
+    urls: urlsResult.rows.map(row => row.source_url),
+  };
 }

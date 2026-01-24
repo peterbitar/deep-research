@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS report_sources (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Research Learnings table (intermediate storage for research results)
+CREATE TABLE IF NOT EXISTS research_learnings (
+    id SERIAL PRIMARY KEY,
+    run_id VARCHAR(255) NOT NULL REFERENCES research_runs(run_id) ON DELETE CASCADE,
+    learning TEXT NOT NULL,
+    learning_order INTEGER NOT NULL,
+    source_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Chat Sessions table
 CREATE TABLE IF NOT EXISTS chat_sessions (
     id SERIAL PRIMARY KEY,
@@ -75,3 +85,4 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_session_id ON chat_sessions(session
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_last_accessed ON chat_sessions(last_accessed);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_research_learnings_run_id ON research_learnings(run_id);

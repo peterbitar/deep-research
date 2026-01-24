@@ -56,7 +56,6 @@ ${queries.map(q => `- ${q.researchGoal}`).join('\n')}
     try {
       const searchResult = await retryFirecrawlSearch(
         () => firecrawl.search(serpQuery.query, {
-          timeout: 15000,
           limit: 30,
         }),
         serpQuery.query

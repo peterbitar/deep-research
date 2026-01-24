@@ -11,6 +11,9 @@ import { pool, testConnection, initializeSchema } from './db/client';
 import { saveReport, getLatestReport, getReportCards } from './db/reports';
 import { saveChatSession, getChatSession, cleanupOldChatSessions } from './db/chat';
 import { fetchUserHoldings } from './fetch-holdings';
+import { parseReportToCards } from './report-parser';
+
+export { parseReportToCards };
 
 const app = express();
 const port = process.env.PORT || 3051;
@@ -87,99 +90,6 @@ app.post('/api/research', async (req: Request, res: Response) => {
   }
 });
 
-// Helper function to parse markdown report into cards
-export function parseReportToCards(reportMarkdown: string): {
-  opening: string;
-  cards: Array<{ title: string; content: string; emoji?: string }>;
-  sources: string[];
-} {
-  // Split by card headers (## followed by optional emoji and title)
-  const sourcesRegex = /^##\s+Sources\s*$/m;
-  
-  // Find sources section
-  const sourcesMatch = reportMarkdown.match(sourcesRegex);
-  const sourcesIndex = sourcesMatch ? sourcesMatch.index! : reportMarkdown.length;
-  
-  // Split into main content and sources
-  const mainContent = reportMarkdown.substring(0, sourcesIndex).trim();
-  const sourcesSection = sourcesMatch 
-    ? reportMarkdown.substring(sourcesIndex).trim()
-    : '';
-  
-  // Extract sources list
-  const sources: string[] = [];
-  if (sourcesSection) {
-    const sourceLines = sourcesSection.split('\n').slice(1); // Skip "## Sources" header
-    for (const line of sourceLines) {
-      const match = line.match(/^-\s*(.+)$/);
-      if (match) {
-        sources.push(match[1].trim());
-      }
-    }
-  }
-  
-  // Find all card headers
-  // Cards can be either: "## [EMOJI] Title" or "[EMOJI] Title" (without ##)
-  const cardHeaders: Array<{ index: number; emoji?: string; title: string }> = [];
-  let match;
-  
-  // Try pattern with ## first
-  const headerRegexWithHash = /^##\s*([^\s]+)?\s*(.+)$/gm;
-  while ((match = headerRegexWithHash.exec(mainContent)) !== null) {
-    const emoji = match[1] && /[\p{Emoji}]/u.test(match[1]) ? match[1] : undefined;
-    const title = emoji ? match[2].trim() : (match[1] || match[2]).trim();
-    
-    // Skip TLDR section - it's part of the opening, not a card
-    if (title.toUpperCase() === 'TLDR' || title.toUpperCase().includes('TLDR')) {
-      continue;
-    }
-    
-    cardHeaders.push({
-      index: match.index!,
-      emoji,
-      title,
-    });
-  }
-  
-  // If no headers found with ##, try pattern without ## (emoji at start of line)
-  if (cardHeaders.length === 0) {
-    const headerRegexWithoutHash = /^([\p{Emoji}])\s+(.+)$/gmu;
-    while ((match = headerRegexWithoutHash.exec(mainContent)) !== null) {
-      cardHeaders.push({
-        index: match.index!,
-        emoji: match[1],
-        title: match[2].trim(),
-      });
-    }
-  }
-  
-  // Extract opening (everything before first card)
-  const opening = cardHeaders.length > 0
-    ? mainContent.substring(0, cardHeaders[0].index).trim()
-    : mainContent.trim();
-  
-  // Extract cards
-  const cards: Array<{ title: string; content: string; emoji?: string }> = [];
-  for (let i = 0; i < cardHeaders.length; i++) {
-    const startIndex = cardHeaders[i].index;
-    const endIndex = i < cardHeaders.length - 1
-      ? cardHeaders[i + 1].index
-      : mainContent.length;
-    
-    const cardContent = mainContent.substring(startIndex, endIndex).trim();
-    // Remove the header line from content
-    const contentLines = cardContent.split('\n');
-    const content = contentLines.slice(1).join('\n').trim();
-    
-    cards.push({
-      title: cardHeaders[i].title,
-      content,
-      emoji: cardHeaders[i].emoji,
-    });
-  }
-  
-  return { opening, cards, sources };
-}
 
 // generate report API (returns markdown)
 app.post('/api/generate-report', async (req: Request, res: Response) => {

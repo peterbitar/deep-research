@@ -234,6 +234,37 @@ npm run tsx scripts/test-all-steps.ts
 
 This will validate all steps sequentially and exit with code 0 if all pass, or 1 if any fail.
 
+## Production pipeline: holdings + macro → DB
+
+### `run-holdings-macro-to-db.ts`
+
+Runs the full **holdings + macro** research pipeline and writes **only to the database** (no local files).
+
+**Flow:**
+
+1. Fetch all users from the holdings API (`MAIN_BACKEND_URL` / `HOLDINGS_API_BASE_URL`).
+2. Fetch holdings per user and **deduplicate by symbol**.
+3. Research each holding (`deepResearch`) + macro scan (Central Bank Policy).
+4. Generate the final report and save to DB: `research_runs`, `reports`, `report_cards`, `report_sources`.
+
+**Requires:**
+
+- `DATABASE_URL` (e.g. Railway Postgres).
+- `MAIN_BACKEND_URL` or `HOLDINGS_API_BASE_URL` (defaults to production Railway; **must not be local**).
+- `FIRECRAWL_KEY`, and `OPENAI_KEY` or `FIREWORKS_KEY`.
+
+**Run:**
+
+```bash
+npm run holdings-macro-to-db
+# or
+npx tsx --env-file=.env.local scripts/run-holdings-macro-to-db.ts
+```
+
+The app serves the latest run via `/api/report/cards`.
+
+---
+
 ## Requirements
 
 - `.env.local` file with:

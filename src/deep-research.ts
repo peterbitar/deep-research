@@ -292,23 +292,103 @@ export async function triageTitlesBatched({
   }
   const uniqueResults = Array.from(urlMap.values());
 
-  const titlesList = uniqueResults
-    .map((r, i) => {
-      const title = r.title || 'No title';
-      const desc = r.description || r.snippet || 'No description';
-      const dateInfo = r.publishedDate ? `\n   Published Date: ${r.publishedDate}` : '';
-      return `${i + 1}. Title: ${title}\n   Description: ${desc}\n   URL: ${r.url}${dateInfo}`;
-    })
-    .join('\n\n');
-
   const researchGoalsText = researchGoals.length > 0 
     ? `\n\nResearch Goals:\n${researchGoals.map((goal, i) => `${i + 1}. ${goal}`).join('\n')}`
     : '';
 
-  const res = await generateObject({
-    model: getModel(),
-    system: systemPrompt(),
-    prompt: `Given the research query "${query}"${researchGoalsText}, analyze these article titles and descriptions and select ALL articles that are relevant and important. DO NOT limit by count - select all that meet the criteria.
+  // Batch processing: process articles in smaller groups to avoid timeouts
+  const TRIAGE_BATCH_SIZE = 30; // Process 30 articles at a time for triage
+  const allSelectedUrls: string[] = [];
+  
+  // If we have many articles, process in batches
+  if (uniqueResults.length > TRIAGE_BATCH_SIZE) {
+    log(`📦 Triage: Processing ${uniqueResults.length} articles in batches of ${TRIAGE_BATCH_SIZE}...`);
+    const batches: typeof uniqueResults[] = [];
+    for (let i = 0; i < uniqueResults.length; i += TRIAGE_BATCH_SIZE) {
+      batches.push(uniqueResults.slice(i, i + TRIAGE_BATCH_SIZE));
+    }
+    
+    for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+      const batch = batches[batchIdx];
+      log(`  Processing triage batch ${batchIdx + 1}/${batches.length} (${batch.length} articles)...`);
+      
+      const titlesList = batch
+        .map((r, i) => {
+          const title = r.title || 'No title';
+          const desc = r.description || r.snippet || 'No description';
+          const dateInfo = r.publishedDate ? `\n   Published Date: ${r.publishedDate}` : '';
+          return `${i + 1}. Title: ${title}\n   Description: ${desc}\n   URL: ${r.url}${dateInfo}`;
+        })
+        .join('\n\n');
+      
+      const batchRes = await generateObject({
+        model: getModel(),
+        system: systemPrompt(),
+        prompt: `Given the research query "${query}"${researchGoalsText}, analyze these article titles and descriptions and select ALL articles that are relevant and important. DO NOT limit by count - select all that meet the criteria.
+
+CRITICAL: These articles come from MULTIPLE search queries. You may see the same story covered by different sources. Focus on selecting ALL relevant articles - we will deduplicate and pick best sources later.
+
+CRITICAL SELECTION CRITERIA (select ALL articles that meet these):
+1. SOURCE QUALITY (MOST IMPORTANT):
+   - STRONGLY PREFER Tier 1 sources: Reuters, Bloomberg, Financial Times, WSJ, SEC filings, EIA data, OPEC statements
+   - REJECT Tier 3 sources: consulting blogs (BrightPath), aggregators (MarketMinute, FinancialContent), generic outlooks
+   - If you see URLs with "marketminute", "financialcontent", "brightpath", "consulting" - REJECT them (not relevant/important)
+   - Only include Tier 3 if they contain critical information not available elsewhere
+
+2. RECENCY:
+   - Prioritize articles about events in the LAST 7 DAYS
+   - IMPORTANT: The search queries already filtered for recent content (last 7 days). If an article doesn't have an explicit date, assume it's recent and include it if it's relevant.
+   - Only REJECT articles if you can CLEARLY see a date that's outside the 7-day window (e.g., "2017", "2024" when we're in 2026, or explicit dates more than 7 days ago)
+   - REJECT articles that are just "2025 outlook" or "2030 projections" without recent news
+   - If date is ambiguous or missing, err on the side of inclusion if the article is relevant and from a Tier 1 source
+
+3. CONTENT RELEVANCE AND IMPORTANCE:
+   - Select articles with strategic implications and directional indicators
+   - Select articles with shocking/first-time developments ("for the first time ever", "unprecedented", "historic reversal")
+   - Select articles that reveal company power/position (not just news events)
+   - Select articles with competitive dynamics and market positioning insights
+   - Select articles with regulatory/political impacts that show company strength
+   - REJECT articles that are clearly not relevant to the query
+   - REJECT articles that are not important (trivial news, noise)
+
+4. FOR COMMODITIES/ENERGY:
+   - Select articles with actual price data, supply/demand numbers, inventory levels
+   - Select articles with OPEC statements, EIA data, actual market fundamentals
+
+IMPORTANT: Select ALL articles that are relevant and important. Do not limit by count. If 8 out of 10 are relevant, select all 8. Only reject articles that are clearly not relevant or not important.
+
+Article Titles and Descriptions (${batch.length} articles):
+${titlesList}`,
+        schema: z.object({
+          selectedUrls: z.array(z.string()).describe('URLs of ALL relevant and important articles (no limit on count)'),
+          reasoning: z.string().describe('Brief explanation of why these articles were selected and why others were rejected'),
+        }),
+      });
+      
+      allSelectedUrls.push(...batchRes.object.selectedUrls);
+      log(`    ✅ Batch ${batchIdx + 1} complete: ${batchRes.object.selectedUrls.length} selected`);
+    }
+    
+    // Deduplicate URLs (in case same URL selected in multiple batches)
+    const uniqueSelectedUrls = Array.from(new Set(allSelectedUrls));
+    log(`✅ Triage complete: ${uniqueSelectedUrls.length} unique articles selected from ${uniqueResults.length} total (${results.length} before dedup)`);
+    
+    return uniqueSelectedUrls;
+  } else {
+    // Small batch - process all at once (original behavior)
+    const titlesList = uniqueResults
+      .map((r, i) => {
+        const title = r.title || 'No title';
+        const desc = r.description || r.snippet || 'No description';
+        const dateInfo = r.publishedDate ? `\n   Published Date: ${r.publishedDate}` : '';
+        return `${i + 1}. Title: ${title}\n   Description: ${desc}\n   URL: ${r.url}${dateInfo}`;
+      })
+      .join('\n\n');
+
+    const res = await generateObject({
+      model: getModel(),
+      system: systemPrompt(),
+      prompt: `Given the research query "${query}"${researchGoalsText}, analyze these article titles and descriptions and select ALL articles that are relevant and important. DO NOT limit by count - select all that meet the criteria.
 
 CRITICAL: These articles come from MULTIPLE search queries. You may see the same story covered by different sources. Focus on selecting ALL relevant articles - we will deduplicate and pick best sources later.
 
@@ -343,16 +423,17 @@ IMPORTANT: Select ALL articles that are relevant and important. Do not limit by 
 
 Article Titles and Descriptions (${uniqueResults.length} unique articles):
 ${titlesList}`,
-    schema: z.object({
-      selectedUrls: z.array(z.string()).describe('URLs of ALL relevant and important articles (no limit on count)'),
-      reasoning: z.string().describe('Brief explanation of why these articles were selected and why others were rejected'),
-    }),
-  });
+      schema: z.object({
+        selectedUrls: z.array(z.string()).describe('URLs of ALL relevant and important articles (no limit on count)'),
+        reasoning: z.string().describe('Brief explanation of why these articles were selected and why others were rejected'),
+      }),
+    });
 
-  log(`Batched Triage: Selected ${res.object.selectedUrls.length} articles from ${uniqueResults.length} unique results (${results.length} total before dedup)`);
-  log(`Triage reasoning: ${res.object.reasoning}`);
+    log(`Batched Triage: Selected ${res.object.selectedUrls.length} articles from ${uniqueResults.length} unique results (${results.length} total before dedup)`);
+    log(`Triage reasoning: ${res.object.reasoning}`);
 
-  return res.object.selectedUrls;
+    return res.object.selectedUrls;
+  }
 }
 
 // Smart filter: Determine which articles need scraping vs metadata-only, group duplicates
@@ -622,12 +703,105 @@ export async function processSerpResult({
   const isCommodityQuery = /\b(oil|energy|gas|crude|commodit|natural gas|LNG|petroleum|OPEC|WTI|Brent)\b/i.test(query);
   const isCompanyQuery = /\b(NVIDIA|AAPL|MSFT|GOOGL|JPM|XOM|Exxon|company|earnings|stock)\b/i.test(query);
   
-  const res = await generateObject({
-    model: getModel(),
-    abortSignal: AbortSignal.timeout(60_000),
-    system: systemPrompt(),
-    prompt: trimPrompt(
-      `Given the following contents from a SERP search for the query <query>${query}</query>, generate a list of learnings from the contents. Return a maximum of ${numLearnings} learnings, but feel free to return less if the contents are clear. Make sure each learning is unique and not similar to each other. The learnings should be concise and to the point, as detailed and information dense as possible. Make sure to include any entities like people, places, companies, products, things, etc in the learnings, as well as any exact metrics, numbers, or dates.
+  // Batch processing: process articles in smaller groups to avoid timeouts
+  const BATCH_SIZE = 8; // Process 8 articles at a time
+  const allBatchLearnings: string[] = [];
+  const allFollowUpQuestions: string[] = [];
+  
+  // If we have many articles, process in batches
+  if (contents.length > BATCH_SIZE) {
+    log(`📦 Processing ${contents.length} articles in batches of ${BATCH_SIZE}...`);
+    const batches: string[][] = [];
+    for (let i = 0; i < contents.length; i += BATCH_SIZE) {
+      batches.push(contents.slice(i, i + BATCH_SIZE));
+    }
+    
+    for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+      const batch = batches[batchIdx];
+      log(`  Processing batch ${batchIdx + 1}/${batches.length} (${batch.length} articles)...`);
+      
+      const batchRes = await generateObject({
+        model: getModel(),
+        system: systemPrompt(),
+        prompt: trimPrompt(
+          `Given the following contents from a SERP search for the query <query>${query}</query>, generate a list of learnings from the contents. Return a maximum of ${numLearnings} learnings, but feel free to return less if the contents are clear. Make sure each learning is unique and not similar to each other. The learnings should be concise and to the point, as detailed and information dense as possible. Make sure to include any entities like people, places, companies, products, things, etc in the learnings, as well as any exact metrics, numbers, or dates.
+
+CRITICAL REQUIREMENTS:
+1. TIME FRAME: Only extract learnings about events/developments from the LAST 7 DAYS. If content discusses long-term trends (2025 outlooks, 2030 projections) without a specific recent event, flag it as "LONG-TERM TREND" or "CONTEXT", not as a recent change.
+
+2. SIGNAL vs NOISE: Distinguish between:
+   - SIGNAL: Actual recent change that affects value/risk (published in last 7 days)
+   - NOISE: Ongoing trends, background context, speculation
+   - Flag each learning type: "RECENT CHANGE" vs "LONG-TERM TREND" vs "CONTEXT"
+
+3. ${isCommodityQuery ? `FOR COMMODITIES/ENERGY: You MUST capture:
+   - Current price levels and recent movements (actual numbers, not just "prices rose")
+   - Supply vs demand balance (is supply exceeding demand?)
+   - Inventory levels (rising/falling?)
+   - OPEC/producer behavior (what are they doing?)
+   - Price reactions (why are prices reacting or NOT reacting?)` : ''}
+
+4. ${isCompanyQuery ? `FOR COMPANIES: You MUST capture:
+   - Holdings-level impact (what does this mean for holders of this company?)
+   - Bullish/neutral/bearish implications
+   - Near-term vs long-term impact
+   - Risk implications (does this raise or lower risk?)` : ''}
+
+5. WHAT DIDN'T CHANGE: For each major learning, also note:
+   - What remains stable (what didn't change)
+   - Core fundamentals that are intact
+   - Is this a turning point or just evolution?
+
+6. ECONOMIC FUNDAMENTALS (prioritize these over tech buzzwords):
+   - Margins, cash flow, capital returns
+   - Cost curves, break-even prices
+   - Capital allocation decisions
+   - Dividend sustainability
+   - Real economic impact on business
+   - AVOID over-weighting: AI, IoT, digitalization (unless directly impacts economics)
+
+IMPORTANT: When extracting learnings about companies, focus on:
+- Strategic implications and what events reveal about company power/position
+- Directional indicators (where is the company heading?)
+- Competitive dynamics and market leverage (e.g., if a company can require upfront payments despite regulatory pressure, that shows power)
+- What the events tell us about the company's direction and competitive position, not just what happened
+
+The learnings will be used to research the topic further.\n\n<contents>${batch
+            .map(content => `<content>\n${content}\n</content>`)
+            .join('\n')}</contents>`,
+        ),
+        schema: z.object({
+          learnings: z.array(z.string()).describe(`List of learnings, max of ${numLearnings}. Each should be prefixed with [RECENT CHANGE], [LONG-TERM TREND], or [CONTEXT]`),
+          followUpQuestions: z
+            .array(z.string())
+            .describe(
+              `List of follow-up questions to research the topic further, max of ${numFollowUpQuestions}`,
+            ),
+        }),
+      });
+      
+      allBatchLearnings.push(...batchRes.object.learnings);
+      allFollowUpQuestions.push(...batchRes.object.followUpQuestions);
+      log(`    ✅ Batch ${batchIdx + 1} complete: ${batchRes.object.learnings.length} learnings`);
+    }
+    
+    // Deduplicate learnings (keep unique ones)
+    const uniqueLearnings = Array.from(new Set(allBatchLearnings));
+    const uniqueFollowUpQuestions = Array.from(new Set(allFollowUpQuestions));
+    
+    log(`✅ Processed all batches: ${uniqueLearnings.length} unique learnings from ${contents.length} articles`);
+    
+    return {
+      learnings: uniqueLearnings,
+      followUpQuestions: uniqueFollowUpQuestions.slice(0, numFollowUpQuestions),
+    };
+  } else {
+    // Small batch - process all at once (original behavior)
+    const res = await generateObject({
+      model: getModel(),
+      system: systemPrompt(),
+      prompt: trimPrompt(
+        `Given the following contents from a SERP search for the query <query>${query}</query>, generate a list of learnings from the contents. Return a maximum of ${numLearnings} learnings, but feel free to return less if the contents are clear. Make sure each learning is unique and not similar to each other. The learnings should be concise and to the point, as detailed and information dense as possible. Make sure to include any entities like people, places, companies, products, things, etc in the learnings, as well as any exact metrics, numbers, or dates.
 
 CRITICAL REQUIREMENTS:
 1. TIME FRAME: Only extract learnings about events/developments from the LAST 7 DAYS. If content discusses long-term trends (2025 outlooks, 2030 projections) without a specific recent event, flag it as "LONG-TERM TREND" or "CONTEXT", not as a recent change.
@@ -672,29 +846,32 @@ IMPORTANT: When extracting learnings about companies, focus on:
 The learnings will be used to research the topic further.\n\n<contents>${contents
         .map(content => `<content>\n${content}\n</content>`)
         .join('\n')}</contents>`,
-    ),
-    schema: z.object({
-      learnings: z.array(z.string()).describe(`List of learnings, max of ${numLearnings}. Each should be prefixed with [RECENT CHANGE], [LONG-TERM TREND], or [CONTEXT]`),
-      followUpQuestions: z
-        .array(z.string())
-        .describe(
-          `List of follow-up questions to research the topic further, max of ${numFollowUpQuestions}`,
-        ),
-    }),
-  });
-  log(`Created ${res.object.learnings.length} learnings`, res.object.learnings);
+      ),
+      schema: z.object({
+        learnings: z.array(z.string()).describe(`List of learnings, max of ${numLearnings}. Each should be prefixed with [RECENT CHANGE], [LONG-TERM TREND], or [CONTEXT]`),
+        followUpQuestions: z
+          .array(z.string())
+          .describe(
+            `List of follow-up questions to research the topic further, max of ${numFollowUpQuestions}`,
+          ),
+      }),
+    });
+    log(`Created ${res.object.learnings.length} learnings`, res.object.learnings);
 
-  return res.object;
+    return res.object;
+  }
 }
 
 export async function writeFinalReport({
   prompt,
   learnings,
   visitedUrls,
+  skipRewrite = false,
 }: {
   prompt: string;
   learnings: string[];
   visitedUrls: string[];
+  skipRewrite?: boolean;
 }) {
   const learningsString = learnings
     .map(learning => `<learning>\n${learning}\n</learning>`)
@@ -709,10 +886,28 @@ export async function writeFinalReport({
       `Analyze the learnings below and identify distinct stories/developments that should become cards.
 
 For each potential card, provide:
-1. A brief title (3-5 words)
+1. A title: ONE short, message-style sentence (9-14 words) that explains why this story is interesting
 2. Which learnings it covers
 3. Why it matters (impact/importance)
 4. Whether it provides actionable value
+
+TITLE REQUIREMENTS (MAGIC FORMULA - MANDATORY):
+- Follow this formula: What they did + Why they did it + Why it matters
+- MUST be 9–14 words (no exceptions)
+- One sentence only
+- Casual, conversational tone (like a text message)
+- Not a headline, not a summary
+
+TITLE STYLE RULES:
+- No jargon or acronyms
+- No corporate or analyst language
+- Verbs over abstract nouns
+- Calm, confident, human
+
+CRITICAL: The title MUST be a complete sentence that tells a story, not just a phrase. Examples:
+- GOOD: "Netflix switched to all-cash offer to speed up the deal and avoid regulatory delays" (14 words) ✓
+- BAD: "Netflix Update" (2 words) ✗
+- BAD: "Merger Deal" (2 words) ✗
 
 Group related stories together - they should be in the same card.
 
@@ -731,7 +926,7 @@ ${learningsString}
     schema: z.object({
       potentialCards: z.array(
         z.object({
-          title: z.string().describe('Card title (3-5 words)'),
+          title: z.string().describe('Card title: ONE short, message-style sentence (9-14 words) following the magic formula: what they did + why they did it + why it matters'),
           relatedLearnings: z.array(z.string()).describe('Which learnings this card covers'),
           whyItMatters: z.string().describe('Why this story is important and impactful'),
           actionableValue: z.string().describe('What actionable insights this provides'),
@@ -790,140 +985,97 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
   log(`Selection reasoning: ${selectedCardsRes.object.reasoning}`);
 
   // Step 3: Generate TLDR for each card
-  log('📋 Generating TLDR for each card...');
+  // COMMENTED OUT: TLDR generation disabled
+  // log(`📋 Generating TLDR for ${selectedCards.length} card(s)...`);
   const cardTldrs: string[] = [];
   
-  for (let i = 0; i < selectedCards.length; i++) {
-    const card = selectedCards[i];
-    if (!card) continue;
-    
-    log(`  Generating TLDR for card ${i + 1}/${selectedCards.length}: ${card.title}`);
-    
-    const cardTldrRes = await generateObject({
-      model: getModel(),
-      system: `You are Wealthy Rabbit — a calm, smart financial explainer.
-Your job is to summarize complex financial news in a way that feels simple, reassuring, and a little playful.
-You explain things like you would to a friend who isn't great with finance but wants to feel informed, not talked down to.
+  // for (let i = 0; i < selectedCards.length; i++) {
+  //   const card = selectedCards[i];
+  //   if (!card) continue;
+  //   
+  //   const tldrStartTime = Date.now();
+  //   log(`  [${i + 1}/${selectedCards.length}] Generating TLDR: "${card.title}"...`);
+  //   
+  //     const cardTldrRes = await generateObject({
+  //     model: getModel(),
+  //     system: `You are Wealthy Rabbit — a calm, smart financial explainer.
+  // Your job is to summarize complex financial news in a way that feels simple, reassuring, and a little playful.
+  // You explain things like you would to a friend who isn't great with finance but wants to feel informed, not talked down to.
+  //
+  // You avoid jargon, avoid hype, and avoid sounding like an analyst note.
+  //
+  // You often use everyday analogies (homes, bills, shopping, relationships) or short conversational quotes to make the idea click emotionally.`,
+  //     prompt: trimPrompt(
+  //       `Write a TLDR of the story below.
+  //
+  // CRITICAL FORMAT REQUIREMENT:
+  // - Write using 4–6 conversational bullet points
+  // - Each bullet point MUST start with "- " (dash followed by space) and be on its own line
+  // - Bullets MUST be separated by SINGLE newlines (\\n) - no blank lines between bullets
+  // - Format: "- [bullet text]\\n- [bullet text]\\n- [bullet text]" (each bullet on separate line, use single newline between bullets)
+  // - Each bullet should feel like a short spoken sentence, not a headline
+  // - Bullets should flow naturally if read out loud
+  // - Do NOT sound technical, analytical, or formal
+  // - MANDATORY: Every line must start with "- " (dash space) - do not omit the dash prefix
+  //
+  // STYLE GUIDANCE:
+  // - Write like you're explaining this casually to a friend
+  // - Use simple language and short sentences
+  // - It's okay to use phrases like "basically," "this is like," "think of it as"
+  // - You may include ONE everyday analogy across the bullets (home, bills, shopping, waiting before buying, etc.)
+  // - You may include ONE casual quote if it fits (e.g. "Let's not overthink this")
+  //
+  // CONTENT GUIDANCE:
+  // - Clearly say what actually happened (no vague summaries)
+  // - Explain why it matters in plain English
+  // - Focus on clarity, confidence, or calm — not predictions
+  // - No finance jargon, acronyms, or numbers unless absolutely necessary
+  // - No emojis
+  // - No buzzwords: "optimize," "synergies," "leveraged," "strategic"
+  //
+  // END WITH:
+  // - One final bullet that gives a soft emotional takeaway (calm, reassurance, clarity)
+  //
+  // STORY TO SUMMARIZE:
+  // Title: ${card.title}
+  // Why It Matters: ${card.whyItMatters}
+  // Actionable Value: ${card.actionableValue}
+  // Related Learnings: ${card.relatedLearnings.join(', ')}
+  //
+  // Write the TLDR now using conversational bullet points (each on its own line, separated by single newlines):`,
+  //     ),
+  //     schema: z.object({
+  //       tldr: z.string().describe('TLDR summary: 4-6 conversational bullet points with one everyday analogy and one casual quote if it fits'),
+  //     }),
+  //   });
+  //   
+  //   cardTldrs.push(cardTldrRes.object.tldr);
+  //   const tldrDuration = ((Date.now() - tldrStartTime) / 1000).toFixed(1);
+  //   log(`    ✅ [${i + 1}/${selectedCards.length}] TLDR generated in ${tldrDuration}s`);
+  // }
+  // 
+  // log(`✅ Generated ${cardTldrs.length} card TLDRs`);
 
-You avoid jargon, avoid hype, and avoid sounding like an analyst note.
-
-You often use everyday analogies (homes, bills, shopping, relationships) or short conversational quotes to make the idea click emotionally.`,
-      prompt: trimPrompt(
-        `Write a TLDR of the story below.
-
-CRITICAL FORMAT REQUIREMENT:
-- Write as 3–4 flowing sentences in paragraph form (NOT bullet points, NOT a list, NOT numbered)
-- Do NOT start with "-", "*", "•", or numbers
-- Write like you're telling a friend: "This is like when you [analogy]. [Quote if it fits]. [What it means]. [Emotional takeaway]."
-
-Example of CORRECT format:
-"It's like buying a house with cash instead of a mortgage—you know exactly what you're getting, no surprises. As one investor put it, 'Let's not overthink this.' Netflix made a clear move that shows confidence in their strategy. You can feel calm knowing they're being straightforward about their plans."
-
-Example of WRONG format (do NOT do this):
-- It's like buying a house...
-- Netflix made a clear move...
-- You can feel calm...
-
-Requirements:
-- 3–4 short sentences as flowing paragraph text
-- Use one clear everyday analogy (buying a house, paying cash, splitting a bill, avoiding fine print)
-- Include one casual, human quote if it fits ("Let's not overthink this")
-- Keep tone playful but smart
-- Focus on confidence or clarity, not technical details
-- Make reader feel calm, informed, slightly smarter
-- No finance jargon, acronyms, or numbers unless necessary
-- No emojis
-- No buzzwords: "optimize," "synergies," "leveraged," "strategic"
-- End with soft emotional takeaway (confidence, clarity, calm)
-
-STORY TO SUMMARIZE:
-Title: ${card.title}
-Why It Matters: ${card.whyItMatters}
-Actionable Value: ${card.actionableValue}
-Related Learnings: ${card.relatedLearnings.join(', ')}
-
-Write the TLDR now as 3-4 flowing sentences in paragraph form (no bullets, no list):`,
-      ),
-      schema: z.object({
-        tldr: z.string().describe('TLDR summary: 3-4 short flowing sentences (not bullet points) with one everyday analogy and one casual quote if it fits'),
-      }),
-    });
-    
-    cardTldrs.push(cardTldrRes.object.tldr);
-  }
-  
-  log(`✅ Generated ${cardTldrs.length} card TLDRs`);
-
-  // Step 4: Generate final report with selected cards
-  log('📝 Writing final report with selected cards...');
+  // Step 4: Generate opening paragraph separately (smaller, faster call)
+  log('📝 Generating opening paragraph...');
+  const openingStartTime = Date.now();
   const selectedLearnings = selectedCards.flatMap(card => card.relatedLearnings);
   const selectedLearningsString = learnings
     .filter(learning => selectedLearnings.some(selected => learning.includes(selected) || selected.includes(learning)))
     .map(learning => `<learning>\n${learning}\n</learning>`)
     .join('\n');
 
-  const res = await generateObject({
+  const openingRes = await generateObject({
     model: getModel(),
     system: reportStylePrompt(),
     prompt: trimPrompt(
-      `Write a final report using the selected cards below. Follow the Wealthy Rabbit card-based style exactly.
+      `Write a warm, engaging opening paragraph (1-2 paragraphs) for a financial report, written like you're catching up with a friend.
 
-CRITICAL STRUCTURE REQUIREMENTS:
-- Start with a warm, engaging opening (1-2 paragraphs) - write like you're catching up with a friend
-- After the opening, create ONE CARD for each selected story (group related stories together)
-- Each card MUST start with its TLDR section, then the deep dive content
-- Each card MUST be written as natural, flowing paragraphs (4-6 paragraphs per card AFTER the TLDR)
-- NO bullet points in the main content, NO fixed format sections, NO repetitive structure, NO formulaic writing
-- Each card must organically answer all required questions within the narrative flow:
-  * What happened (the story) - tell it like you're recounting something interesting
-  * Why this matters and why it's in the news - explain it like you're helping them understand
-  * Context & background from the past - fill in the backstory naturally
-  * Future implications - share what you're watching, build curiosity
-  * What you should know (actionable insights) - give them clear, friendly advice
-- Flow naturally from one idea to the next - like a conversation, not a report
-- Each paragraph should add new value - avoid repetition
-- Use storytelling techniques: hook them in, build intrigue, reveal insights, conclude with clarity
-- Write with warmth - like a smart friend who wants to help them understand and make better decisions
-
-CARD STRUCTURE (CRITICAL - follow this exactly):
-Each card MUST follow this structure:
-
-## [EMOJI] [CARD TITLE]
-
-### TLDR
-[The TLDR for this card - use the EXACT text provided below, do not modify. It's 3-4 sentences with an analogy and quote.]
-
-[Then write the deep dive content as flowing paragraphs - 4-6 paragraphs]
-
-STYLE REQUIREMENTS:
-- Write like you're having a conversation with a smart friend - warm, engaging, natural
-- Use storytelling techniques: start with a hook, build intrigue, reveal why it matters, end with clarity
-- Make it intriguing - draw them in, make them curious, keep them engaged
-- Use natural conversational transitions: "So here's the thing..." "What's interesting is..." "The plot twist is..." "Here's why this matters..."
-- Keep language simple and conversational - explain complex ideas naturally
-- DRAMATIZE IT - use strong, engaging language, build tension, show the stakes
-- Make sure each card leaves the reader SMARTER with actionable insights
-- Explain unfamiliar terms naturally as you go - like you're explaining to a friend
-- Keep the storyline natural and flowing - write like you're telling an interesting story
-- End each card with clear, actionable takeaways - they should know exactly what to do with the information
-- Make it easy to understand - break down complex ideas like you're helping a friend understand
-- Be engaging - make them care about what you're saying
-- DO NOT use bullet points in the main content (only in TLDR section)
-- DO NOT repeat the same information in different ways
-- Write with warmth and intelligence - like a smart friend who wants to help you understand
-
-SELECTED CARDS TO WRITE (each with its own TLDR):
-${selectedCards.map((card, i) => card ? `
-Card ${i + 1}: ${card.title}
-TLDR (use EXACTLY as provided - do not modify or rewrite):
-${cardTldrs[i] || ''}
-
-IMPORTANT: The TLDR above is already written in the correct style (3-4 sentences with analogy and quote). Use it exactly as shown - do not convert it to bullet points or rewrite it.
-
-Why It Matters: ${card.whyItMatters}
-Actionable Value: ${card.actionableValue}
-Related Learnings: ${card.relatedLearnings.join(', ')}
-` : '').join('\n')}
+STYLE:
+- Warm, conversational, engaging
+- Set the stage for what's coming
+- Connect the overall theme naturally
+- Write like you're sharing something interesting you've been tracking
 
 <prompt>${prompt}</prompt>
 
@@ -932,106 +1084,157 @@ ${selectedLearningsString}
 </learnings>`,
     ),
     schema: z.object({
-      reportMarkdown: z.string().describe('Final report in card-based format following Wealthy Rabbit style'),
+      opening: z.string().describe('Opening paragraph(s) for the report'),
     }),
   });
 
-  // Step 5: Ensure each card has its TLDR (fallback if model didn't include them)
-  let finalReport = res.object.reportMarkdown;
-  
-  // Check each card for TLDR and insert if missing
-  const cardHeaderRegex = /^##\s+([^\n]+)$/gm;
-  const cardMatches: Array<{ index: number; title: string }> = [];
-  let match;
-  
-  while ((match = cardHeaderRegex.exec(finalReport)) !== null) {
-    const title = match[1].trim();
-    // Skip Sources header
-    if (title.toUpperCase() !== 'SOURCES' && !title.toUpperCase().includes('TLDR')) {
-      cardMatches.push({ index: match.index!, title });
-    }
-  }
-  
-  // For each card, check if it has a TLDR section and add if missing
-  for (let i = cardMatches.length - 1; i >= 0; i--) {
-    const cardMatch = cardMatches[i];
-    if (!cardMatch) continue;
-    
-    const nextCardIndex = i < cardMatches.length - 1 && cardMatches[i + 1] ? cardMatches[i + 1].index : finalReport.length;
-    const cardContent = finalReport.substring(cardMatch.index, nextCardIndex);
-    
-    // Check if this card has a TLDR section
-    const hasCardTLDR = /###\s+TLDR/i.test(cardContent);
-    
-    const cardTldr = cardTldrs[i];
-    if (!hasCardTLDR && cardTldr) {
-      log(`⚠️  TLDR not found in card "${cardMatch.title}", adding it...`);
-      // Find where the card content starts (after the header)
-      const headerEnd = cardMatch.index + cardMatch.title.length + 4; // "## " + title + "\n"
-      const beforeContent = finalReport.substring(0, headerEnd).trim();
-      const afterContent = finalReport.substring(headerEnd);
-      
-      // Insert TLDR right after the card header
-      finalReport = `${beforeContent}\n\n### TLDR\n\n${cardTldr}\n\n${afterContent}`;
-      log(`✅ TLDR inserted for card "${cardMatch.title}"`);
-      
-      // Update indices for remaining cards
-      const tldrLength = `\n\n### TLDR\n\n${cardTldr}\n\n`.length;
-      for (let j = i + 1; j < cardMatches.length; j++) {
-        if (cardMatches[j]) {
-          cardMatches[j].index += tldrLength;
-        }
-      }
-    }
-  }
-  
-  log('✅ Verified all cards have TLDR sections');
+  const opening = openingRes.object.opening;
+  const openingDuration = ((Date.now() - openingStartTime) / 1000).toFixed(1);
+  log(`✅ Opening generated in ${openingDuration}s`);
 
-  // Step 6: Rewrite each card's content to be human-like and undetectable by AI tools
-  // Note: rewriteCardContent preserves TLDR sections (they're part of the opening of each card)
-  log('✍️  Rewriting card content for human-like authenticity...');
-  const reportWithRewrittenCards = await rewriteCardContent(finalReport);
-  
-  // Step 7: Final check - ensure each card still has its TLDR after rewriting
-  const cardHeaderRegexFinal = /^##\s+([^\n]+)$/gm;
-  const finalCardMatches: Array<{ index: number; title: string }> = [];
-  let finalMatch;
-  
-  while ((finalMatch = cardHeaderRegexFinal.exec(reportWithRewrittenCards)) !== null) {
-    const title = finalMatch[1].trim();
-    if (title.toUpperCase() !== 'SOURCES' && !title.toUpperCase().includes('TLDR')) {
-      finalCardMatches.push({ index: finalMatch.index!, title });
-    }
+  // Step 5: Generate each card separately (title + content)
+  log(`📝 Generating ${selectedCards.length} card(s) one by one...`);
+  const reportStartTime = Date.now();
+  const generatedCards: Array<{ title: string; emoji?: string; content: string }> = [];
+
+  for (let i = 0; i < selectedCards.length; i++) {
+    const card = selectedCards[i];
+    if (!card) continue;
+
+    const cardStartTime = Date.now();
+    log(`  [${i + 1}/${selectedCards.length}] Generating card: "${card.title}"...`);
+
+    // Step 5a: Generate card title with emoji
+    log(`    📌 Generating title...`);
+    const titleStartTime = Date.now();
+    const titleRes = await generateObject({
+      model: getModel(),
+      system: reportStylePrompt(),
+      prompt: trimPrompt(
+        `Generate a card title and emoji for this story.
+
+TITLE REQUIREMENTS:
+- ONE short, message-style sentence (9-14 words)
+- Follow formula: What they did + Why they did it + Why it matters
+- Casual, conversational tone (like a text message)
+
+EMOJI:
+- Choose ONE relevant emoji that represents the story
+- Examples: 🎬 for entertainment, 🌍 for macro, 💰 for financial, 📊 for data
+
+STORY:
+Title: ${card.title}
+Why It Matters: ${card.whyItMatters}
+Actionable Value: ${card.actionableValue}`,
+      ),
+      schema: z.object({
+        emoji: z.string().describe('One emoji representing the story (required)'),
+        title: z.string().describe('Card title: ONE short, message-style sentence (9-14 words)'),
+      }),
+    });
+
+    const cardTitle = titleRes.object.title;
+    const cardEmoji = titleRes.object.emoji;
+    const titleDuration = ((Date.now() - titleStartTime) / 1000).toFixed(1);
+    log(`      ✅ Title generated in ${titleDuration}s: "${cardTitle}"`);
+
+    // Step 5b: Generate card content
+    log(`    📄 Generating content...`);
+    const contentStartTime = Date.now();
+    const contentRes = await generateObject({
+      model: getModel(),
+      system: reportStylePrompt(),
+      prompt: trimPrompt(
+        `Write the deep dive content for this card, following the Wealthy Rabbit style exactly.
+
+CRITICAL REQUIREMENTS:
+- Write 4–6 paragraphs
+- Each paragraph MUST start with a mini-headline on its own line
+- Format: Mini-headline on line 1 (bold, no period), then SPACE DASH SPACE " - ", then paragraph content on same line
+- Use DOUBLE newlines (\\n\\n) to separate paragraphs
+- Mini-headlines: 3–6 words, NO period at end, conversational tone, MUST be bold using **text**
+- ABSOLUTELY NO BULLET POINTS - DO NOT use "- " or "* " or any bullet point format anywhere in the content
+- Write in natural, flowing paragraphs ONLY - no lists, no bullets
+- Each paragraph must be complete sentences in paragraph form
+
+EXAMPLE FORMAT:
+**Here's the backstory** - The actual paragraph content goes here. This explains what happened and why it matters.
+
+**This is the interesting part** - More paragraph content that builds on the story. Make it flow naturally.
+
+FORBIDDEN FORMATS (DO NOT USE):
+- "- " (dash space) - this is FORBIDDEN
+- "* " (asterisk space) - this is FORBIDDEN  
+- Any bullet point lists - FORBIDDEN
+- Numbered lists - FORBIDDEN
+
+CONTENT REQUIREMENTS:
+- What happened — tell it like you're recounting something interesting
+- Why it matters and why it's in the news
+- Context and backstory — weave it in naturally
+- Future implications — share what you're watching
+- Actionable insights — give clear, friendly guidance
+
+STORY:
+Title: ${card.title}
+
+Why It Matters: ${card.whyItMatters}
+Actionable Value: ${card.actionableValue}
+Related Learnings: ${card.relatedLearnings.join(', ')}`,
+      ),
+        schema: z.object({
+          content: z.string().describe('Card content: 4-6 paragraphs with bold mini-headlines (no period, " - " after headline), each paragraph separated by \\n\\n'),
+        }),
+    });
+
+    const cardContent = contentRes.object.content;
+    const contentDuration = ((Date.now() - contentStartTime) / 1000).toFixed(1);
+    log(`      ✅ Content generated in ${contentDuration}s`);
+
+    generatedCards.push({
+      title: cardTitle,
+      emoji: cardEmoji,
+      content: cardContent,
+    });
+
+    const cardDuration = ((Date.now() - cardStartTime) / 1000).toFixed(1);
+    log(`    ✅ [${i + 1}/${selectedCards.length}] Card complete in ${cardDuration}s`);
   }
-  
-  let finalReportWithTLDRs = reportWithRewrittenCards;
-  for (let i = finalCardMatches.length - 1; i >= 0; i--) {
-    const cardMatch = finalCardMatches[i];
-    if (!cardMatch) continue;
-    
-    const nextCardIndex = i < finalCardMatches.length - 1 && finalCardMatches[i + 1] ? finalCardMatches[i + 1].index : finalReportWithTLDRs.length;
-    const cardContent = finalReportWithTLDRs.substring(cardMatch.index, nextCardIndex);
-    
-    const hasCardTLDR = /###\s+TLDR/i.test(cardContent);
-    
-    const cardTldr = cardTldrs[i];
-    if (!hasCardTLDR && cardTldr) {
-      log(`⚠️  TLDR lost during rewrite for card "${cardMatch.title}", re-inserting...`);
-      const headerEnd = cardMatch.index + cardMatch.title.length + 4;
-      const before = finalReportWithTLDRs.substring(0, headerEnd).trim();
-      const after = finalReportWithTLDRs.substring(headerEnd);
-      finalReportWithTLDRs = `${before}\n\n### TLDR\n\n${cardTldr}\n\n${after}`;
-      log(`✅ TLDR re-inserted for card "${cardMatch.title}"`);
-    }
-  }
+
+  // Step 6: Assemble the report
+  log('📋 Assembling final report...');
+  const cardSections = generatedCards.map((card, idx) => {
+    const header = card.emoji ? `## ${card.emoji} ${card.title}` : `## ${card.title}`;
+    // COMMENTED OUT: TLDR removed from report assembly
+    // return `${header}\n\n${cardTldrs[idx] || ''}\n\n${card.content}`;
+    return `${header}\n\n${card.content}`;
+  });
+
+  const finalReport = opening + '\n\n' + cardSections.join('\n\n');
+
+  const totalReportTime = ((Date.now() - reportStartTime) / 1000).toFixed(1);
+  log(`✅ Report generation complete (total time: ${totalReportTime}s)`);
 
   // Append the visited URLs section to the report
   const urlsSection = `\n\n## Sources\n\n${visitedUrls.map(url => `- ${url}`).join('\n')}`;
-  return finalReportWithTLDRs + urlsSection;
+  
+  // If skipRewrite is true, return the report immediately without rewriting
+  if (skipRewrite) {
+    return finalReport + urlsSection;
+  }
+
+  // Step 7: Rewrite each card's content (title + content separately for better reliability)
+  log('✍️  Rewriting card content for human-like authenticity...');
+  const reportWithRewrittenCards = await rewriteCardContent(finalReport);
+
+  // Append the visited URLs section to the report
+  return reportWithRewrittenCards + urlsSection;
 }
 
 // Helper function to rewrite each card's content to be more human-like
 export async function rewriteCardContent(reportMarkdown: string): Promise<string> {
+  log('📝 Starting card content rewrite...');
+  
   // Parse the report to extract opening, cards, and find where sources start
   const sourcesRegex = /^##\s+Sources\s*$/m;
   const sourcesMatch = reportMarkdown.match(sourcesRegex);
@@ -1054,19 +1257,22 @@ export async function rewriteCardContent(reportMarkdown: string): Promise<string
   
   // If no cards found, return original (might just be opening paragraph)
   if (cardHeaders.length === 0) {
+    log('⚠️  No cards found to rewrite');
     return reportMarkdown;
   }
   
-  // Extract opening (content before first card) - this includes TLDR if present
+  log(`📋 Found ${cardHeaders.length} card(s) to rewrite`);
+  
+  // Extract opening (content before first card)
   const firstCard = cardHeaders[0];
   if (!firstCard) {
     return reportMarkdown;
   }
   
-  // Opening includes everything before first card (including TLDR section)
+  // Opening includes everything before first card
   const opening = mainContent.substring(0, firstCard.index).trim();
   
-  // Extract each card's content (including TLDR section)
+  // Extract each card's content
   const cards: Array<{ header: string; content: string; tldr?: string }> = [];
   for (let i = 0; i < cardHeaders.length; i++) {
     const currentCard = cardHeaders[i];
@@ -1078,19 +1284,30 @@ export async function rewriteCardContent(reportMarkdown: string): Promise<string
     const endIndex = nextCard ? nextCard.index : mainContent.length;
     const fullContent = mainContent.substring(startIndex, endIndex).trim();
     
-    // Check if this card has a TLDR section (### TLDR)
-    const tldrMatch = fullContent.match(/^###\s+TLDR\s*\n(.*?)(?=\n\n|$)/is);
-    let tldr: string | undefined;
-    let content: string;
+    // COMMENTED OUT: TLDR extraction disabled
+    // // Check if this card has TLDR bullets (starts with "- " after header, or has ### TLDR header)
+    // const tldrHeaderMatch = fullContent.match(/^###\s+TLDR\s*\n(.*?)(?=\n\n|$)/is);
+    // const tldrBulletsMatch = fullContent.match(/^(.*?)(?=\n\n[A-Z]|\n\n###|$)/s);
+    // let tldr: string | undefined;
+    // let content: string;
+    // 
+    // if (tldrHeaderMatch) {
+    //   // Has ### TLDR header - extract bullets
+    //   tldr = tldrHeaderMatch[1].trim(); // Just the bullets, not the header
+    //   const tldrEndIndex = tldrHeaderMatch.index! + tldrHeaderMatch[0].length;
+    //   content = fullContent.substring(tldrEndIndex).trim();
+    // } else if (tldrBulletsMatch && /^-\s/.test(tldrBulletsMatch[1].trim())) {
+    //   // Starts directly with bullets (no header)
+    //   tldr = tldrBulletsMatch[1].trim();
+    //   const tldrEndIndex = tldrBulletsMatch.index! + tldrBulletsMatch[0].length;
+    //   content = fullContent.substring(tldrEndIndex).trim();
+    // } else {
+    //   content = fullContent;
+    // }
     
-    if (tldrMatch) {
-      // Extract TLDR and the rest of the content
-      tldr = tldrMatch[0]; // Includes "### TLDR\n\n" and the bullet points
-      const tldrEndIndex = tldrMatch.index! + tldrMatch[0].length;
-      content = fullContent.substring(tldrEndIndex).trim();
-    } else {
-      content = fullContent;
-    }
+    // TLDR disabled - use full content as-is
+    const content = fullContent;
+    const tldr: string | undefined = undefined;
     
     cards.push({
       header: currentCard.header,
@@ -1099,137 +1316,135 @@ export async function rewriteCardContent(reportMarkdown: string): Promise<string
     });
   }
   
-  // Rewrite each card's title and content
+  // Rewrite each card in smaller steps: title first, then content
   const rewrittenCards: string[] = [];
-  for (const card of cards) {
+  const totalCards = cards.length;
+  
+  log(`📝 Starting rewrite of ${totalCards} card(s) (title + content separately)...`);
+  
+  for (let cardIndex = 0; cardIndex < cards.length; cardIndex++) {
+    const card = cards[cardIndex];
+    if (!card) continue;
+    
+    const originalHeader = card.header;
+    const cardTitleMatch = originalHeader.match(/^##\s*(?:([^\s]+)\s+)?(.+)$/);
+    const originalEmoji = cardTitleMatch?.[1] || null;
+    const originalTitle = cardTitleMatch?.[2] || `Card ${cardIndex + 1}`;
+    
+    log(`  [${cardIndex + 1}/${totalCards}] Rewriting: ${originalTitle}...`);
+    const cardStartTime = Date.now();
+    
     try {
-      // Parse the header to extract emoji and title
-      // Format: "## [EMOJI] Title" or "## Title"
-      const headerMatch = card.header.match(/^##\s*([^\s]+)?\s*(.+)$/);
-      const emoji = headerMatch?.[1]?.match(/^[^\w\s]/) ? headerMatch[1] : undefined;
-      const originalTitle = headerMatch?.[2] || card.header.replace(/^##\s*/, '');
-      
-      // Rewrite the title first
-      const rewrittenTitle = await generateObject({
+      // Step 7a: Rewrite title only (fast, ~5s)
+      log(`    📌 Rewriting title...`);
+      const titleRewriteStartTime = Date.now();
+      const titleRes = await generateObject({
         model: getModel(),
-        system: `You are an expert human writer and editor with 20+ years of experience.`,
-        prompt: `You are an expert human writer and editor with 20+ years of experience. Your task is to rewrite the following card title to be more human-like and less AI-detectable. 
+        system: `You are an expert editor. Your task is to rewrite the title to be more human-like while maintaining the exact same meaning.`,
+        prompt: `Rewrite this card title to sound more human and natural, while keeping the EXACT SAME meaning.
 
 CRITICAL REQUIREMENTS:
-- Keep it concise (3-5 words, same length as original)
+- Keep it as ONE short, message-style sentence (9-14 words)
 - Maintain the EXACT SAME meaning and core concepts - only change word choices, not concepts
-- If the original is about "Revenue and Margins", the rewrite must also be about revenue/profit and margins
-- If the original is about "Guidance and Export", the rewrite must also be about guidance/forecasts and exports/trade
-- Use unexpected but appropriate word alternatives (e.g., "Robust" → "Hefty", "Squeeze" → "Pinch", "Tough" → "Firm")
-- Keep all key terms contextually correct
-- Make it sound like a human wrote it naturally, not AI-generated
-- Avoid formulaic phrasing but preserve the essence
+- Follow the magic formula: What they did + Why they did it + Why it matters
+- Sound authentically human but maintain exact same meaning
 
-Examples of GOOD rewrites:
-- "Robust Revenue, Margin Squeeze" → "Hefty Revenue, Pinched Margins" ✓
-- "Tough Guidance, Export Impact" → "Firm Guidance, Trade Fallout" ✓
+Original title: ${originalTitle}
 
-Examples of BAD rewrites:
-- "Tough Guidance, Export Impact" → "Business Lawyer, Trade Upheaval" ✗ (wrong concepts)
-
-Original title: "${originalTitle}"
-
-Return ONLY the rewritten title (3-5 words), no explanation.`,
+Return ONLY the rewritten title as ONE sentence (9-14 words), no explanation.`,
         schema: z.object({
-          rewrittenTitle: z.string().describe('Rewritten title that sounds authentically human but maintains exact same meaning (3-5 words)'),
+          rewrittenTitle: z.string().describe('Rewritten title: ONE short, message-style sentence (9-14 words) that sounds authentically human but maintains exact same meaning'),
         }),
       });
-      
-      // Rewrite the content (TLDR will be preserved separately)
+
+      const rewrittenTitle = titleRes.object.rewrittenTitle;
+      const titleDuration = ((Date.now() - titleRewriteStartTime) / 1000).toFixed(1);
+      log(`      ✅ Title rewritten in ${titleDuration}s: "${rewrittenTitle}"`);
+
+      // Step 7b: Rewrite content only (slower, ~30-60s)
+      log(`    📄 Rewriting content...`);
+      const contentRewriteStartTime = Date.now();
       const rewrittenContent = await generateObject({
         model: getModel(),
-        system: `You are an expert human writer and editor with 20+ years of experience.`,
-        prompt: `You are an expert human writer and editor with 20+ years of experience. Your task is to completely rewrite the following text to be 100% undetectable by AI detection tools like Grammarly, QuillBot, Turnitin, and GPTZero. Follow these critical instructions:
+        system: `You are an expert editor. Your task is to ensure the text has proper paragraph breaks, mini-headlines, and natural flow.`,
+        prompt: `Edit the following text to ensure it has proper paragraph structure with mini-headlines and natural flow.
 
-**PERPLEXITY & PREDICTABILITY CONTROL:**
-- Deliberately choose unexpected, creative word alternatives instead of obvious ones
-- Use varied vocabulary - avoid repetitive word patterns that AI typically generates  
-- Include some colloquialisms, idioms, and region-specific expressions
-- Add subtle imperfections that humans naturally make (minor redundancies, natural speech patterns)
+CRITICAL FORMAT REQUIREMENTS:
+- Each paragraph MUST start with a mini-headline (3-6 words, NO period, MUST be bold using **text**)
+- Format: Mini-headline on line 1 (bold, no period), then SPACE DASH SPACE " - ", then paragraph content on same line
+- Use DOUBLE newlines (\\n\\n) to separate different paragraphs
+- Each paragraph: 2-4 sentences on one main idea
+- ABSOLUTELY NO BULLET POINTS - Remove any "- " or "* " or bullet point formatting
+- Convert any bullet points to flowing paragraph text
+- Maintain original meaning and key information
+- Keep the conversational, human tone
+- Ensure paragraphs flow naturally
 
-**BURSTINESS & SENTENCE VARIATION:**
-- Create dramatic sentence length variation: mix very short sentences (3-5 words) with longer, complex ones (25+ words)
-- Alternate between simple, compound, complex, and compound-complex sentence structures
-- Start sentences with different elements: adverbs, prepositional phrases, dependent clauses, questions
-- Include intentional sentence fragments and run-on sentences where natural
-- Use parenthetical asides and em-dashes for authentic human flow
+EXAMPLE FORMAT:
+**Here's the backstory** - The actual paragraph content goes here. This explains what happened and why it matters.
 
-**EMOTIONAL INTELLIGENCE & HUMAN TOUCH:**
-- Infuse genuine emotional undertones appropriate to the content
-- Add personal opinions, hesitations, or qualifiers ("I believe," "perhaps," "it seems")
-- Include conversational elements and rhetorical questions
-- Use contractions naturally and vary formal/informal tone within the text
-- Add subtle humor, sarcasm, or personality where appropriate
+**This is the interesting part** - More paragraph content that builds on the story. Make it flow naturally.
 
-**STRUCTURAL PATTERN DISRUPTION:**
-- Avoid AI's typical introduction → body → conclusion structure
-- Start with unexpected angles or mid-thought observations
-- Include tangential thoughts and natural digressions
-- Use irregular paragraph lengths (some very short, others longer)
-- Break conventional grammar rules occasionally in natural ways
+FORBIDDEN: Remove all bullet points ("- ", "* ", numbered lists) and convert to paragraph format.
 
-**CONTEXTUAL AUTHENTICITY:**
-- Reference current events, popular culture, or common experiences
-- Include specific, concrete details rather than generic statements
-- Use metaphors and analogies that feel personally chosen
-- Add transitional phrases that feel conversational rather than mechanical
-
-**DETECTION-SPECIFIC COUNTERS:**
-- use irregular sentence structures and avoiding formulaic transitions
-- Counter syntax analysis by including natural human imperfections and conversational quirks
-- Counter emotional tone analysis by adding authentic personal voice and varied emotional expression
-
-**FINAL REQUIREMENTS:**
-- Maintain the original meaning and key information
-- Ensure the rewrite sounds like it came from a real person with authentic voice
-- Make it feel like natural human communication, not polished AI output
-- Include at least 2-3 instances of slightly imperfect but natural phrasing
-- Aim for high perplexity (unpredictable word choices) and high burstiness (varied sentence structures)
-
-Text to rewrite:
+Text to edit:
 
 ${card.content}`,
         schema: z.object({
-          rewrittenContent: z.string().describe('Rewritten content that sounds authentically human'),
+          rewrittenContent: z.string().describe('Edited content with bold mini-headlines (no period, " - " after headline, then paragraph on same line) and paragraph breaks (\\n\\n between paragraphs)'),
         }),
       });
       
-      // Construct the new header with rewritten title
-      const newTitle = rewrittenTitle?.object?.rewrittenTitle || originalTitle;
-      const newHeader = emoji ? `## ${emoji} ${newTitle}` : `## ${newTitle}`;
+      const contentDuration = ((Date.now() - contentRewriteStartTime) / 1000).toFixed(1);
       
       if (rewrittenContent?.object?.rewrittenContent) {
-        // Include TLDR if it exists, then the rewritten content
-        const rewrittenContentText = rewrittenContent.object?.rewrittenContent || card.content;
-        const cardWithTLDR = card.tldr 
-          ? newHeader + '\n\n' + card.tldr + '\n\n' + rewrittenContentText
-          : newHeader + '\n\n' + rewrittenContentText;
-        rewrittenCards.push(cardWithTLDR);
+        // Reconstruct card with rewritten title and content
+        const newHeader = originalEmoji 
+          ? `## ${originalEmoji} ${rewrittenTitle}`
+          : `## ${rewrittenTitle}`;
+        // COMMENTED OUT: TLDR removed from card reconstruction
+        // const cardWithTLDR = card.tldr 
+        //   ? newHeader + '\n\n' + card.tldr + '\n\n' + rewrittenContent.object.rewrittenContent
+        //   : newHeader + '\n\n' + rewrittenContent.object.rewrittenContent;
+        const cardContent = newHeader + '\n\n' + rewrittenContent.object.rewrittenContent;
+        rewrittenCards.push(cardContent);
+        
+        const cardDuration = ((Date.now() - cardStartTime) / 1000).toFixed(1);
+        log(`      ✅ Content rewritten in ${contentDuration}s`);
+        log(`    ✅ [${cardIndex + 1}/${totalCards}] Completed in ${cardDuration}s (title: ${titleDuration}s, content: ${contentDuration}s)`);
       } else {
-        log(`⚠️  No rewritten content returned for card "${card.header}", using original`);
-        const cardWithTLDR = card.tldr 
-          ? newHeader + '\n\n' + card.tldr + '\n\n' + card.content
-          : newHeader + '\n\n' + card.content;
-        rewrittenCards.push(cardWithTLDR);
+        log(`    ⚠️  [${cardIndex + 1}/${totalCards}] No rewritten content returned, using original`);
+        const newHeader = originalEmoji 
+          ? `## ${originalEmoji} ${rewrittenTitle}`
+          : `## ${rewrittenTitle}`;
+        // COMMENTED OUT: TLDR removed from card reconstruction
+        // const cardWithTLDR = card.tldr 
+        //   ? newHeader + '\n\n' + card.tldr + '\n\n' + card.content
+        //   : newHeader + '\n\n' + card.content;
+        const cardContent = newHeader + '\n\n' + card.content;
+        rewrittenCards.push(cardContent);
       }
     } catch (error) {
-      log(`⚠️  Error rewriting card "${card.header}", using original content:`, error);
-      // Fall back to original header and content if rewriting fails
-      const cardWithTLDR = card.tldr 
-        ? card.header + '\n\n' + card.tldr + '\n\n' + card.content
-        : card.header + '\n\n' + card.content;
-      rewrittenCards.push(cardWithTLDR);
+      const cardDuration = ((Date.now() - cardStartTime) / 1000).toFixed(1);
+      log(`    ❌ [${cardIndex + 1}/${totalCards}] Error after ${cardDuration}s: ${error instanceof Error ? error.message : String(error)}`);
+      // Use original card if rewrite fails
+      // COMMENTED OUT: TLDR removed from card reconstruction
+      // const cardWithTLDR = card.tldr 
+      //   ? originalHeader + '\n\n' + card.tldr + '\n\n' + card.content
+      //   : originalHeader + '\n\n' + card.content;
+      const cardContent = originalHeader + '\n\n' + card.content;
+      rewrittenCards.push(cardContent);
     }
   }
   
-  // Reconstruct the report
-  const rewrittenReport = opening + '\n\n' + rewrittenCards.join('\n\n---\n\n');
-  return rewrittenReport + (sourcesSection ? '\n\n' + sourcesSection : '');
+  log(`✅ Completed rewriting ${rewrittenCards.length}/${totalCards} cards`);
+  
+  // Reconstruct the report with rewritten cards
+  const rewrittenReport = opening + '\n\n' + rewrittenCards.join('\n\n');
+  
+  log(`✅ Card rewrite complete: ${rewrittenCards.length}/${totalCards} cards rewritten`);
+  
+  return rewrittenReport + '\n\n' + sourcesSection;
 }
 
 export async function writeFinalAnswer({
@@ -1500,7 +1715,6 @@ IMPORTANT: Generate queries that include:
         try {
           const searchResult = await retryFirecrawlSearch(
             () => firecrawl.search(serpQuery.query, {
-              timeout: 15000,
               limit: 30, // Get more results to triage from
               // NO scrapeOptions - just get metadata (titles, descriptions, URLs)
             }),

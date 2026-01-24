@@ -77,19 +77,19 @@ async function main() {
   try {
     // Step 1: Research
     await runCommand(
-      'npx tsx --env-file=.env.local scripts/1-research-only.ts',
+      'npx tsx scripts/1-research-only.ts',
       'Step 1: Research Only'
     );
 
     // Step 2: Generate Report
     await runCommand(
-      'npx tsx --env-file=.env.local scripts/2-generate-report.ts',
+      'npx tsx scripts/2-generate-report.ts',
       'Step 2: Generate Report'
     );
 
     // Step 3: Rewrite Report
     await runCommand(
-      'npx tsx --env-file=.env.local scripts/3-rewrite-report.ts',
+      'npx tsx scripts/3-rewrite-report.ts',
       'Step 3: Rewrite Report'
     );
 

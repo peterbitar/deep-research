@@ -8,8 +8,25 @@ import { getModel, trimPrompt } from './ai/providers';
 import { systemPrompt, reportStylePrompt } from './prompt';
 import { PipelineDataSaver } from './pipeline-data-saver';
 
-function log(...args: any[]) {
-  console.log(...args);
+// Log level system to reduce verbosity and stay under Railway's 500 logs/sec limit
+const LOG_LEVEL = (process.env.LOG_LEVEL || 'info').toLowerCase() as 'error' | 'warn' | 'info' | 'debug';
+const levels = { error: 0, warn: 1, info: 2, debug: 3 };
+
+function log(level: 'error' | 'warn' | 'info' | 'debug', ...args: any[]) {
+  if (levels[level] <= levels[LOG_LEVEL]) {
+    if (level === 'error') {
+      console.error(...args);
+    } else if (level === 'warn') {
+      console.warn(...args);
+    } else {
+      console.log(...args);
+    }
+  }
+}
+
+// Backward compatibility: default to 'info' level if no level specified
+function logInfo(...args: any[]) {
+  log('info', ...args);
 }
 
 export type ResearchProgress = {
@@ -72,9 +89,9 @@ export async function retryFirecrawlSearch<T>(
     // Don't retry on insufficient credits (402) or other non-retryable errors
     if (!isRetryable || retryCount >= MAX_RETRIES) {
       if (statusCode === 402) {
-        log(`Error running query: ${query}: Insufficient credits. Please upgrade your plan.`);
+        log('error', `Error running query: ${query}: Insufficient credits. Please upgrade your plan.`);
       } else if (retryCount >= MAX_RETRIES) {
-        log(`Error running query: ${query}: Max retries (${MAX_RETRIES}) exceeded.`);
+        log('error', `Error running query: ${query}: Max retries (${MAX_RETRIES}) exceeded.`);
       }
       throw error;
     }
@@ -86,7 +103,7 @@ export async function retryFirecrawlSearch<T>(
       MAX_RETRY_DELAY
     );
 
-    log(`Error running query: ${query}: ${error.message || error}. Retrying in ${delay/1000}s (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+    log('warn', `Error running query: ${query}: ${error.message || error}. Retrying in ${delay/1000}s (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
     
     await sleep(delay);
     return retryFirecrawlSearch(searchFn, query, retryCount + 1);
@@ -194,7 +211,7 @@ Focus on what will impact the company's direction and reveal its competitive pos
         .describe(`List of SERP queries, max of ${numQueries}`),
     }),
   });
-  log(`Created ${res.object.queries.length} queries`, res.object.queries);
+  log('debug', `Created ${res.object.queries.length} queries`, res.object.queries);
 
   return res.object.queries.slice(0, numQueries);
 }
@@ -265,8 +282,8 @@ ${titlesList}`,
     }),
   });
 
-  log(`Triage: Selected ${res.object.selectedUrls.length} articles from ${results.length} results`);
-  log(`Triage reasoning: ${res.object.reasoning}`);
+  log('info', `Triage: Selected ${res.object.selectedUrls.length} articles from ${results.length} results`);
+  log('debug', `Triage reasoning: ${res.object.reasoning}`);
 
   return res.object.selectedUrls;
 }
@@ -302,7 +319,7 @@ export async function triageTitlesBatched({
   
   // If we have many articles, process in batches
   if (uniqueResults.length > TRIAGE_BATCH_SIZE) {
-    log(`📦 Triage: Processing ${uniqueResults.length} articles in batches of ${TRIAGE_BATCH_SIZE}...`);
+    log('info', `📦 Triage: Processing ${uniqueResults.length} articles in batches of ${TRIAGE_BATCH_SIZE}...`);
     const batches: typeof uniqueResults[] = [];
     for (let i = 0; i < uniqueResults.length; i += TRIAGE_BATCH_SIZE) {
       batches.push(uniqueResults.slice(i, i + TRIAGE_BATCH_SIZE));
@@ -310,7 +327,7 @@ export async function triageTitlesBatched({
     
     for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
       const batch = batches[batchIdx];
-      log(`  Processing triage batch ${batchIdx + 1}/${batches.length} (${batch.length} articles)...`);
+      log('debug', `  Processing triage batch ${batchIdx + 1}/${batches.length} (${batch.length} articles)...`);
       
       const titlesList = batch
         .map((r, i) => {
@@ -366,12 +383,12 @@ ${titlesList}`,
       });
       
       allSelectedUrls.push(...batchRes.object.selectedUrls);
-      log(`    ✅ Batch ${batchIdx + 1} complete: ${batchRes.object.selectedUrls.length} selected`);
+      log('debug', `    ✅ Batch ${batchIdx + 1} complete: ${batchRes.object.selectedUrls.length} selected`);
     }
     
     // Deduplicate URLs (in case same URL selected in multiple batches)
     const uniqueSelectedUrls = Array.from(new Set(allSelectedUrls));
-    log(`✅ Triage complete: ${uniqueSelectedUrls.length} unique articles selected from ${uniqueResults.length} total (${results.length} before dedup)`);
+    log('info', `✅ Triage complete: ${uniqueSelectedUrls.length} unique articles selected from ${uniqueResults.length} total (${results.length} before dedup)`);
     
     return uniqueSelectedUrls;
   } else {
@@ -429,8 +446,8 @@ ${titlesList}`,
       }),
     });
 
-    log(`Batched Triage: Selected ${res.object.selectedUrls.length} articles from ${uniqueResults.length} unique results (${results.length} total before dedup)`);
-    log(`Triage reasoning: ${res.object.reasoning}`);
+    log('info', `Batched Triage: Selected ${res.object.selectedUrls.length} articles from ${uniqueResults.length} unique results (${results.length} total before dedup)`);
+    log('debug', `Triage reasoning: ${res.object.reasoning}`);
 
     return res.object.selectedUrls;
   }
@@ -546,12 +563,12 @@ ${articlesList}`,
     }
   }
 
-  log(`Smart Filter: ${toScrape.length} to scrape, ${metadataOnly.length} metadata-only`);
+  log('info', `Smart Filter: ${toScrape.length} to scrape, ${metadataOnly.length} metadata-only`);
   if (toScrape.length > 0) {
-    log(`  Scraping: ${toScrape.map(s => s.url.split('/').pop()).join(', ')}`);
+    log('debug', `  Scraping: ${toScrape.map(s => s.url.split('/').pop()).join(', ')}`);
   }
   if (metadataOnly.length > 0) {
-    log(`  Metadata-only: ${metadataOnly.map(m => m.url.split('/').pop()).join(', ')}`);
+    log('debug', `  Metadata-only: ${metadataOnly.map(m => m.url.split('/').pop()).join(', ')}`);
   }
 
   return { toScrape, metadataOnly };
@@ -673,12 +690,12 @@ ${articlesList}`,
     }
   }
 
-  log(`Batched Smart Filter: ${toScrape.length} to scrape, ${metadataOnly.length} metadata-only`);
+  log('info', `Batched Smart Filter: ${toScrape.length} to scrape, ${metadataOnly.length} metadata-only`);
   if (toScrape.length > 0) {
-    log(`  Scraping: ${toScrape.map(s => s.url.split('/').pop()).join(', ')}`);
+    log('debug', `  Scraping: ${toScrape.map(s => s.url.split('/').pop()).join(', ')}`);
   }
   if (metadataOnly.length > 0) {
-    log(`  Metadata-only: ${metadataOnly.map(m => m.url.split('/').pop()).join(', ')}`);
+    log('debug', `  Metadata-only: ${metadataOnly.map(m => m.url.split('/').pop()).join(', ')}`);
   }
 
   return { toScrape, metadataOnly };
@@ -698,7 +715,7 @@ export async function processSerpResult({
   const contents = compact(result.data.map(item => item.markdown)).map(content =>
     trimPrompt(content, 25_000),
   );
-  log(`Ran ${query}, found ${contents.length} contents`);
+  log('debug', `Ran ${query}, found ${contents.length} contents`);
 
   const isCommodityQuery = /\b(oil|energy|gas|crude|commodit|natural gas|LNG|petroleum|OPEC|WTI|Brent)\b/i.test(query);
   const isCompanyQuery = /\b(NVIDIA|AAPL|MSFT|GOOGL|JPM|XOM|Exxon|company|earnings|stock)\b/i.test(query);
@@ -710,7 +727,7 @@ export async function processSerpResult({
   
   // If we have many articles, process in batches
   if (contents.length > BATCH_SIZE) {
-    log(`📦 Processing ${contents.length} articles in batches of ${BATCH_SIZE}...`);
+    log('info', `📦 Processing ${contents.length} articles in batches of ${BATCH_SIZE}...`);
     const batches: string[][] = [];
     for (let i = 0; i < contents.length; i += BATCH_SIZE) {
       batches.push(contents.slice(i, i + BATCH_SIZE));
@@ -718,7 +735,7 @@ export async function processSerpResult({
     
     for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
       const batch = batches[batchIdx];
-      log(`  Processing batch ${batchIdx + 1}/${batches.length} (${batch.length} articles)...`);
+      log('debug', `  Processing batch ${batchIdx + 1}/${batches.length} (${batch.length} articles)...`);
       
       const batchRes = await generateObject({
         model: getModel(),
@@ -782,14 +799,14 @@ The learnings will be used to research the topic further.\n\n<contents>${batch
       
       allBatchLearnings.push(...batchRes.object.learnings);
       allFollowUpQuestions.push(...batchRes.object.followUpQuestions);
-      log(`    ✅ Batch ${batchIdx + 1} complete: ${batchRes.object.learnings.length} learnings`);
+      log('debug', `    ✅ Batch ${batchIdx + 1} complete: ${batchRes.object.learnings.length} learnings`);
     }
     
     // Deduplicate learnings (keep unique ones)
     const uniqueLearnings = Array.from(new Set(allBatchLearnings));
     const uniqueFollowUpQuestions = Array.from(new Set(allFollowUpQuestions));
     
-    log(`✅ Processed all batches: ${uniqueLearnings.length} unique learnings from ${contents.length} articles`);
+    log('info', `✅ Processed all batches: ${uniqueLearnings.length} unique learnings from ${contents.length} articles`);
     
     return {
       learnings: uniqueLearnings,
@@ -856,7 +873,7 @@ The learnings will be used to research the topic further.\n\n<contents>${content
           ),
       }),
     });
-    log(`Created ${res.object.learnings.length} learnings`, res.object.learnings);
+    log('debug', `Created ${res.object.learnings.length} learnings`, res.object.learnings);
 
     return res.object;
   }
@@ -878,7 +895,7 @@ export async function writeFinalReport({
     .join('\n');
 
   // Step 1: Generate potential cards from learnings
-  log('📝 Generating potential story cards...');
+  log('info', '📝 Generating potential story cards...');
   const cardsRes = await generateObject({
     model: getModel(),
     system: reportStylePrompt(),
@@ -937,7 +954,7 @@ ${learningsString}
   });
 
   // Step 2: Self-feedback to select the best cards
-  log('🔍 Selecting best cards with self-feedback...');
+  log('info', '🔍 Selecting best cards with self-feedback...');
   const selectedCardsRes = await generateObject({
     model: getModel(),
     system: reportStylePrompt(),
@@ -981,8 +998,8 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
     .map(idx => cardsRes.object.potentialCards[idx])
     .filter(card => card !== undefined);
 
-  log(`✅ Selected ${selectedCards.length} cards from ${cardsRes.object.potentialCards.length} potential cards`);
-  log(`Selection reasoning: ${selectedCardsRes.object.reasoning}`);
+  log('info', `✅ Selected ${selectedCards.length} cards from ${cardsRes.object.potentialCards.length} potential cards`);
+  log('debug', `Selection reasoning: ${selectedCardsRes.object.reasoning}`);
 
   // Step 3: Generate TLDR for each card
   // COMMENTED OUT: TLDR generation disabled
@@ -1057,7 +1074,7 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
   // log(`✅ Generated ${cardTldrs.length} card TLDRs`);
 
   // Step 4: Generate opening paragraph separately (smaller, faster call)
-  log('📝 Generating opening paragraph...');
+  log('info', '📝 Generating opening paragraph...');
   const openingStartTime = Date.now();
   const selectedLearnings = selectedCards.flatMap(card => card.relatedLearnings);
   const selectedLearningsString = learnings
@@ -1090,10 +1107,10 @@ ${selectedLearningsString}
 
   const opening = openingRes.object.opening;
   const openingDuration = ((Date.now() - openingStartTime) / 1000).toFixed(1);
-  log(`✅ Opening generated in ${openingDuration}s`);
+  log('info', `✅ Opening generated in ${openingDuration}s`);
 
   // Step 5: Generate each card separately (title + content)
-  log(`📝 Generating ${selectedCards.length} card(s) one by one...`);
+  log('info', `📝 Generating ${selectedCards.length} card(s) one by one...`);
   const reportStartTime = Date.now();
   const generatedCards: Array<{ title: string; emoji?: string; content: string }> = [];
 
@@ -1102,10 +1119,10 @@ ${selectedLearningsString}
     if (!card) continue;
 
     const cardStartTime = Date.now();
-    log(`  [${i + 1}/${selectedCards.length}] Generating card: "${card.title}"...`);
+    log('info', `  [${i + 1}/${selectedCards.length}] Generating card: "${card.title}"...`);
 
     // Step 5a: Generate card title with emoji
-    log(`    📌 Generating title...`);
+    log('debug', `    📌 Generating title...`);
     const titleStartTime = Date.now();
     const titleRes = await generateObject({
       model: getModel(),
@@ -1136,10 +1153,10 @@ Actionable Value: ${card.actionableValue}`,
     const cardTitle = titleRes.object.title;
     const cardEmoji = titleRes.object.emoji;
     const titleDuration = ((Date.now() - titleStartTime) / 1000).toFixed(1);
-    log(`      ✅ Title generated in ${titleDuration}s: "${cardTitle}"`);
+    log('debug', `      ✅ Title generated in ${titleDuration}s: "${cardTitle}"`);
 
     // Step 5b: Generate card content
-    log(`    📄 Generating content...`);
+    log('debug', `    📄 Generating content...`);
     const contentStartTime = Date.now();
     const contentRes = await generateObject({
       model: getModel(),
@@ -1189,7 +1206,7 @@ Related Learnings: ${card.relatedLearnings.join(', ')}`,
 
     const cardContent = contentRes.object.content;
     const contentDuration = ((Date.now() - contentStartTime) / 1000).toFixed(1);
-    log(`      ✅ Content generated in ${contentDuration}s`);
+    log('debug', `      ✅ Content generated in ${contentDuration}s`);
 
     generatedCards.push({
       title: cardTitle,
@@ -1198,11 +1215,11 @@ Related Learnings: ${card.relatedLearnings.join(', ')}`,
     });
 
     const cardDuration = ((Date.now() - cardStartTime) / 1000).toFixed(1);
-    log(`    ✅ [${i + 1}/${selectedCards.length}] Card complete in ${cardDuration}s`);
+    log('info', `    ✅ [${i + 1}/${selectedCards.length}] Card complete in ${cardDuration}s`);
   }
 
   // Step 6: Assemble the report
-  log('📋 Assembling final report...');
+  log('debug', '📋 Assembling final report...');
   const cardSections = generatedCards.map((card, idx) => {
     const header = card.emoji ? `## ${card.emoji} ${card.title}` : `## ${card.title}`;
     // COMMENTED OUT: TLDR removed from report assembly
@@ -1213,7 +1230,7 @@ Related Learnings: ${card.relatedLearnings.join(', ')}`,
   const finalReport = opening + '\n\n' + cardSections.join('\n\n');
 
   const totalReportTime = ((Date.now() - reportStartTime) / 1000).toFixed(1);
-  log(`✅ Report generation complete (total time: ${totalReportTime}s)`);
+  log('info', `✅ Report generation complete (total time: ${totalReportTime}s)`);
 
   // Append the visited URLs section to the report
   const urlsSection = `\n\n## Sources\n\n${visitedUrls.map(url => `- ${url}`).join('\n')}`;
@@ -1224,7 +1241,7 @@ Related Learnings: ${card.relatedLearnings.join(', ')}`,
   }
 
   // Step 7: Rewrite each card's content (title + content separately for better reliability)
-  log('✍️  Rewriting card content for human-like authenticity...');
+  log('info', '✍️  Rewriting card content for human-like authenticity...');
   const reportWithRewrittenCards = await rewriteCardContent(finalReport);
 
   // Append the visited URLs section to the report
@@ -1233,7 +1250,7 @@ Related Learnings: ${card.relatedLearnings.join(', ')}`,
 
 // Helper function to rewrite each card's content to be more human-like
 export async function rewriteCardContent(reportMarkdown: string): Promise<string> {
-  log('📝 Starting card content rewrite...');
+  log('info', '📝 Starting card content rewrite...');
   
   // Parse the report to extract opening, cards, and find where sources start
   const sourcesRegex = /^##\s+Sources\s*$/m;
@@ -1257,11 +1274,11 @@ export async function rewriteCardContent(reportMarkdown: string): Promise<string
   
   // If no cards found, return original (might just be opening paragraph)
   if (cardHeaders.length === 0) {
-    log('⚠️  No cards found to rewrite');
+    log('warn', '⚠️  No cards found to rewrite');
     return reportMarkdown;
   }
   
-  log(`📋 Found ${cardHeaders.length} card(s) to rewrite`);
+  log('info', `📋 Found ${cardHeaders.length} card(s) to rewrite`);
   
   // Extract opening (content before first card)
   const firstCard = cardHeaders[0];
@@ -1320,7 +1337,7 @@ export async function rewriteCardContent(reportMarkdown: string): Promise<string
   const rewrittenCards: string[] = [];
   const totalCards = cards.length;
   
-  log(`📝 Starting rewrite of ${totalCards} card(s) (title + content separately)...`);
+  log('info', `📝 Starting rewrite of ${totalCards} card(s) (title + content separately)...`);
   
   for (let cardIndex = 0; cardIndex < cards.length; cardIndex++) {
     const card = cards[cardIndex];
@@ -1331,12 +1348,12 @@ export async function rewriteCardContent(reportMarkdown: string): Promise<string
     const originalEmoji = cardTitleMatch?.[1] || null;
     const originalTitle = cardTitleMatch?.[2] || `Card ${cardIndex + 1}`;
     
-    log(`  [${cardIndex + 1}/${totalCards}] Rewriting: ${originalTitle}...`);
+    log('info', `  [${cardIndex + 1}/${totalCards}] Rewriting: ${originalTitle}...`);
     const cardStartTime = Date.now();
     
     try {
       // Step 7a: Rewrite title only (fast, ~5s)
-      log(`    📌 Rewriting title...`);
+      log('debug', `    📌 Rewriting title...`);
       const titleRewriteStartTime = Date.now();
       const titleRes = await generateObject({
         model: getModel(),
@@ -1359,10 +1376,10 @@ Return ONLY the rewritten title as ONE sentence (9-14 words), no explanation.`,
 
       const rewrittenTitle = titleRes.object.rewrittenTitle;
       const titleDuration = ((Date.now() - titleRewriteStartTime) / 1000).toFixed(1);
-      log(`      ✅ Title rewritten in ${titleDuration}s: "${rewrittenTitle}"`);
+      log('debug', `      ✅ Title rewritten in ${titleDuration}s: "${rewrittenTitle}"`);
 
       // Step 7b: Rewrite content only (slower, ~30-60s)
-      log(`    📄 Rewriting content...`);
+      log('debug', `    📄 Rewriting content...`);
       const contentRewriteStartTime = Date.now();
       const rewrittenContent = await generateObject({
         model: getModel(),
@@ -1410,10 +1427,10 @@ ${card.content}`,
         rewrittenCards.push(cardContent);
         
         const cardDuration = ((Date.now() - cardStartTime) / 1000).toFixed(1);
-        log(`      ✅ Content rewritten in ${contentDuration}s`);
-        log(`    ✅ [${cardIndex + 1}/${totalCards}] Completed in ${cardDuration}s (title: ${titleDuration}s, content: ${contentDuration}s)`);
+        log('debug', `      ✅ Content rewritten in ${contentDuration}s`);
+        log('info', `    ✅ [${cardIndex + 1}/${totalCards}] Completed in ${cardDuration}s (title: ${titleDuration}s, content: ${contentDuration}s)`);
       } else {
-        log(`    ⚠️  [${cardIndex + 1}/${totalCards}] No rewritten content returned, using original`);
+        log('warn', `    ⚠️  [${cardIndex + 1}/${totalCards}] No rewritten content returned, using original`);
         const newHeader = originalEmoji 
           ? `## ${originalEmoji} ${rewrittenTitle}`
           : `## ${rewrittenTitle}`;
@@ -1426,7 +1443,7 @@ ${card.content}`,
       }
     } catch (error) {
       const cardDuration = ((Date.now() - cardStartTime) / 1000).toFixed(1);
-      log(`    ❌ [${cardIndex + 1}/${totalCards}] Error after ${cardDuration}s: ${error instanceof Error ? error.message : String(error)}`);
+      log('error', `    ❌ [${cardIndex + 1}/${totalCards}] Error after ${cardDuration}s: ${error instanceof Error ? error.message : String(error)}`);
       // Use original card if rewrite fails
       // COMMENTED OUT: TLDR removed from card reconstruction
       // const cardWithTLDR = card.tldr 
@@ -1437,12 +1454,12 @@ ${card.content}`,
     }
   }
   
-  log(`✅ Completed rewriting ${rewrittenCards.length}/${totalCards} cards`);
+  log('info', `✅ Completed rewriting ${rewrittenCards.length}/${totalCards} cards`);
   
   // Reconstruct the report with rewritten cards
   const rewrittenReport = opening + '\n\n' + rewrittenCards.join('\n\n');
   
-  log(`✅ Card rewrite complete: ${rewrittenCards.length}/${totalCards} cards rewritten`);
+  log('info', `✅ Card rewrite complete: ${rewrittenCards.length}/${totalCards} cards rewritten`);
   
   return rewrittenReport + '\n\n' + sourcesSection;
 }
@@ -1531,7 +1548,7 @@ export async function deepResearch({
   totalDepth?: number;
   researchLabel?: string; // Label for this research (e.g., "BTC", "NVIDIA") - used for portfolio research
 }): Promise<ResearchResult> {
-  log(`🔍 deepResearch called: query="${query.substring(0, 100)}...", iteration=${iteration}, breadth=${breadth}, depth=${depth}`);
+  log('debug', `🔍 deepResearch called: query="${query.substring(0, 100)}...", iteration=${iteration}, breadth=${breadth}, depth=${depth}`);
   
   // Track initial values for first iteration
   const isFirstIteration = iteration === 0;
@@ -1543,7 +1560,7 @@ export async function deepResearch({
     const portfolioHoldings = detectPortfolioQuery(query);
     
     if (portfolioHoldings && portfolioHoldings.length >= 3) {
-      log(`\n📊 Detected portfolio query with ${portfolioHoldings.length} holdings. Researching each individually...\n`);
+      log('info', `\n📊 Detected portfolio query with ${portfolioHoldings.length} holdings. Researching each individually...\n`);
       
       const allPortfolioLearnings: string[] = [];
       const allPortfolioUrls: string[] = [];
@@ -1553,7 +1570,7 @@ export async function deepResearch({
       const depthPerHolding = 1; // Depth 1 for individual holdings
       
       for (const holding of portfolioHoldings) {
-        log(`📊 Researching ${holding.symbol} (${holding.type})...`);
+        log('info', `📊 Researching ${holding.symbol} (${holding.type})...`);
         
         // Create specific query for this holding
         let holdingQuery = '';
@@ -1616,7 +1633,7 @@ IMPORTANT: Generate queries that include:
         }
 
         try {
-          log(`  🔍 Query for ${holding.symbol}: ${holdingQuery.substring(0, 150)}...`);
+          log('debug', `  🔍 Query for ${holding.symbol}: ${holdingQuery.substring(0, 150)}...`);
           // Call deepResearch with iteration > 0 to prevent portfolio detection recursion
           // Pass researchLabel to track which holding this is for
           const { learnings: holdingLearnings, visitedUrls: holdingUrls } = await deepResearch({
@@ -1633,35 +1650,35 @@ IMPORTANT: Generate queries that include:
             researchLabel: holding.symbol, // Pass research label to track which holding
           });
 
-          log(`  ✅ ${holding.symbol}: ${holdingLearnings.length} learnings, ${holdingUrls.length} URLs`);
+          log('info', `  ✅ ${holding.symbol}: ${holdingLearnings.length} learnings, ${holdingUrls.length} URLs`);
           if (holdingLearnings.length === 0) {
-            log(`  ⚠️  Warning: No learnings found for ${holding.symbol}. This may indicate no articles were found or all were rejected in triage.`);
+            log('warn', `  ⚠️  Warning: No learnings found for ${holding.symbol}. This may indicate no articles were found or all were rejected in triage.`);
           }
           allPortfolioLearnings.push(...holdingLearnings);
           allPortfolioUrls.push(...holdingUrls);
         } catch (error) {
-          log(`  ❌ Error researching ${holding.symbol}:`, error);
+          log('error', `  ❌ Error researching ${holding.symbol}:`, error);
         }
       }
 
-      log(`\n✅ Portfolio holdings research complete!`);
-      log(`  Total holdings learnings: ${allPortfolioLearnings.length}`);
-      log(`  Total holdings URLs: ${allPortfolioUrls.length}\n`);
+      log('info', `\n✅ Portfolio holdings research complete!`);
+      log('info', `  Total holdings learnings: ${allPortfolioLearnings.length}`);
+      log('info', `  Total holdings URLs: ${allPortfolioUrls.length}\n`);
 
       // Check if query mentions macro factors - if so, add macro research
       const needsMacro = /\b(macro|Fed|Federal Reserve|inflation|currency|geopolitical|economic|central bank)\b/i.test(query);
       
       if (needsMacro) {
-        log('🌍 Query mentions macro factors. Adding macro research...\n');
+        log('info', '🌍 Query mentions macro factors. Adding macro research...\n');
         try {
           const { scanMacro } = await import('./macro-scan');
           const macroResult = await scanMacro(2, 1, dataSaver);
-          log(`  ✅ Macro learnings: ${macroResult.learnings.length}`);
-          log(`  ✅ Macro URLs: ${macroResult.visitedUrls.length}\n`);
+          log('info', `  ✅ Macro learnings: ${macroResult.learnings.length}`);
+          log('info', `  ✅ Macro URLs: ${macroResult.visitedUrls.length}\n`);
           allPortfolioLearnings.push(...macroResult.learnings);
           allPortfolioUrls.push(...macroResult.visitedUrls);
         } catch (error) {
-          log(`  ⚠️  Error in macro scan:`, error);
+          log('error', `  ⚠️  Error in macro scan:`, error);
         }
       }
 
@@ -1695,10 +1712,8 @@ IMPORTANT: Generate queries that include:
     numQueries: breadth,
   });
 
-  log(`📝 Generated ${serpQueries.length} search queries:`);
-  serpQueries.forEach((q, i) => {
-    log(`   ${i + 1}. ${q.query}`);
-  });
+  log('info', `📝 Generated ${serpQueries.length} search queries`);
+  log('debug', serpQueries.map((q, i) => `   ${i + 1}. ${q.query}`).join('\n'));
   
   reportProgress({
     totalQueries: serpQueries.length,
@@ -1708,7 +1723,7 @@ IMPORTANT: Generate queries that include:
   const limit = pLimit(ConcurrencyLimit);
 
   // Step 2: Gather ALL search results first (metadata only, no scraping)
-  log(`\n🔍 Gathering search results from ${serpQueries.length} queries...`);
+  log('info', `\n🔍 Gathering search results from ${serpQueries.length} queries...`);
   const allSearchResults = await Promise.all(
     serpQueries.map(serpQuery =>
       limit(async () => {
@@ -1734,9 +1749,9 @@ IMPORTANT: Generate queries that include:
           };
         } catch (e: any) {
           if (e.message && e.message.includes('Timeout')) {
-            log(`Timeout error running query: ${serpQuery.query}: `, e);
+            log('warn', `Timeout error running query: ${serpQuery.query}: `, e);
           } else {
-            log(`Error running query: ${serpQuery.query}: `, e);
+            log('error', `Error running query: ${serpQuery.query}: `, e);
           }
           return {
             query: serpQuery.query,
@@ -1787,11 +1802,11 @@ IMPORTANT: Generate queries that include:
 
   const allArticles = Array.from(urlMap.values());
   const totalBeforeDedup = allSearchResults.reduce((sum, r) => sum + r.results.length, 0);
-  log(`📊 Gathered ${allArticles.length} unique articles from ${totalBeforeDedup} total results (${totalBeforeDedup - allArticles.length} duplicates removed)`);
+  log('info', `📊 Gathered ${allArticles.length} unique articles from ${totalBeforeDedup} total results (${totalBeforeDedup - allArticles.length} duplicates removed)`);
 
   if (allArticles.length === 0) {
-    log(`⚠️  No articles found for any query. Query was: "${query.substring(0, 200)}..."`);
-    log(`   This may indicate: 1) Search queries didn't match any articles, 2) All results were filtered out, or 3) Search API issue.`);
+    log('warn', `⚠️  No articles found for any query. Query was: "${query.substring(0, 200)}..."`);
+    log('warn', `   This may indicate: 1) Search queries didn't match any articles, 2) All results were filtered out, or 3) Search API issue.`);
     // Still save iteration data even if no articles found, so we can debug
     if (dataSaver) {
       await dataSaver.saveIterationData(iteration, {
@@ -1815,7 +1830,7 @@ IMPORTANT: Generate queries that include:
   }
 
   // Step 4: Batch triage - process all articles together
-  log(`\n🔍 Batch triaging ${allArticles.length} articles...`);
+  log('info', `\n🔍 Batch triaging ${allArticles.length} articles...`);
   const BATCH_SIZE = 50; // Process in batches to avoid token limits
   const triagedArticles: typeof allArticles = [];
   const allResearchGoals = [...new Set(allSearchResults.flatMap(r => r.researchGoal))];
@@ -1832,10 +1847,10 @@ IMPORTANT: Generate queries that include:
     triagedArticles.push(...batchTriaged);
   }
 
-  log(`✅ Triage: Selected ${triagedArticles.length} articles from ${allArticles.length} unique results`);
+  log('info', `✅ Triage: Selected ${triagedArticles.length} articles from ${allArticles.length} unique results`);
 
   if (triagedArticles.length === 0) {
-    log(`No relevant articles selected after triage`);
+    log('warn', `No relevant articles selected after triage`);
     return {
       learnings: [],
       visitedUrls: [],
@@ -1843,17 +1858,17 @@ IMPORTANT: Generate queries that include:
   }
 
   // Step 5: Batch filter - decide scrape vs metadata (with story deduplication)
-  log(`\n🔍 Batch filtering ${triagedArticles.length} triaged articles...`);
+  log('info', `\n🔍 Batch filtering ${triagedArticles.length} triaged articles...`);
   const { toScrape, metadataOnly } = await filterScrapeNeedsBatched({
     query: query,
     triagedResults: triagedArticles,
     researchGoals: allResearchGoals,
   });
 
-  log(`✅ Filter: ${toScrape.length} to scrape, ${metadataOnly.length} metadata-only`);
+  log('info', `✅ Filter: ${toScrape.length} to scrape, ${metadataOnly.length} metadata-only`);
 
   // Step 6: Scrape all selected articles in parallel
-  log(`\n📥 Scraping ${toScrape.length} articles...`);
+  log('info', `\n📥 Scraping ${toScrape.length} articles...`);
   const scrapedResults = await Promise.all(
     toScrape.map(({ url }) =>
       retryFirecrawlSearch(
@@ -1913,7 +1928,7 @@ IMPORTANT: Generate queries that include:
   const newDepth = depth - 1;
 
   // Step 8: Process all results together (better context)
-  log(`\n📝 Processing ${combinedResult.data.length} articles to extract learnings...`);
+  log('info', `\n📝 Processing ${combinedResult.data.length} articles to extract learnings...`);
   const newLearnings = await processSerpResult({
     query: query, // Use original query for context
     result: combinedResult,
@@ -1949,7 +1964,7 @@ IMPORTANT: Generate queries that include:
 
   // Step 9: Recursive depth exploration
   if (newDepth > 0) {
-    log(`\n🔍 Researching deeper, breadth: ${newBreadth}, depth: ${newDepth}`);
+    log('info', `\n🔍 Researching deeper, breadth: ${newBreadth}, depth: ${newDepth}`);
 
     reportProgress({
       currentDepth: newDepth,
@@ -1982,14 +1997,14 @@ IMPORTANT: Generate queries that include:
       completedQueries: serpQueries.length,
     });
 
-    log(`\n✅ Research complete! Collected ${allLearnings.length} learnings from ${allUrls.length} URLs`);
+    log('info', `\n✅ Research complete! Collected ${allLearnings.length} learnings from ${allUrls.length} URLs`);
     
     // If we have a data saver, log the run directory
     if (dataSaver) {
-      log(`📁 Research data saved to: ${dataSaver.getRunDir()}`);
+      log('debug', `📁 Research data saved to: ${dataSaver.getRunDir()}`);
     }
     
-    log(`  Returning final results: ${allLearnings.length} learnings, ${allUrls.length} URLs`);
+    log('debug', `  Returning final results: ${allLearnings.length} learnings, ${allUrls.length} URLs`);
     return {
       learnings: allLearnings,
       visitedUrls: allUrls,

@@ -195,7 +195,11 @@ MAIN_BACKEND_URL=https://wealthyrabbitios-production-03a4.up.railway.app
 HOLDINGS_API_BASE_URL=https://wealthyrabbitios-production-03a4.up.railway.app
 
 # Optional
-FIRECRAWL_CONCURRENCY=2  # Adjust based on your plan
+FIRECRAWL_CONCURRENCY=2  # Firecrawl calls per holding (default: 2)
+HOLDINGS_CONCURRENCY=8  # Holdings to research in parallel (default: 8 for Firecrawl Standard)
+# Note: With Firecrawl Standard (50 concurrent), you can use HOLDINGS_CONCURRENCY=8-10
+# This means 8 holdings * 2 FIRECRAWL_CONCURRENCY = 16 concurrent Firecrawl calls (well under 50)
+LOG_LEVEL=info  # Log level: error, warn, info, debug (default: info)
 CONTEXT_SIZE=128000
 ```
 

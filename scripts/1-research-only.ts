@@ -15,6 +15,7 @@ import { fetchUserHoldings } from '../src/fetch-holdings';
 import { scanMacro } from '../src/macro-scan';
 import { saveLearnings } from '../src/db/reports';
 import { pool } from '../src/db/client';
+import pLimit from 'p-limit';
 
 const DEFAULT_HOLDINGS_API =
   'https://wealthyrabbitios-production-03a4.up.railway.app';
@@ -121,27 +122,52 @@ async function main() {
   } else {
     console.log(`   ✅ ${holdings.length} unique holdings\n`);
     console.log('3️⃣  Researching holdings...');
-  for (const h of holdings) {
-    const q = buildHoldingQuery(h);
-    console.log(`   📊 ${h.symbol} (${h.type})...`);
-    try {
-      const { learnings, visitedUrls } = await deepResearch({
-        query: q,
-        breadth: breadthPerHolding,
-        depth: depthPerHolding,
-        dataSaver: undefined,
-        initialQuery: q,
-        totalDepth: depthPerHolding,
-        iteration: 1,
-        researchLabel: h.symbol,
-      });
-      allLearnings.push(...learnings);
-      allUrls.push(...visitedUrls);
-      console.log(`      ✅ ${learnings.length} learnings, ${visitedUrls.length} URLs`);
-    } catch (e) {
-      console.error(`      ❌ ${h.symbol}:`, e);
+    
+    // Parallelize holdings research with concurrency limit
+    // Default: 8 for Firecrawl Standard (50 concurrent requests)
+    // Each holding uses FIRECRAWL_CONCURRENCY (default 2) internally
+    // So 8 holdings * 2 = 16 concurrent Firecrawl calls (well under 50 limit)
+    const holdingsConcurrency = Number(process.env.HOLDINGS_CONCURRENCY) || 8;
+    const holdingsLimit = pLimit(holdingsConcurrency);
+    console.log(`   🔄 Researching ${holdings.length} holdings with concurrency ${holdingsConcurrency}...\n`);
+    
+    const researchPromises = holdings.map((h) =>
+      holdingsLimit(async () => {
+        const q = buildHoldingQuery(h);
+        console.log(`   📊 ${h.symbol} (${h.type})...`);
+        try {
+          const { learnings, visitedUrls } = await deepResearch({
+            query: q,
+            breadth: breadthPerHolding,
+            depth: depthPerHolding,
+            dataSaver: undefined,
+            initialQuery: q,
+            totalDepth: depthPerHolding,
+            iteration: 1,
+            researchLabel: h.symbol,
+          });
+          console.log(`      ✅ ${h.symbol}: ${learnings.length} learnings, ${visitedUrls.length} URLs`);
+          return { symbol: h.symbol, learnings, visitedUrls, error: null };
+        } catch (e) {
+          console.error(`      ❌ ${h.symbol}:`, e instanceof Error ? e.message : String(e));
+          return { symbol: h.symbol, learnings: [], visitedUrls: [], error: e };
+        }
+      })
+    );
+    
+    // Wait for all holdings research to complete
+    const results = await Promise.allSettled(researchPromises);
+    
+    // Aggregate results
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const { learnings, visitedUrls } = result.value;
+        allLearnings.push(...learnings);
+        allUrls.push(...visitedUrls);
+      } else {
+        console.error(`   ❌ Holding research failed:`, result.reason);
+      }
     }
-  }
 
     // Save holdings learnings immediately (before macro scan)
     if (allLearnings.length > 0) {

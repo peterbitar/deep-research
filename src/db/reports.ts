@@ -291,7 +291,8 @@ async function getLatestRunId(): Promise<string | null> {
 export async function saveLearnings(
   runId: string,
   learnings: string[],
-  urls: string[]
+  urls: string[],
+  holdings?: string[] // Optional: list of holdings that were researched
 ): Promise<void> {
   if (!pool) {
     throw new Error('Database not configured');
@@ -301,12 +302,22 @@ export async function saveLearnings(
   try {
     await client.query('BEGIN');
 
+    // Build query string that includes holdings info if available
+    let queryText = 'Research in progress';
+    if (holdings && holdings.length > 0) {
+      // Store holdings in query field as JSON for easy extraction
+      // Format: "Research in progress | HOLDINGS: SYMBOL1,SYMBOL2,SYMBOL3"
+      queryText = `Research in progress | HOLDINGS: ${holdings.join(',')}`;
+    }
+
     // Create research run if it doesn't exist
     await client.query(
       `INSERT INTO research_runs (run_id, query, depth, breadth, status)
        VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (run_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
-      [runId, 'Research in progress', 0, 0, 'researching']
+       ON CONFLICT (run_id) DO UPDATE SET 
+         query = EXCLUDED.query,
+         updated_at = CURRENT_TIMESTAMP`,
+      [runId, queryText, 0, 0, 'researching']
     );
 
     // Delete existing learnings for this run

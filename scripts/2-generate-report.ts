@@ -72,6 +72,52 @@ async function main() {
 This report combines individual holding-specific research and macro factors that impact the overall portfolio.
 Focus on factual updates from the last 7 days that could impact portfolio performance.`;
 
+  // Extract holdings from query - check for "HOLDINGS: SYMBOL1,SYMBOL2" format first
+  let uniqueHoldings: string[] = [];
+  
+  const holdingsMatch = portfolioQuery.match(/HOLDINGS:\s*([A-Z0-9,]+)/i);
+  if (holdingsMatch) {
+    // Holdings are explicitly stored in query
+    uniqueHoldings = holdingsMatch[1].split(',').map(s => s.toUpperCase().trim()).filter(s => s.length > 0);
+    console.log(`   📊 Extracted ${uniqueHoldings.length} holdings from query: ${uniqueHoldings.join(', ')}\n`);
+  } else {
+    // Fallback: Try to extract from query patterns like "Research BB (Stock)"
+    const holdingsFromQuery: string[] = [];
+    const holdingPattern = /Research\s+([A-Z0-9]{1,5})\s*\(/gi;
+    let match;
+    while ((match = holdingPattern.exec(portfolioQuery)) !== null) {
+      const symbol = match[1].toUpperCase().trim();
+      if (symbol.length >= 2 && symbol.length <= 5) {
+        holdingsFromQuery.push(symbol);
+      }
+    }
+    
+    // Also check for company names in query
+    const companyNameMap: Record<string, string> = {
+      'BLACKBERRY': 'BB',
+      'LIGHTSPEED': 'LSPD',
+      'NETFLIX': 'NFLX',
+      'APPLE': 'AAPL',
+      'NVIDIA': 'NVDA',
+      'TESLA': 'TSLA',
+      'MICROSOFT': 'MSFT',
+      'GOOGLE': 'GOOGL',
+      'AMAZON': 'AMZN',
+    };
+    
+    const upperQuery = portfolioQuery.toUpperCase();
+    for (const [companyName, ticker] of Object.entries(companyNameMap)) {
+      if (upperQuery.includes(companyName) && !holdingsFromQuery.includes(ticker)) {
+        holdingsFromQuery.push(ticker);
+      }
+    }
+    
+    uniqueHoldings = [...new Set(holdingsFromQuery)].sort();
+    if (uniqueHoldings.length > 0) {
+      console.log(`   📊 Extracted ${uniqueHoldings.length} holdings from query patterns: ${uniqueHoldings.join(', ')}\n`);
+    }
+  }
+
   // Generate report (WITHOUT rewriting first)
   console.log('2️⃣  Generating report (this may take 1-3 minutes)...');
   const reportStartTime = Date.now();
@@ -80,6 +126,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
     learnings,
     visitedUrls: urls,
     skipRewrite: true, // Skip rewriting to save immediately
+    holdings: uniqueHoldings.length > 0 ? uniqueHoldings : undefined,
   });
 
   const reportDuration = ((Date.now() - reportStartTime) / 1000).toFixed(1);

@@ -884,11 +884,13 @@ export async function writeFinalReport({
   learnings,
   visitedUrls,
   skipRewrite = false,
+  holdings,
 }: {
   prompt: string;
   learnings: string[];
   visitedUrls: string[];
   skipRewrite?: boolean;
+  holdings?: string[]; // Optional: explicit list of holdings that were researched
 }) {
   const learningsString = learnings
     .map(learning => `<learning>\n${learning}\n</learning>`)
@@ -953,58 +955,109 @@ ${learningsString}
     }),
   });
 
-  // Extract holdings from learnings to ensure coverage
-  // Use the same ticker extraction logic as the API
-  const holdingsSet = new Set<string>();
-  const tickerPattern = /(?:^|[\s$\(,])([A-Z0-9]{1,5})(?=[\s\)\.,;:]|$)/g;
-  const commonWords = new Set([
-    'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 
-    'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO',
-    'BOY', 'DID', 'LET', 'PUT', 'SAY', 'SHE', 'TOO', 'USE', 'HAD', 'WITH', 'THIS', 'WEEK', 'THAT', 'FROM',
-    'INTO', 'ONLY', 'OVER', 'UNDER', 'AFTER', 'BEFORE', 'ABOUT', 'ABOVE', 'BELOW', 'BETWEEN', 'AMONG',
-    'STOCK', 'PRICE', 'SHARES', 'MARKET', 'TRADING', 'EARNINGS', 'REVENUE', 'GROWTH', 'SALES', 'PROFIT',
-    'RECENT', 'CHANGE', 'CONTEXT', 'TREND', 'LONG', 'TERM', 'SHORT', 'TERM', 'METADATA'
-  ]);
+  // Use provided holdings if available, otherwise try to extract from learnings
+  let finalHoldings: string[] = [];
   
-  for (const learning of learnings) {
-    const upperLearning = learning.toUpperCase();
-    let match;
-    while ((match = tickerPattern.exec(upperLearning)) !== null) {
-      const symbol = match[1];
-      // Filter out common words and ensure it's a valid ticker (2-5 chars, contains at least one letter)
-      if (symbol.length >= 2 && 
-          symbol.length <= 5 && 
-          /[A-Z]/.test(symbol) && 
-          !commonWords.has(symbol)) {
-        holdingsSet.add(symbol);
+  if (holdings && holdings.length > 0) {
+    // Use explicitly provided holdings (most reliable)
+    finalHoldings = holdings.map(h => h.toUpperCase().trim()).sort();
+    log('info', `📊 Using provided holdings: ${finalHoldings.join(', ')}`);
+  } else {
+    // Fallback: Try to extract from learnings (less reliable, but better than nothing)
+    const holdingsSet = new Set<string>();
+    const tickerPattern = /(?:^|[\s$\(,])([A-Z0-9]{1,5})(?=[\s\)\.,;:]|$)/g;
+    const commonWords = new Set([
+      'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 
+      'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO',
+      'BOY', 'DID', 'LET', 'PUT', 'SAY', 'SHE', 'TOO', 'USE', 'HAD', 'WITH', 'THIS', 'WEEK', 'THAT', 'FROM',
+      'INTO', 'ONLY', 'OVER', 'UNDER', 'AFTER', 'BEFORE', 'ABOUT', 'ABOVE', 'BELOW', 'BETWEEN', 'AMONG',
+      'STOCK', 'PRICE', 'SHARES', 'MARKET', 'TRADING', 'EARNINGS', 'REVENUE', 'GROWTH', 'SALES', 'PROFIT',
+      'RECENT', 'CHANGE', 'CONTEXT', 'TREND', 'LONG', 'TERM', 'SHORT', 'TERM', 'METADATA'
+    ]);
+    
+    // Also check for company names that map to tickers
+    const companyNameMap: Record<string, string> = {
+      'BLACKBERRY': 'BB',
+      'LIGHTSPEED': 'LSPD',
+      'NETFLIX': 'NFLX',
+      'APPLE': 'AAPL',
+      'NVIDIA': 'NVDA',
+      'TESLA': 'TSLA',
+      'MICROSOFT': 'MSFT',
+      'GOOGLE': 'GOOGL',
+      'AMAZON': 'AMZN',
+    };
+    
+    for (const learning of learnings) {
+      const upperLearning = learning.toUpperCase();
+      
+      // Check for company names first
+      for (const [companyName, ticker] of Object.entries(companyNameMap)) {
+        if (upperLearning.includes(companyName)) {
+          holdingsSet.add(ticker);
+        }
+      }
+      
+      // Then check for ticker patterns
+      let match;
+      while ((match = tickerPattern.exec(upperLearning)) !== null) {
+        const symbol = match[1];
+        if (symbol.length >= 2 && 
+            symbol.length <= 5 && 
+            /[A-Z]/.test(symbol) && 
+            !commonWords.has(symbol)) {
+          holdingsSet.add(symbol);
+        }
       }
     }
-  }
-  const holdings = Array.from(holdingsSet).sort();
-  
-  if (holdings.length > 0) {
-    log('info', `📊 Detected ${holdings.length} holdings in learnings: ${holdings.join(', ')}`);
+    finalHoldings = Array.from(holdingsSet).sort();
+    
+    if (finalHoldings.length > 0) {
+      log('info', `📊 Extracted ${finalHoldings.length} holdings from learnings: ${finalHoldings.join(', ')}`);
+    }
   }
   
   // Map cards to their primary holdings (extract ticker from title/content)
   const cardHoldings = cardsRes.object.potentialCards.map((card, i) => {
     const cardText = `${card.title.toUpperCase()} ${card.relatedLearnings.join(' ').toUpperCase()}`;
     const cardTickers: string[] = [];
+    
+    // Check for company names first
+    const companyNameMap: Record<string, string> = {
+      'BLACKBERRY': 'BB',
+      'LIGHTSPEED': 'LSPD',
+      'NETFLIX': 'NFLX',
+      'APPLE': 'AAPL',
+      'NVIDIA': 'NVDA',
+      'TESLA': 'TSLA',
+      'MICROSOFT': 'MSFT',
+      'GOOGLE': 'GOOGL',
+      'AMAZON': 'AMZN',
+    };
+    
+    for (const [companyName, ticker] of Object.entries(companyNameMap)) {
+      if (cardText.includes(companyName) && finalHoldings.includes(ticker)) {
+        cardTickers.push(ticker);
+      }
+    }
+    
+    // Then check for ticker symbols
     let match;
     const tickerRegex = /\b([A-Z]{2,5})\b/g;
     while ((match = tickerRegex.exec(cardText)) !== null) {
       const symbol = match[1];
-      if (holdings.includes(symbol)) {
+      if (finalHoldings.includes(symbol)) {
         cardTickers.push(symbol);
       }
     }
-    return { cardIndex: i, tickers: cardTickers };
+    
+    return { cardIndex: i, tickers: [...new Set(cardTickers)] }; // Deduplicate
   });
 
   // Step 2: Self-feedback to select the best cards
   log('info', '🔍 Selecting best cards with self-feedback...');
-  const holdingsList = holdings.length > 0 ? `\n\nHOLDINGS COVERAGE REQUIREMENT:
-- The following holdings were researched: ${holdings.join(', ')}
+  const holdingsList = finalHoldings.length > 0 ? `\n\nHOLDINGS COVERAGE REQUIREMENT:
+- The following holdings were researched: ${finalHoldings.join(', ')}
 - You MUST select AT LEAST ONE card for EACH holding listed above
 - If a holding has multiple potential cards, select the BEST one for that holding
 - This ensures every researched holding gets representation in the final report` : '';
@@ -1029,7 +1082,7 @@ EXCLUDE cards that:
 - Are too vague or generic
 - Don't have clear impact or implications
 
-IMPORTANT: Select ALL cards that meet the criteria above. Do not artificially limit the count. If 10 cards meet the criteria, select all 10.${holdings.length > 0 ? ` Additionally, ensure at least one card per holding from: ${holdings.join(', ')}` : ''}
+IMPORTANT: Select ALL cards that meet the criteria above. Do not artificially limit the count. If 10 cards meet the criteria, select all 10.${finalHoldings.length > 0 ? ` Additionally, ensure at least one card per holding from: ${finalHoldings.join(', ')}` : ''}
 
 <prompt>${prompt}</prompt>
 
@@ -1059,11 +1112,32 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
     .filter(card => card !== undefined);
 
   // Ensure at least one card per holding
-  if (holdings.length > 0) {
+  if (finalHoldings.length > 0) {
     const selectedCardTickers = new Set<string>();
+    const companyNameMap: Record<string, string> = {
+      'BLACKBERRY': 'BB',
+      'LIGHTSPEED': 'LSPD',
+      'NETFLIX': 'NFLX',
+      'APPLE': 'AAPL',
+      'NVIDIA': 'NVDA',
+      'TESLA': 'TSLA',
+      'MICROSOFT': 'MSFT',
+      'GOOGLE': 'GOOGL',
+      'AMAZON': 'AMZN',
+    };
+    
     for (const card of selectedCards) {
       const cardText = `${card.title.toUpperCase()} ${card.relatedLearnings.join(' ').toUpperCase()}`;
-      for (const holding of holdings) {
+      
+      // Check for company names
+      for (const [companyName, ticker] of Object.entries(companyNameMap)) {
+        if (cardText.includes(companyName) && finalHoldings.includes(ticker)) {
+          selectedCardTickers.add(ticker);
+        }
+      }
+      
+      // Check for ticker symbols
+      for (const holding of finalHoldings) {
         if (cardText.includes(holding)) {
           selectedCardTickers.add(holding);
         }
@@ -1071,7 +1145,7 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
     }
 
     // Find missing holdings
-    const missingHoldings = holdings.filter(h => !selectedCardTickers.has(h));
+    const missingHoldings = finalHoldings.filter(h => !selectedCardTickers.has(h));
     
     if (missingHoldings.length > 0) {
       log('info', `⚠️  Missing cards for holdings: ${missingHoldings.join(', ')}. Adding cards to ensure coverage...`);
@@ -1082,7 +1156,35 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
         const cardsForHolding = cardsRes.object.potentialCards
           .map((card, idx) => {
             const cardText = `${card.title.toUpperCase()} ${card.relatedLearnings.join(' ').toUpperCase()}`;
+            
+            // Check for company name match
+            const companyNameMap: Record<string, string> = {
+              'BLACKBERRY': 'BB',
+              'LIGHTSPEED': 'LSPD',
+              'NETFLIX': 'NFLX',
+              'APPLE': 'AAPL',
+              'NVIDIA': 'NVDA',
+              'TESLA': 'TSLA',
+              'MICROSOFT': 'MSFT',
+              'GOOGLE': 'GOOGL',
+              'AMAZON': 'AMZN',
+            };
+            
+            // Check if card mentions the holding by ticker or company name
+            let matches = false;
             if (cardText.includes(missingHolding)) {
+              matches = true;
+            } else {
+              // Check reverse mapping (ticker -> company name)
+              for (const [companyName, ticker] of Object.entries(companyNameMap)) {
+                if (ticker === missingHolding && cardText.includes(companyName)) {
+                  matches = true;
+                  break;
+                }
+              }
+            }
+            
+            if (matches) {
               return { card, index: idx };
             }
             return null;
@@ -1110,17 +1212,42 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
   }
 
   log('info', `✅ Selected ${selectedCards.length} cards from ${cardsRes.object.potentialCards.length} potential cards`);
-  if (holdings.length > 0) {
+  if (finalHoldings.length > 0) {
     const coveredHoldings = new Set<string>();
+    const companyNameMap: Record<string, string> = {
+      'BLACKBERRY': 'BB',
+      'LIGHTSPEED': 'LSPD',
+      'NETFLIX': 'NFLX',
+      'APPLE': 'AAPL',
+      'NVIDIA': 'NVDA',
+      'TESLA': 'TSLA',
+      'MICROSOFT': 'MSFT',
+      'GOOGLE': 'GOOGL',
+      'AMAZON': 'AMZN',
+    };
+    
     for (const card of selectedCards) {
       const cardText = `${card.title.toUpperCase()} ${card.relatedLearnings.join(' ').toUpperCase()}`;
-      for (const holding of holdings) {
+      
+      // Check for company names
+      for (const [companyName, ticker] of Object.entries(companyNameMap)) {
+        if (cardText.includes(companyName) && finalHoldings.includes(ticker)) {
+          coveredHoldings.add(ticker);
+        }
+      }
+      
+      // Check for ticker symbols
+      for (const holding of finalHoldings) {
         if (cardText.includes(holding)) {
           coveredHoldings.add(holding);
         }
       }
     }
-    log('info', `📊 Holdings coverage: ${coveredHoldings.size}/${holdings.length} holdings have cards (${Array.from(coveredHoldings).join(', ')})`);
+    log('info', `📊 Holdings coverage: ${coveredHoldings.size}/${finalHoldings.length} holdings have cards (${Array.from(coveredHoldings).join(', ')})`);
+    if (coveredHoldings.size < finalHoldings.length) {
+      const missing = finalHoldings.filter(h => !coveredHoldings.has(h));
+      log('warn', `⚠️  Missing cards for: ${missing.join(', ')}`);
+    }
   }
   log('debug', `Selection reasoning: ${selectedCardsRes.object.reasoning}`);
 

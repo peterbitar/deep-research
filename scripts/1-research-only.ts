@@ -172,7 +172,8 @@ async function main() {
     // Save holdings learnings immediately (before macro scan)
     if (allLearnings.length > 0) {
       console.log('\n💾 Saving holdings learnings to database (before macro scan)...');
-      await saveLearnings(runId, allLearnings, allUrls);
+      const holdingsSymbols = holdings.map(h => h.symbol.toUpperCase());
+      await saveLearnings(runId, allLearnings, allUrls, holdingsSymbols);
       const uniqueUrls = [...new Set(allUrls)];
       for (let i = 0; i < uniqueUrls.length; i++) {
         await pool.query(
@@ -203,7 +204,8 @@ async function main() {
     
     // Save all learnings (holdings + macro) to DB
     console.log('\n💾 Saving all learnings to database...');
-    await saveLearnings(runId, allLearnings, allUrls);
+    const holdingsSymbols = holdings.length > 0 ? holdings.map(h => h.symbol.toUpperCase()) : undefined;
+    await saveLearnings(runId, allLearnings, allUrls, holdingsSymbols);
     const allUniqueUrls = [...new Set(allUrls)];
     for (let i = 0; i < allUniqueUrls.length; i++) {
       await pool.query(

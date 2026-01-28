@@ -953,13 +953,67 @@ ${learningsString}
     }),
   });
 
+  // Extract holdings from learnings to ensure coverage
+  // Use the same ticker extraction logic as the API
+  const holdingsSet = new Set<string>();
+  const tickerPattern = /(?:^|[\s$\(,])([A-Z0-9]{1,5})(?=[\s\)\.,;:]|$)/g;
+  const commonWords = new Set([
+    'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 
+    'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO',
+    'BOY', 'DID', 'LET', 'PUT', 'SAY', 'SHE', 'TOO', 'USE', 'HAD', 'WITH', 'THIS', 'WEEK', 'THAT', 'FROM',
+    'INTO', 'ONLY', 'OVER', 'UNDER', 'AFTER', 'BEFORE', 'ABOUT', 'ABOVE', 'BELOW', 'BETWEEN', 'AMONG',
+    'STOCK', 'PRICE', 'SHARES', 'MARKET', 'TRADING', 'EARNINGS', 'REVENUE', 'GROWTH', 'SALES', 'PROFIT',
+    'RECENT', 'CHANGE', 'CONTEXT', 'TREND', 'LONG', 'TERM', 'SHORT', 'TERM', 'METADATA'
+  ]);
+  
+  for (const learning of learnings) {
+    const upperLearning = learning.toUpperCase();
+    let match;
+    while ((match = tickerPattern.exec(upperLearning)) !== null) {
+      const symbol = match[1];
+      // Filter out common words and ensure it's a valid ticker (2-5 chars, contains at least one letter)
+      if (symbol.length >= 2 && 
+          symbol.length <= 5 && 
+          /[A-Z]/.test(symbol) && 
+          !commonWords.has(symbol)) {
+        holdingsSet.add(symbol);
+      }
+    }
+  }
+  const holdings = Array.from(holdingsSet).sort();
+  
+  if (holdings.length > 0) {
+    log('info', `📊 Detected ${holdings.length} holdings in learnings: ${holdings.join(', ')}`);
+  }
+  
+  // Map cards to their primary holdings (extract ticker from title/content)
+  const cardHoldings = cardsRes.object.potentialCards.map((card, i) => {
+    const cardText = `${card.title.toUpperCase()} ${card.relatedLearnings.join(' ').toUpperCase()}`;
+    const cardTickers: string[] = [];
+    let match;
+    const tickerRegex = /\b([A-Z]{2,5})\b/g;
+    while ((match = tickerRegex.exec(cardText)) !== null) {
+      const symbol = match[1];
+      if (holdings.includes(symbol)) {
+        cardTickers.push(symbol);
+      }
+    }
+    return { cardIndex: i, tickers: cardTickers };
+  });
+
   // Step 2: Self-feedback to select the best cards
   log('info', '🔍 Selecting best cards with self-feedback...');
+  const holdingsList = holdings.length > 0 ? `\n\nHOLDINGS COVERAGE REQUIREMENT:
+- The following holdings were researched: ${holdings.join(', ')}
+- You MUST select AT LEAST ONE card for EACH holding listed above
+- If a holding has multiple potential cards, select the BEST one for that holding
+- This ensures every researched holding gets representation in the final report` : '';
+  
   const selectedCardsRes = await generateObject({
     model: getModel(),
     system: reportStylePrompt(),
     prompt: trimPrompt(
-      `Review the potential cards below and select ONLY the best ones for the final report.
+      `Review the potential cards below and select the best ones for the final report.${holdingsList}
 
 SELECTION CRITERIA (ALL must be true):
 1. Provides actionable value - helps reader make smarter decisions
@@ -975,16 +1029,22 @@ EXCLUDE cards that:
 - Are too vague or generic
 - Don't have clear impact or implications
 
+IMPORTANT: Select ALL cards that meet the criteria above. Do not artificially limit the count. If 10 cards meet the criteria, select all 10.${holdings.length > 0 ? ` Additionally, ensure at least one card per holding from: ${holdings.join(', ')}` : ''}
+
 <prompt>${prompt}</prompt>
 
 <potentialCards>
-${cardsRes.object.potentialCards.map((card, i) => `
-Card ${i + 1}:
+${cardsRes.object.potentialCards.map((card, i) => {
+  const cardTickers = cardHoldings.find(ch => ch.cardIndex === i)?.tickers || [];
+  const tickerInfo = cardTickers.length > 0 ? ` [Covers: ${cardTickers.join(', ')}]` : '';
+  return `
+Card ${i + 1}:${tickerInfo}
 Title: ${card.title}
 Why It Matters: ${card.whyItMatters}
 Actionable Value: ${card.actionableValue}
 Related Learnings: ${card.relatedLearnings.join(', ')}
-`).join('\n')}
+`;
+}).join('\n')}
 </potentialCards>`,
     ),
     schema: z.object({
@@ -994,11 +1054,74 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
   });
 
   // Filter to selected cards
-  const selectedCards = selectedCardsRes.object.selectedCardIndices
+  let selectedCards = selectedCardsRes.object.selectedCardIndices
     .map(idx => cardsRes.object.potentialCards[idx])
     .filter(card => card !== undefined);
 
+  // Ensure at least one card per holding
+  if (holdings.length > 0) {
+    const selectedCardTickers = new Set<string>();
+    for (const card of selectedCards) {
+      const cardText = `${card.title.toUpperCase()} ${card.relatedLearnings.join(' ').toUpperCase()}`;
+      for (const holding of holdings) {
+        if (cardText.includes(holding)) {
+          selectedCardTickers.add(holding);
+        }
+      }
+    }
+
+    // Find missing holdings
+    const missingHoldings = holdings.filter(h => !selectedCardTickers.has(h));
+    
+    if (missingHoldings.length > 0) {
+      log('info', `⚠️  Missing cards for holdings: ${missingHoldings.join(', ')}. Adding cards to ensure coverage...`);
+      
+      // For each missing holding, find the best potential card
+      for (const missingHolding of missingHoldings) {
+        // Find potential cards that mention this holding
+        const cardsForHolding = cardsRes.object.potentialCards
+          .map((card, idx) => {
+            const cardText = `${card.title.toUpperCase()} ${card.relatedLearnings.join(' ').toUpperCase()}`;
+            if (cardText.includes(missingHolding)) {
+              return { card, index: idx };
+            }
+            return null;
+          })
+          .filter((item): item is { card: typeof cardsRes.object.potentialCards[0]; index: number } => item !== null);
+
+        if (cardsForHolding.length > 0) {
+          // Select the first/best card for this holding (prioritize by shouldInclude flag if available)
+          const bestCard = cardsForHolding.sort((a, b) => {
+            if (a.card.shouldInclude && !b.card.shouldInclude) return -1;
+            if (!a.card.shouldInclude && b.card.shouldInclude) return 1;
+            return 0;
+          })[0];
+          
+          // Only add if not already selected
+          if (!selectedCardsRes.object.selectedCardIndices.includes(bestCard.index)) {
+            selectedCards.push(bestCard.card);
+            log('info', `  ✅ Added card for ${missingHolding}: "${bestCard.card.title}"`);
+          }
+        } else {
+          log('warn', `  ⚠️  No potential cards found for ${missingHolding}`);
+        }
+      }
+    }
+  }
+
   log('info', `✅ Selected ${selectedCards.length} cards from ${cardsRes.object.potentialCards.length} potential cards`);
+  if (holdings.length > 0) {
+    const coveredHoldings = new Set<string>();
+    for (const card of selectedCards) {
+      const cardText = `${card.title.toUpperCase()} ${card.relatedLearnings.join(' ').toUpperCase()}`;
+      for (const holding of holdings) {
+        if (cardText.includes(holding)) {
+          coveredHoldings.add(holding);
+        }
+      }
+    }
+    log('info', `📊 Holdings coverage: ${coveredHoldings.size}/${holdings.length} holdings have cards (${Array.from(coveredHoldings).join(', ')})`);
+  }
   log('debug', `Selection reasoning: ${selectedCardsRes.object.reasoning}`);
 
   // Step 3: Generate TLDR for each card

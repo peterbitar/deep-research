@@ -62,25 +62,47 @@ export async function saveReport(data: ReportData): Promise<void> {
     await client.query('DELETE FROM report_cards WHERE run_id = $1', [data.runId]);
     await client.query('DELETE FROM report_sources WHERE run_id = $1', [data.runId]);
 
-    // Extract ticker from query if it mentions a company/stock
+    // Dynamic ticker extraction from query
     const queryUpper = data.query.toUpperCase();
-    const queryTicker = queryUpper.match(/\b(NFLX|NETFLIX|AAPL|APPLE|NVDA|NVIDIA|TSLA|TESLA|MSFT|MICROSOFT|GOOGL|GOOGLE|AMZN|AMAZON|META|XRP|BTC|BITCOIN|ETH|ETHEREUM|SOL|SOLANA)\b/i)?.[0];
+    
+    // Common company name to ticker mappings
+    const COMPANY_NAME_MAP: Record<string, string> = {
+      'NETFLIX': 'NFLX',
+      'APPLE': 'AAPL',
+      'NVIDIA': 'NVDA',
+      'TESLA': 'TSLA',
+      'MICROSOFT': 'MSFT',
+      'GOOGLE': 'GOOGL',
+      'AMAZON': 'AMZN',
+      'BITCOIN': 'BTC',
+      'ETHEREUM': 'ETH',
+      'SOLANA': 'SOL',
+      'BLACKBERRY': 'BB',
+      'LIGHTSPEED': 'LSPD',
+    };
+    
+    // Extract ticker from query - check company names first, then ticker pattern
     let defaultTicker: string | null = null;
-    if (queryTicker) {
-      // Map full names to symbols
-      const tickerMap: Record<string, string> = {
-        'NETFLIX': 'NFLX',
-        'APPLE': 'AAPL',
-        'NVIDIA': 'NVDA',
-        'TESLA': 'TSLA',
-        'MICROSOFT': 'MSFT',
-        'GOOGLE': 'GOOGL',
-        'AMAZON': 'AMZN',
-        'BITCOIN': 'BTC',
-        'ETHEREUM': 'ETH',
-        'SOLANA': 'SOL',
-      };
-      defaultTicker = tickerMap[queryTicker.toUpperCase()] || queryTicker.toUpperCase();
+    
+    // Check for company names
+    for (const [companyName, ticker] of Object.entries(COMPANY_NAME_MAP)) {
+      if (queryUpper.includes(companyName)) {
+        defaultTicker = ticker;
+        break;
+      }
+    }
+    
+    // If no company name found, try ticker pattern (1-5 uppercase letters)
+    if (!defaultTicker) {
+      const tickerMatch = queryUpper.match(/\b([A-Z]{2,5})(?![A-Za-z])/);
+      if (tickerMatch) {
+        const potentialTicker = tickerMatch[1];
+        // Only use if it's a known ticker or looks valid (2-5 chars, not common words)
+        const commonWords = new Set(['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO']);
+        if (!commonWords.has(potentialTicker)) {
+          defaultTicker = potentialTicker;
+        }
+      }
     }
 
     // Save cards
@@ -90,31 +112,50 @@ export async function saveReport(data: ReportData): Promise<void> {
       const cardTitleUpper = card.title.toUpperCase();
       const cardContentUpper = card.content.toUpperCase();
       
-      // Check for ticker in card (expanded list including NFLX)
-      const cardTickerMatch = cardTitleUpper.match(/\b(NFLX|NETFLIX|AAPL|APPLE|NVDA|NVIDIA|TSLA|TESLA|MSFT|MICROSOFT|GOOGL|GOOGLE|AMZN|AMAZON|META|XRP|BTC|BITCOIN|ETH|ETHEREUM|SOL|SOLANA)\b/i)?.[0];
-      
       // Check if this is a macro card BEFORE assigning ticker
       const macro = card.title.match(/\b(Fed|ECB|Central Bank|Economic|Geopolitical)\b/i)?.[0] || null;
       
       let ticker: string | null = null;
-      if (cardTickerMatch) {
-        // Card explicitly mentions a ticker - use it
-        const tickerMap: Record<string, string> = {
-          'NETFLIX': 'NFLX',
-          'APPLE': 'AAPL',
-          'NVIDIA': 'NVDA',
-          'TESLA': 'TSLA',
-          'MICROSOFT': 'MSFT',
-          'GOOGLE': 'GOOGL',
-          'AMAZON': 'AMZN',
-          'BITCOIN': 'BTC',
-          'ETHEREUM': 'ETH',
-          'SOLANA': 'SOL',
-        };
-        ticker = tickerMap[cardTickerMatch.toUpperCase()] || cardTickerMatch.toUpperCase();
-      } else if (defaultTicker && !macro) {
-        // Fallback to query ticker ONLY if this is NOT a macro card
-        // Macro cards should never inherit portfolio tickers
+      
+      // Dynamic ticker detection from card content
+      const cardText = `${cardTitleUpper} ${cardContentUpper}`;
+      
+      // 1. Check for company names first
+      for (const [companyName, mappedTicker] of Object.entries(COMPANY_NAME_MAP)) {
+        if (cardText.includes(companyName)) {
+          ticker = mappedTicker;
+          break;
+        }
+      }
+      
+      // 2. If no company name, try ticker pattern matching
+      if (!ticker) {
+        const tickerPattern = /\b([A-Z]{2,5})(?![A-Za-z])/g;
+        const commonWords = new Set(['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO']);
+        const matches: string[] = [];
+        let match;
+        
+        while ((match = tickerPattern.exec(cardText)) !== null) {
+          const symbol = match[1];
+          if (symbol.length >= 2 && !commonWords.has(symbol)) {
+            matches.push(symbol);
+          }
+        }
+        
+        // Use first valid match, or check if it's a known ticker
+        if (matches.length > 0) {
+          const firstMatch = matches[0];
+          // Prefer known tickers
+          if (Object.values(COMPANY_NAME_MAP).includes(firstMatch)) {
+            ticker = firstMatch;
+          } else {
+            ticker = firstMatch;
+          }
+        }
+      }
+      
+      // 3. Fallback to query ticker ONLY if this is NOT a macro card
+      if (!ticker && defaultTicker && !macro) {
         ticker = defaultTicker;
       }
 

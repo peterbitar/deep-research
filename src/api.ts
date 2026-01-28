@@ -195,13 +195,68 @@ app.get('/api/report/latest', async (req: Request, res: Response) => {
   }
 });
 
+// Common company name to ticker mappings (for well-known companies)
+const COMPANY_NAME_MAP: Record<string, string> = {
+  'NETFLIX': 'NFLX',
+  'APPLE': 'AAPL',
+  'NVIDIA': 'NVDA',
+  'TESLA': 'TSLA',
+  'MICROSOFT': 'MSFT',
+  'GOOGLE': 'GOOGL',
+  'AMAZON': 'AMZN',
+  'BITCOIN': 'BTC',
+  'ETHEREUM': 'ETH',
+  'SOLANA': 'SOL',
+  'BLACKBERRY': 'BB',
+  'LIGHTSPEED': 'LSPD',
+};
+
+// Helper function to extract ticker symbols from text using regex
+// Matches common ticker patterns: 1-5 uppercase letters, possibly with numbers
+function extractTickerSymbols(text: string): string[] {
+  // Pattern: Match tickers that are:
+  // 1. Preceded by $, space, opening paren, comma, or start of string
+  // 2. 1-5 uppercase letters/numbers
+  // 3. Followed by space, closing paren, comma, period, semicolon, colon, or end of string
+  // This ensures we match standalone tickers, not parts of words
+  const tickerPattern = /(?:^|[\s$\(,])([A-Z0-9]{1,5})(?=[\s\)\.,;:]|$)/g;
+  const commonWords = new Set([
+    'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 
+    'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO',
+    'BOY', 'DID', 'LET', 'PUT', 'SAY', 'SHE', 'TOO', 'USE', 'HAD', 'WITH', 'THIS', 'WEEK', 'THAT', 'FROM',
+    'INTO', 'ONLY', 'OVER', 'UNDER', 'AFTER', 'BEFORE', 'ABOUT', 'ABOVE', 'BELOW', 'BETWEEN', 'AMONG',
+    'STOCK', 'PRICE', 'SHARES', 'MARKET', 'TRADING', 'EARNINGS', 'REVENUE', 'GROWTH', 'SALES', 'PROFIT'
+  ]);
+  
+  const matches = new Set<string>();
+  let match;
+  
+  while ((match = tickerPattern.exec(text)) !== null) {
+    const symbol = match[1];
+    // Filter out common words and very short matches that are likely not tickers
+    // Also filter out single characters and numbers-only matches
+    if (symbol.length >= 2 && 
+        !commonWords.has(symbol) && 
+        /[A-Z]/.test(symbol)) { // Must contain at least one letter
+      matches.add(symbol);
+    }
+  }
+  
+  return Array.from(matches);
+}
+
 // Helper function to determine ticker/macro from card title or content
-function determineCardMetadata(title: string, content: string): {
+function determineCardMetadata(
+  title: string, 
+  content: string,
+  userHoldings?: Array<{ symbol: string }>
+): {
   ticker?: string;
   macro?: string;
 } {
   const upperTitle = title.toUpperCase();
   const upperContent = content.toUpperCase();
+  const combinedText = `${upperTitle} ${upperContent}`;
   
   // Check for macro categories FIRST (priority - avoids false ticker matches)
   // Central Bank Policy - must have FED/ECB in title or prominent in content
@@ -233,27 +288,49 @@ function determineCardMetadata(title: string, content: string): {
     return { macro: 'Geopolitical' };
   }
   
-  // Check for ticker symbols (after macro checks) - expanded list including NFLX
-  const tickers = ['NFLX', 'NETFLIX', 'AAPL', 'APPLE', 'NVDA', 'NVIDIA', 'TSLA', 'TESLA', 'MSFT', 'MICROSOFT', 'GOOGL', 'GOOGLE', 'AMZN', 'AMAZON', 'META', 'XRP', 'BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SOL', 'SOLANA'];
-  for (const ticker of tickers) {
-    if (upperTitle.includes(ticker) || upperContent.includes(ticker)) {
-      // Map full names to symbols
-      const tickerMap: Record<string, string> = {
-        'NETFLIX': 'NFLX',
-        'APPLE': 'AAPL',
-        'NVIDIA': 'NVDA',
-        'TESLA': 'TSLA',
-        'MICROSOFT': 'MSFT',
-        'GOOGLE': 'GOOGL',
-        'AMAZON': 'AMZN',
-        'BITCOIN': 'BTC',
-        'ETHEREUM': 'ETH',
-        'SOLANA': 'SOL',
-      };
-      const mappedTicker = tickerMap[ticker.toUpperCase()] || ticker.toUpperCase();
-      return { ticker: mappedTicker };
+  // Dynamic ticker detection
+  // 1. Check for company names in text (map to tickers)
+  for (const [companyName, ticker] of Object.entries(COMPANY_NAME_MAP)) {
+    if (combinedText.includes(companyName)) {
+      return { ticker };
     }
   }
+  
+  // 2. Extract potential ticker symbols from text
+  const potentialTickers = extractTickerSymbols(combinedText);
+  
+  // 3. If user holdings provided, prioritize matching those
+  if (userHoldings && userHoldings.length > 0) {
+    const holdingsSymbols = new Set(userHoldings.map(h => h.symbol.toUpperCase()));
+    for (const ticker of potentialTickers) {
+      if (holdingsSymbols.has(ticker)) {
+        return { ticker };
+      }
+    }
+  }
+  
+  // 4. Check for well-known tickers in potential matches
+  const wellKnownTickers = new Set([
+    ...Object.values(COMPANY_NAME_MAP),
+    'MU', 'AMD', 'INTC', 'QCOM', 'AVGO', 'TXN', 'MCHP', 'SWKS', 'QRVO', 'MRVL', // Common semiconductor tickers
+    'CSU', 'LSPD', 'BB', // Other common holdings
+  ]);
+  for (const ticker of potentialTickers) {
+    if (wellKnownTickers.has(ticker)) {
+      return { ticker };
+    }
+  }
+  
+  // 5. If no user holdings, use first potential ticker (if it looks valid)
+  // Only use if it's 2-5 characters (typical ticker length)
+  if (potentialTickers.length > 0 && !userHoldings) {
+    const firstTicker = potentialTickers[0];
+    if (firstTicker.length >= 2 && firstTicker.length <= 5) {
+      return { ticker: firstTicker };
+    }
+  }
+  
+  // Fallback macro checks
   if (upperTitle.includes('ECONOMIC') || upperContent.includes('GDP') || upperContent.includes('INFLATION')) {
     return { macro: 'Economic Data' };
   }
@@ -346,7 +423,7 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
         const dbData = await getReportCards();
         if (dbData) {
           const detailedCards = dbData.cards.map((card) => {
-            const metadata = determineCardMetadata(card.title, card.content);
+            const metadata = determineCardMetadata(card.title, card.content, userHoldings);
             return {
               title: card.title,
               content: card.content,
@@ -431,7 +508,7 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
     const parsed = parseReportToCards(reportMarkdown);
 
     const detailedCards = parsed.cards.map((card) => {
-      const metadata = determineCardMetadata(card.title, card.content);
+      const metadata = determineCardMetadata(card.title, card.content, userHoldings);
       return {
         title: card.title,
         content: card.content,

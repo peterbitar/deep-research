@@ -175,7 +175,7 @@ This report combines:
 Focus on factual updates from the last 7 days that could impact portfolio performance.`;
 
   // Generate report WITHOUT rewriting first (save immediately)
-  const reportMarkdown = await writeFinalReport({
+  const { reportMarkdown, cardMetadata } = await writeFinalReport({
     prompt: portfolioQuery,
     learnings: allLearnings,
     visitedUrls: allUrls,
@@ -193,6 +193,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
     breadth: breadthPerHolding,
     reportMarkdown,
     sources: uniqueUrls,
+    cardMetadata,
   });
 
   console.log(`✅ Report saved! Run ID: ${runId}`);
@@ -205,7 +206,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
   try {
     // Rewrite synchronously (blocking) to ensure it completes
     console.log('   ⏳ Rewriting card content (this may take 1-3 minutes)...');
-    const rewrittenReport = await writeFinalReport({
+    const { reportMarkdown: rewrittenReport, cardMetadata: rewriteCardMetadata } = await writeFinalReport({
       prompt: portfolioQuery,
       learnings: allLearnings,
       visitedUrls: allUrls,
@@ -222,6 +223,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
       breadth: breadthPerHolding,
       reportMarkdown: rewrittenReport,
       sources: uniqueUrls,
+      cardMetadata: rewriteCardMetadata,
     });
 
     const totalDuration = ((Date.now() - rewriteStartTime) / 1000).toFixed(1);

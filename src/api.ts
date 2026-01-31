@@ -108,13 +108,13 @@ app.post('/api/generate-report', async (req: Request, res: Response) => {
     log(
       `\n\nVisited URLs (${visitedUrls.length}):\n\n${visitedUrls.join('\n')}`,
     );
-    const report = await writeFinalReport({
+    const { reportMarkdown } = await writeFinalReport({
       prompt: query,
       learnings,
       visitedUrls,
     });
 
-    return res.json({ report });
+    return res.json({ report: reportMarkdown });
   } catch (error: unknown) {
     console.error('Error in generate report API:', error);
     return res.status(500).json({
@@ -423,13 +423,14 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
         const dbData = await getReportCards();
         if (dbData) {
           const detailedCards = dbData.cards.map((card) => {
+            // Prefer pipeline-tagged ticker/macro (stored at save time); infer only when null
             const metadata = determineCardMetadata(card.title, card.content, userHoldings);
             return {
               title: card.title,
               content: card.content,
               emoji: card.emoji,
-              ticker: metadata.ticker || card.ticker || null,
-              macro: metadata.macro || card.macro || null,
+              ticker: card.ticker ?? metadata.ticker ?? null,
+              macro: card.macro ?? metadata.macro ?? null,
               sources: dbData.sources,
               publishedDate: dbData.publishedDate,
             };
@@ -586,7 +587,7 @@ app.post('/api/generate-report-json', async (req: Request, res: Response) => {
     log(
       `\n\nTotal Visited URLs (${allUrls.length}):\n\n${allUrls.join('\n')}`,
     );
-    const reportMarkdown = await writeFinalReport({
+    const { reportMarkdown, cardMetadata } = await writeFinalReport({
       prompt: query,
       learnings: allLearnings,
       visitedUrls: allUrls,
@@ -595,7 +596,7 @@ app.post('/api/generate-report-json', async (req: Request, res: Response) => {
     // Parse report into cards
     const parsed = parseReportToCards(reportMarkdown);
 
-    // Save to database if available
+    // Save to database if available (with pipeline-tagged ticker/macro per card)
     const runId = `research-${Date.now()}`;
     if (pool) {
       try {
@@ -606,6 +607,7 @@ app.post('/api/generate-report-json', async (req: Request, res: Response) => {
           breadth,
           reportMarkdown,
           sources: parsed.sources,
+          cardMetadata,
         });
         log(`✅ Report saved to database: ${runId}`);
       } catch (dbError) {

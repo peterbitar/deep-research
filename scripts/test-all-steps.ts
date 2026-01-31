@@ -540,29 +540,29 @@ async function testAllSteps() {
     const estimatedReportLength = 5000;
     costTracker.trackLLMCallEstimate(modelId, reportPromptLength, estimatedReportLength, 'step7_generate_report');
 
-    const report = await writeFinalReport({
+    const { reportMarkdown } = await writeFinalReport({
       prompt: query,
       learnings,
       visitedUrls,
     });
 
     const step7Duration = Date.now() - step7Start;
-    console.log(`✅ Generated report (${report.length} characters, ${report.split('\n').length} lines)`);
+    console.log(`✅ Generated report (${reportMarkdown.length} characters, ${reportMarkdown.split('\n').length} lines)`);
 
     // Save report
     const reportPath = path.join(process.cwd(), 'test-results', 'test-all-steps-report.md');
     await fs.mkdir(path.dirname(reportPath), { recursive: true });
-    await fs.writeFile(reportPath, report, 'utf-8');
+    await fs.writeFile(reportPath, reportMarkdown, 'utf-8');
 
-    currentData = { ...currentData, report, reportPath };
+    currentData = { ...currentData, report: reportMarkdown, reportPath };
     steps.push({
       step: 7,
       name: 'Generate Final Report',
       success: true,
       duration: step7Duration,
       metrics: {
-        reportLength: report.length,
-        reportLines: report.split('\n').length,
+        reportLength: reportMarkdown.length,
+        reportLines: reportMarkdown.split('\n').length,
         learningsUsed: learnings.length,
         urlsIncluded: visitedUrls.length,
       },

@@ -121,7 +121,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
   // Generate report (WITHOUT rewriting first)
   console.log('2️⃣  Generating report (this may take 1-3 minutes)...');
   const reportStartTime = Date.now();
-  const reportMarkdown = await writeFinalReport({
+  const { reportMarkdown, cardMetadata } = await writeFinalReport({
     prompt: portfolioQuery,
     learnings,
     visitedUrls: urls,
@@ -132,7 +132,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
   const reportDuration = ((Date.now() - reportStartTime) / 1000).toFixed(1);
   console.log(`   ✅ Report generated in ${reportDuration}s\n`);
 
-  // Save report to DB
+  // Save report to DB (with pipeline-tagged ticker/macro per card)
   console.log('3️⃣  Saving report to database...');
   const uniqueUrls = [...new Set(urls)];
   await saveReport({
@@ -142,6 +142,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
     breadth: 3,
     reportMarkdown,
     sources: uniqueUrls,
+    cardMetadata,
   });
 
   console.log(`✅ Report saved! Run ID: ${targetRunId}`);

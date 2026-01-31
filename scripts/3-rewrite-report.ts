@@ -111,7 +111,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
   // Rewrite report (this will regenerate and rewrite)
   console.log('2️⃣  Rewriting report (this may take 2-5 minutes)...');
   const rewriteStartTime = Date.now();
-  const rewrittenReport = await writeFinalReport({
+  const { reportMarkdown: rewrittenReport, cardMetadata } = await writeFinalReport({
     prompt: portfolioQuery,
     learnings,
     visitedUrls: urls,
@@ -122,7 +122,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
   const rewriteDuration = ((Date.now() - rewriteStartTime) / 1000).toFixed(1);
   console.log(`   ✅ Rewrite completed in ${rewriteDuration}s\n`);
 
-  // Update report in DB
+  // Update report in DB (with pipeline-tagged ticker/macro per card)
   console.log('3️⃣  Updating report in database...');
   const uniqueUrls = [...new Set(urls)];
   await saveReport({
@@ -132,6 +132,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
     breadth: 3,
     reportMarkdown: rewrittenReport,
     sources: uniqueUrls,
+    cardMetadata,
   });
 
   const totalDuration = ((Date.now() - rewriteStartTime) / 1000).toFixed(1);

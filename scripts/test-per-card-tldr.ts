@@ -22,7 +22,7 @@ async function testPerCardTLDR() {
 
   console.log('📝 Generating report with per-card TLDR...\n');
 
-  const report = await writeFinalReport({
+  const { reportMarkdown } = await writeFinalReport({
     prompt,
     learnings,
     visitedUrls,
@@ -33,7 +33,7 @@ async function testPerCardTLDR() {
   const cardMatches: Array<{ title: string; hasTLDR: boolean; tldrContent?: string }> = [];
   let match;
 
-  while ((match = cardHeaderRegex.exec(report)) !== null) {
+  while ((match = cardHeaderRegex.exec(reportMarkdown)) !== null) {
     const title = match[1].trim();
     if (title.toUpperCase() === 'SOURCES' || title.toUpperCase().includes('TLDR')) {
       continue;
@@ -41,11 +41,11 @@ async function testPerCardTLDR() {
 
     // Find the content after this card header
     const headerEnd = match.index! + match[0].length;
-    const nextCardMatch = cardHeaderRegex.exec(report);
-    const contentEnd = nextCardMatch ? nextCardMatch.index! : report.length;
+    const nextCardMatch = cardHeaderRegex.exec(reportMarkdown);
+    const contentEnd = nextCardMatch ? nextCardMatch.index! : reportMarkdown.length;
     cardHeaderRegex.lastIndex = 0; // Reset regex
     
-    const cardContent = report.substring(headerEnd, contentEnd);
+    const cardContent = reportMarkdown.substring(headerEnd, contentEnd);
     
     // Check for TLDR section (### TLDR)
     const tldrMatch = cardContent.match(/^###\s+TLDR\s*\n(.*?)(?=\n\n|$)/is);
@@ -83,7 +83,7 @@ async function testPerCardTLDR() {
   }
 
   // Check for old-style global TLDR (should NOT be present)
-  const globalTLDR = /^##\s+TLDR\s*$/m.test(report);
+  const globalTLDR = /^##\s+TLDR\s*$/m.test(reportMarkdown);
   console.log(`📋 Global TLDR (old style): ${globalTLDR ? 'FOUND ⚠️' : 'NOT FOUND ✅'}`);
   console.log(`   Expected: NOT FOUND (we want per-card TLDRs, not global)`);
 
@@ -92,7 +92,7 @@ async function testPerCardTLDR() {
   const path = await import('path');
   const reportPath = path.join(process.cwd(), 'test-results', 'test-per-card-tldr.md');
   await fs.mkdir(path.dirname(reportPath), { recursive: true });
-  await fs.writeFile(reportPath, report, 'utf-8');
+  await fs.writeFile(reportPath, reportMarkdown, 'utf-8');
 
   console.log(`\n✅ Report saved to: ${reportPath}`);
   console.log(`\n${allCardsHaveTLDR && !globalTLDR ? '🎉 SUCCESS: All cards have TLDR sections!' : '❌ FAILED: Some cards missing TLDR or global TLDR found'}\n`);

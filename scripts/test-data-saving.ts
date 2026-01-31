@@ -41,13 +41,13 @@ async function testDataSaving() {
 
   // Generate and save final report
   console.log('📝 Generating final report...\n');
-  const report = await writeFinalReport({
+  const { reportMarkdown } = await writeFinalReport({
     prompt: query,
     learnings,
     visitedUrls,
   });
 
-  const reportPath = await dataSaver.saveFinalReport(report, learnings, visitedUrls);
+  const reportPath = await dataSaver.saveFinalReport(reportMarkdown, learnings, visitedUrls);
   console.log(`✅ Report saved to: ${reportPath}\n`);
 
   // Save comprehensive summary

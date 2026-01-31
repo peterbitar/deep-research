@@ -18,6 +18,8 @@ export interface ReportData {
   breadth: number;
   reportMarkdown: string;
   sources: string[];
+  /** Optional: per-card ticker/macro from pipeline (tagged from researched holdings). When present, used instead of inferring from title/content. */
+  cardMetadata?: Array<{ ticker?: string; macro?: string }>;
 }
 
 /**
@@ -105,58 +107,44 @@ export async function saveReport(data: ReportData): Promise<void> {
       }
     }
 
-    // Save cards
+    // Save cards (use pipeline tag when available, else infer from title/content)
     for (let i = 0; i < parsed.cards.length; i++) {
       const card = parsed.cards[i];
-      // Determine ticker/macro from card title/content, fallback to query ticker
-      const cardTitleUpper = card.title.toUpperCase();
-      const cardContentUpper = card.content.toUpperCase();
-      
-      // Check if this is a macro card BEFORE assigning ticker
-      const macro = card.title.match(/\b(Fed|ECB|Central Bank|Economic|Geopolitical)\b/i)?.[0] || null;
-      
+      const meta = data.cardMetadata?.[i];
       let ticker: string | null = null;
-      
-      // Dynamic ticker detection from card content
-      const cardText = `${cardTitleUpper} ${cardContentUpper}`;
-      
-      // 1. Check for company names first
-      for (const [companyName, mappedTicker] of Object.entries(COMPANY_NAME_MAP)) {
-        if (cardText.includes(companyName)) {
-          ticker = mappedTicker;
-          break;
-        }
+      let macro: string | null = null;
+
+      if (meta) {
+        // Use ticker/macro tagged from pipeline (researched holdings)
+        ticker = meta.ticker ?? null;
+        macro = meta.macro ?? null;
       }
-      
-      // 2. If no company name, try ticker pattern matching
-      if (!ticker) {
-        const tickerPattern = /\b([A-Z]{2,5})(?![A-Za-z])/g;
-        const commonWords = new Set(['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO']);
-        const matches: string[] = [];
-        let match;
-        
-        while ((match = tickerPattern.exec(cardText)) !== null) {
-          const symbol = match[1];
-          if (symbol.length >= 2 && !commonWords.has(symbol)) {
-            matches.push(symbol);
+
+      if (ticker === null && macro === null) {
+        // Fallback: infer from card title/content (legacy path)
+        const cardTitleUpper = card.title.toUpperCase();
+        const cardContentUpper = card.content.toUpperCase();
+        macro = card.title.match(/\b(Fed|ECB|Central Bank|Economic|Geopolitical)\b/i)?.[0] || null;
+        const cardText = `${cardTitleUpper} ${cardContentUpper}`;
+        for (const [companyName, mappedTicker] of Object.entries(COMPANY_NAME_MAP)) {
+          if (cardText.includes(companyName)) {
+            ticker = mappedTicker;
+            break;
           }
         }
-        
-        // Use first valid match, or check if it's a known ticker
-        if (matches.length > 0) {
-          const firstMatch = matches[0];
-          // Prefer known tickers
-          if (Object.values(COMPANY_NAME_MAP).includes(firstMatch)) {
-            ticker = firstMatch;
-          } else {
-            ticker = firstMatch;
+        if (!ticker) {
+          const tickerPattern = /\b([A-Z]{2,5})(?![A-Za-z])/g;
+          const commonWords = new Set(['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO']);
+          let match;
+          while ((match = tickerPattern.exec(cardText)) !== null) {
+            const symbol = match[1];
+            if (symbol.length >= 2 && !commonWords.has(symbol)) {
+              ticker = symbol;
+              break;
+            }
           }
         }
-      }
-      
-      // 3. Fallback to query ticker ONLY if this is NOT a macro card
-      if (!ticker && defaultTicker && !macro) {
-        ticker = defaultTicker;
+        if (!ticker && defaultTicker && !macro) ticker = defaultTicker;
       }
 
       await client.query(

@@ -60,7 +60,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
   console.log('5️⃣  Generating report...');
   const reportStartTime = Date.now();
   
-  const reportMarkdown = await writeFinalReport({
+  const { reportMarkdown, cardMetadata } = await writeFinalReport({
     prompt: portfolioQuery,
     learnings: TEST_LEARNINGS,
     visitedUrls: TEST_URLS,
@@ -81,6 +81,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
     breadth: 3,
     reportMarkdown,
     sources: TEST_URLS,
+    cardMetadata,
   });
 
   console.log(`✅ Report saved! Run ID: ${runId}`);
@@ -92,7 +93,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
 
   try {
     console.log('   ⏳ Rewriting card content (this may take 1-3 minutes)...');
-    const rewrittenReport = await writeFinalReport({
+    const { reportMarkdown: rewrittenReport, cardMetadata: rewriteCardMetadata } = await writeFinalReport({
       prompt: portfolioQuery,
       learnings: TEST_LEARNINGS,
       visitedUrls: TEST_URLS,
@@ -109,6 +110,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
       breadth: 3,
       reportMarkdown: rewrittenReport,
       sources: TEST_URLS,
+      cardMetadata: rewriteCardMetadata,
     });
 
     const totalDuration = ((Date.now() - rewriteStartTime) / 1000).toFixed(1);

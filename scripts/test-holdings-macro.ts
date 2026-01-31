@@ -175,13 +175,13 @@ This report combines:
 
 Focus on factual updates from the last 7 days that could impact portfolio performance.`;
 
-    const report = await writeFinalReport({
+    const { reportMarkdown } = await writeFinalReport({
       prompt: portfolioQuery,
       learnings: allLearnings,
       visitedUrls: allUrls,
     });
 
-    const reportPath = await dataSaver.saveFinalReport(report, allLearnings, allUrls);
+    const reportPath = await dataSaver.saveFinalReport(reportMarkdown, allLearnings, allUrls);
     console.log(`✅ Report saved to: ${reportPath}\n`);
 
     // Save comprehensive summary
@@ -227,13 +227,13 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
     // Still generate report with holdings research
     const portfolioQuery = `Research the current week's developments for this portfolio: ${holdings.map(h => `${h.symbol} (${h.type})`).join(', ')}.`;
     
-    const report = await writeFinalReport({
+    const { reportMarkdown } = await writeFinalReport({
       prompt: portfolioQuery,
       learnings: allLearnings,
       visitedUrls: allUrls,
     });
 
-    const reportPath = await dataSaver.saveFinalReport(report, allLearnings, allUrls);
+    const reportPath = await dataSaver.saveFinalReport(reportMarkdown, allLearnings, allUrls);
     console.log(`✅ Report saved to: ${reportPath}\n`);
   }
 }

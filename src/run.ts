@@ -103,19 +103,19 @@ ${followUpQuestions.map((q: string, i: number) => `Q: ${q}\nA: ${answers[i]}`).j
   log('Writing final report...');
 
   if (isReport) {
-    const report = await writeFinalReport({
+    const { reportMarkdown } = await writeFinalReport({
       prompt: combinedQuery,
       learnings,
       visitedUrls,
     });
 
     // Save final report using data saver
-    const reportPath = await dataSaver.saveFinalReport(report, learnings, visitedUrls);
+    const reportPath = await dataSaver.saveFinalReport(reportMarkdown, learnings, visitedUrls);
     
     // Also save to root for convenience
-    await fs.writeFile('report.md', report, 'utf-8');
+    await fs.writeFile('report.md', reportMarkdown, 'utf-8');
     
-    console.log(`\n\nFinal Report:\n\n${report}`);
+    console.log(`\n\nFinal Report:\n\n${reportMarkdown}`);
     console.log(`\nReport has been saved to report.md`);
     console.log(`📁 Full research data saved to: ${dataSaver.getRunDir()}`);
 

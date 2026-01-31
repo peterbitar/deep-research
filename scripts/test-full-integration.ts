@@ -61,7 +61,7 @@ async function testFullIntegration() {
   const estimatedReportLength = 5000; // Average report length
   costTracker.trackLLMCallEstimate(modelId, reportPromptLength, estimatedReportLength, 'generate_report');
   
-  const report = await writeFinalReport({
+  const { reportMarkdown } = await writeFinalReport({
     prompt: query,
     learnings,
     visitedUrls,
@@ -69,7 +69,7 @@ async function testFullIntegration() {
 
   // Save report
   const reportPath = path.join(process.cwd(), 'test-results', 'test-integration-report.md');
-  await fs.writeFile(reportPath, report, 'utf-8');
+  await fs.writeFile(reportPath, reportMarkdown, 'utf-8');
 
   // Summary
   const costSummary = costTracker.getSummary();
@@ -167,7 +167,7 @@ async function testFullIntegration() {
   XLSX.utils.book_append_sheet(workbook, urlsSheet, 'Visited URLs');
 
   // Sheet 5: Report Preview (first 5000 chars)
-  const reportPreview = report.substring(0, 5000);
+  const reportPreview = reportMarkdown.substring(0, 5000);
   const reportData = [['Report Content'], [reportPreview]];
   const reportSheet = XLSX.utils.aoa_to_sheet(reportData);
   XLSX.utils.book_append_sheet(workbook, reportSheet, 'Report Preview');

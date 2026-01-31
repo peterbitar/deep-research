@@ -64,7 +64,7 @@ async function testStep6Report() {
   const estimatedReportLength = 5000; // Average report length
   costTracker.trackLLMCallEstimate(modelId, reportPromptLength, estimatedReportLength, 'generate_report');
   
-  const report = await writeFinalReport({
+  const { reportMarkdown } = await writeFinalReport({
     prompt: query,
     learnings,
     visitedUrls,
@@ -73,8 +73,8 @@ async function testStep6Report() {
   // Summary
   const costSummary = costTracker.getSummary();
   console.log('📈 Report Generation Results:');
-  console.log(`  Report length: ${report.length} characters`);
-  console.log(`  Report lines: ${report.split('\n').length}`);
+  console.log(`  Report length: ${reportMarkdown.length} characters`);
+  console.log(`  Report lines: ${reportMarkdown.split('\n').length}`);
   console.log(`  Learnings used: ${learnings.length}`);
   console.log(`  URLs included: ${visitedUrls.length}\n`);
   
@@ -84,7 +84,7 @@ async function testStep6Report() {
 
   // Save report to markdown file
   const reportPath = path.join(process.cwd(), 'test-results', 'test-step6-report.md');
-  await fs.writeFile(reportPath, report, 'utf-8');
+  await fs.writeFile(reportPath, reportMarkdown, 'utf-8');
   
   console.log(`✅ Report saved to: ${path.basename(reportPath)}`);
   console.log(`   Full path: ${reportPath}`);

@@ -879,6 +879,21 @@ The learnings will be used to research the topic further.\n\n<contents>${content
   }
 }
 
+/** Detect macro category from card title (for tagging at pipeline time). */
+function detectMacroFromTitle(title: string): string | undefined {
+  const upper = title.toUpperCase();
+  if ((upper.includes('FED') && !upper.includes('ETHEREUM')) || (upper.includes('ECB') && !upper.includes('ETHEREUM')) || upper.includes('CENTRAL BANK')) return 'Central Bank Policy';
+  if (upper.includes('ECONOMIC DATA') || (upper.includes('GDP') && upper.includes('INFLATION'))) return 'Economic Data';
+  if (upper.includes('CURRENCY') || (upper.includes('DOLLAR') && upper.includes('EXCHANGE'))) return 'Currency Moves';
+  if (upper.includes('GEOPOLITICAL') || upper.includes('GEO-POLITICAL')) return 'Geopolitical';
+  return undefined;
+}
+
+export type WriteFinalReportResult = {
+  reportMarkdown: string;
+  cardMetadata: Array<{ ticker?: string; macro?: string }>;
+};
+
 export async function writeFinalReport({
   prompt,
   learnings,
@@ -891,7 +906,7 @@ export async function writeFinalReport({
   visitedUrls: string[];
   skipRewrite?: boolean;
   holdings?: string[]; // Optional: explicit list of holdings that were researched
-}) {
+}): Promise<WriteFinalReportResult> {
   const learningsString = learnings
     .map(learning => `<learning>\n${learning}\n</learning>`)
     .join('\n');
@@ -1106,10 +1121,15 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
     }),
   });
 
-  // Filter to selected cards
+  // Filter to selected cards and build per-card metadata (ticker from pipeline)
   let selectedCards = selectedCardsRes.object.selectedCardIndices
     .map(idx => cardsRes.object.potentialCards[idx])
     .filter(card => card !== undefined);
+
+  // Per-card metadata: ticker from cardHoldings (tagged from researched holdings)
+  let selectedCardMetadata: Array<{ ticker?: string; macro?: string }> = selectedCardsRes.object.selectedCardIndices.map(
+    (idx) => ({ ticker: cardHoldings[idx]?.tickers?.[0] })
+  );
 
   // Ensure at least one card per holding
   if (finalHoldings.length > 0) {
@@ -1202,6 +1222,7 @@ Related Learnings: ${card.relatedLearnings.join(', ')}
           // Only add if not already selected
           if (!selectedCardsRes.object.selectedCardIndices.includes(bestCard.index)) {
             selectedCards.push(bestCard.card);
+            selectedCardMetadata.push({ ticker: missingHolding });
             log('info', `  ✅ Added card for ${missingHolding}: "${bestCard.card.title}"`);
           }
         } else {
@@ -1468,8 +1489,14 @@ Related Learnings: ${card.relatedLearnings.join(', ')}`,
     log('info', `    ✅ [${i + 1}/${selectedCards.length}] Card complete in ${cardDuration}s`);
   }
 
-  // Step 6: Assemble the report
+  // Step 6: Assemble the report and build card metadata (ticker + macro from pipeline)
   log('debug', '📋 Assembling final report...');
+  const cardMetadata: Array<{ ticker?: string; macro?: string }> = generatedCards.map((card, i) => {
+    const ticker = selectedCardMetadata[i]?.ticker;
+    const macro = detectMacroFromTitle(card.title);
+    return { ticker, macro };
+  });
+
   const cardSections = generatedCards.map((card, idx) => {
     const header = card.emoji ? `## ${card.emoji} ${card.title}` : `## ${card.title}`;
     // COMMENTED OUT: TLDR removed from report assembly
@@ -1487,15 +1514,15 @@ Related Learnings: ${card.relatedLearnings.join(', ')}`,
   
   // If skipRewrite is true, return the report immediately without rewriting
   if (skipRewrite) {
-    return finalReport + urlsSection;
+    return { reportMarkdown: finalReport + urlsSection, cardMetadata };
   }
 
   // Step 7: Rewrite each card's content (title + content separately for better reliability)
   log('info', '✍️  Rewriting card content for human-like authenticity...');
   const reportWithRewrittenCards = await rewriteCardContent(finalReport);
 
-  // Append the visited URLs section to the report
-  return reportWithRewrittenCards + urlsSection;
+  // Append the visited URLs section to the report (cardMetadata unchanged; same card count/order)
+  return { reportMarkdown: reportWithRewrittenCards + urlsSection, cardMetadata };
 }
 
 // Helper function to rewrite each card's content to be more human-like

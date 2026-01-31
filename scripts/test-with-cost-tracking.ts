@@ -115,7 +115,7 @@ async function testWithCostTracking() {
     
     // Generate final report
     console.log('📝 Generating final report...\n');
-    const report = await writeFinalReport({
+    const { reportMarkdown } = await writeFinalReport({
       prompt: portfolioQuery,
       learnings,
       visitedUrls,
@@ -126,7 +126,7 @@ async function testWithCostTracking() {
     
     // Save report
     const reportPath = `${dataSaver.getRunDir()}/final-report.md`;
-    await require('fs/promises').writeFile(reportPath, report, 'utf-8');
+    await require('fs/promises').writeFile(reportPath, reportMarkdown, 'utf-8');
     console.log(`✅ Report saved to: ${reportPath}\n`);
     
     // Calculate time

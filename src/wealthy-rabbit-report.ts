@@ -1,6 +1,6 @@
 // Wealthy Rabbit report generation - holdings-based structured format
 
-import { generateText } from 'ai';
+import { generateText } from './ai/generate-with-cost-log';
 
 import { getModel } from './ai/providers';
 import { reportStylePrompt } from './prompt';

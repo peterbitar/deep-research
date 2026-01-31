@@ -1,6 +1,6 @@
 // Holdings-based query generation for Wealthy Rabbit
 
-import { generateObject } from 'ai';
+import { generateObject } from './ai/generate-with-cost-log';
 import { z } from 'zod';
 
 import { getModel } from './ai/providers';

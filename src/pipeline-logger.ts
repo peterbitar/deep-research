@@ -4,7 +4,7 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
-import { generateObject } from 'ai';
+import { generateObject } from './ai/generate-with-cost-log';
 import { z } from 'zod';
 
 import { getModel } from './ai/providers';

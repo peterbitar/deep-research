@@ -1,7 +1,7 @@
 // Content scoring for pipeline MVP
 // Scores articles on Impact, Relevance, Time Relevance, and Source Quality
 
-import { generateObject } from 'ai';
+import { generateObject } from './ai/generate-with-cost-log';
 import { z } from 'zod';
 
 import { getModel } from './ai/providers';

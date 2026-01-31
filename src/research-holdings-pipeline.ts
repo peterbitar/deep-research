@@ -58,7 +58,9 @@ ${queries.map(q => `- ${q.researchGoal}`).join('\n')}
         () => firecrawl.search(serpQuery.query, {
           limit: 30,
         }),
-        serpQuery.query
+        serpQuery.query,
+        0,
+        'search'
       );
       
       // Triage titles

@@ -122,6 +122,26 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Cost Logs table
+CREATE TABLE IF NOT EXISTS cost_logs (
+    id SERIAL PRIMARY KEY,
+    service VARCHAR(50) NOT NULL,
+    operation VARCHAR(100) NOT NULL,
+    model VARCHAR(100),
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    count INTEGER DEFAULT 1,
+    cost_per_unit DECIMAL(12, 6),
+    total_cost DECIMAL(12, 6) NOT NULL,
+    run_id VARCHAR(255),
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_cost_logs_run_id ON cost_logs(run_id);
+CREATE INDEX IF NOT EXISTS idx_cost_logs_service ON cost_logs(service);
+CREATE INDEX IF NOT EXISTS idx_cost_logs_created_at ON cost_logs(created_at DESC);
+
 -- Chat Messages table
 CREATE TABLE IF NOT EXISTS chat_messages (
     id SERIAL PRIMARY KEY,

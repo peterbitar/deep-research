@@ -1,10 +1,11 @@
 import FirecrawlApp, { SearchResponse } from '@mendable/firecrawl-js';
-import { generateObject } from 'ai';
+import { generateObject } from './ai/generate-with-cost-log';
 import { compact } from 'lodash-es';
 import pLimit from 'p-limit';
 import { z } from 'zod';
 
 import { getModel, trimPrompt } from './ai/providers';
+import { logFirecrawlCostAsync } from './cost-logger';
 import { parseDateFromMarkdown, parseDateFromUrl } from './parse-date-from-markdown';
 import { systemPrompt, reportStylePrompt } from './prompt';
 import { PipelineDataSaver } from './pipeline-data-saver';
@@ -80,9 +81,14 @@ export async function retryFirecrawlSearch<T>(
   searchFn: () => Promise<T>,
   query: string,
   retryCount = 0,
+  operation?: 'search' | 'scrape'
 ): Promise<T> {
   try {
-    return await searchFn();
+    const result = await searchFn();
+    if (operation) {
+      logFirecrawlCostAsync({ operation, count: 1 });
+    }
+    return result;
   } catch (error: any) {
     const statusCode = error.statusCode || error.status;
     const isRetryable = statusCode === 429 || statusCode === 500 || statusCode === 502 || statusCode === 503;
@@ -107,7 +113,7 @@ export async function retryFirecrawlSearch<T>(
     log('warn', `Error running query: ${query}: ${error.message || error}. Retrying in ${delay/1000}s (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
     
     await sleep(delay);
-    return retryFirecrawlSearch(searchFn, query, retryCount + 1);
+    return retryFirecrawlSearch(searchFn, query, retryCount + 1, operation);
   }
 }
 
@@ -2011,7 +2017,9 @@ IMPORTANT: Generate queries that include:
               limit: 30, // Get more results to triage from
               // NO scrapeOptions - just get metadata (titles, descriptions, URLs)
             }),
-            serpQuery.query
+            serpQuery.query,
+            0,
+            'search'
           );
 
           return {
@@ -2165,7 +2173,9 @@ IMPORTANT: Generate queries that include:
             return result.data[0] || { url, markdown: '' };
           }
         },
-        url
+        url,
+        0,
+        'scrape'
       )
     )
   );

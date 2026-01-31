@@ -2,7 +2,7 @@ import cors from 'cors';
 import express, { Request, Response } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { generateText } from 'ai';
+import { generateText } from './ai/generate-with-cost-log';
 import { randomUUID } from 'crypto';
 
 import { deepResearch, writeFinalAnswer, writeFinalReport } from './deep-research';
@@ -10,6 +10,7 @@ import { getModel } from './ai/providers';
 import { pool, testConnection, initializeSchema } from './db/client';
 import { saveReport, getLatestReport, getReportCards } from './db/reports';
 import { saveChatSession, getChatSession, cleanupOldChatSessions } from './db/chat';
+import { getCostLogs, getCostSummary } from './db/cost-logs';
 import { fetchUserHoldings } from './fetch-holdings';
 import { parseReportToCards } from './report-parser';
 
@@ -1060,6 +1061,49 @@ Remember: Be concise. Every word counts. Cut to the essential stories and insigh
     console.error('Error generating podcast:', error);
     return res.status(500).json({
       error: 'An error occurred generating podcast content',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// Cost logs API - track LLM & Firecrawl costs
+app.get('/api/cost-logs', async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 100, 500);
+    const offset = parseInt(req.query.offset as string, 10) || 0;
+    const service = req.query.service as string | undefined;
+    const runId = req.query.runId as string | undefined;
+    const sinceParam = req.query.since as string | undefined;
+    const since = sinceParam ? new Date(sinceParam) : undefined;
+
+    const logs = await getCostLogs({ limit, offset, service, runId, since });
+    const summary = await getCostSummary({ since, runId });
+
+    return res.json({
+      logs,
+      summary,
+    });
+  } catch (error: unknown) {
+    console.error('Error fetching cost logs:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch cost logs',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get('/api/cost-logs/summary', async (req: Request, res: Response) => {
+  try {
+    const sinceParam = req.query.since as string | undefined;
+    const runId = req.query.runId as string | undefined;
+    const since = sinceParam ? new Date(sinceParam) : undefined;
+
+    const summary = await getCostSummary({ since, runId });
+    return res.json(summary);
+  } catch (error: unknown) {
+    console.error('Error fetching cost summary:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch cost summary',
       message: error instanceof Error ? error.message : String(error),
     });
   }

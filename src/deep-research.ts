@@ -5,6 +5,7 @@ import pLimit from 'p-limit';
 import { z } from 'zod';
 
 import { getModel, trimPrompt } from './ai/providers';
+import { parseDateFromMarkdown, parseDateFromUrl } from './parse-date-from-markdown';
 import { systemPrompt, reportStylePrompt } from './prompt';
 import { PipelineDataSaver } from './pipeline-data-saver';
 
@@ -2169,35 +2170,50 @@ IMPORTANT: Generate queries that include:
     )
   );
 
-  // Prepare scraped content for saving
+  // Prepare scraped content: parse date from markdown or URL; keep only items with a date (filter before report)
   const scrapedContent = scrapedResults.map((scraped, index) => {
+    const url = toScrape[index]?.url ?? '';
     const markdown = 
       scraped?.markdown || 
       scraped?.data?.markdown || 
       scraped?.content?.markdown || 
       (typeof scraped === 'string' ? scraped : '');
+    const publishedDate = (markdown ? parseDateFromMarkdown(markdown) : null) || parseDateFromUrl(url);
     return {
-      url: toScrape[index].url,
+      url,
       markdown: markdown || undefined,
+      publishedDate: publishedDate ?? undefined,
       error: markdown ? undefined : 'No markdown content returned',
     };
   });
 
-  // Step 7: Combine scraped results + metadata-only into SearchResponse format
-  const combinedResult: SearchResponse = {
+  const withDate = scrapedContent.filter(c => c.markdown && c.publishedDate);
+  const noDate = scrapedContent.filter(c => c.markdown && !c.publishedDate);
+  if (noDate.length > 0) {
+    log('info', `📅 Date filter: ${noDate.length} scraped article(s) with no parseable date excluded (${withDate.length} kept)`);
+  }
+
+  // Metadata-only: only include if URL has a parseable date (same filter)
+  const metadataWithDate = metadataOnly.filter(meta => parseDateFromUrl(meta.url));
+  const metadataNoDate = metadataOnly.filter(meta => !parseDateFromUrl(meta.url));
+  if (metadataNoDate.length > 0 && metadataOnly.length > 0) {
+    log('info', `📅 Date filter: ${metadataNoDate.length} metadata-only article(s) with no date in URL excluded (${metadataWithDate.length} kept)`);
+  }
+
+  // Step 7: Combine scraped results + metadata-only into SearchResponse format (only items with a date)
+  const combinedResult = {
     data: [
-      // Scraped articles
-      ...scrapedContent.filter(c => c.markdown).map(c => ({
+      ...withDate.map(c => ({
         url: c.url,
         markdown: c.markdown!,
+        ...(c.publishedDate && { publishedDate: c.publishedDate }),
       })),
-      // Metadata-only articles (create markdown from title/description)
-      ...metadataOnly.map(meta => ({
+      ...metadataWithDate.map(meta => ({
         url: meta.url,
-        markdown: `Title: ${meta.title || 'No title'}\n\nDescription: ${meta.description || meta.snippet || 'No description'}\n\n[Metadata only - not fully scraped. Reason: ${meta.reason}]`,
+        markdown: `Title: ${meta.title || 'No title'}\n\nDescription: ${meta.description || (meta as any).snippet || 'No description'}\n\n[Metadata only - not fully scraped. Reason: ${meta.reason}]`,
       })),
     ],
-  };
+  } as SearchResponse;
 
   // Collect URLs from this iteration
   const newUrls = compact(combinedResult.data.map(item => item.url));

@@ -13,9 +13,13 @@
  */
 
 import { exec } from 'child_process';
+import { existsSync } from 'fs';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
+
+/** Use --env-file=.env.local only when file exists (Railway has no .env.local) */
+const envFileArg = existsSync('.env.local') ? '--env-file=.env.local' : '';
 
 async function runCommand(command: string, description: string): Promise<void> {
   console.log(`\n${'='.repeat(60)}`);
@@ -52,21 +56,21 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    // Step 1: Research (--env-file loads .env.local; on Railway, env vars come from service)
+    // Step 1: Research (--env-file only when .env.local exists; Railway uses service vars)
     await runCommand(
-      'npx tsx --env-file=.env.local scripts/1-research-only.ts',
+      ['npx', 'tsx', envFileArg, 'scripts/1-research-only.ts'].filter(Boolean).join(' '),
       'Step 1: Research Only'
     );
 
     // Step 2: Generate Report
     await runCommand(
-      'npx tsx --env-file=.env.local scripts/2-generate-report.ts',
+      ['npx', 'tsx', envFileArg, 'scripts/2-generate-report.ts'].filter(Boolean).join(' '),
       'Step 2: Generate Report'
     );
 
     // Step 3: Rewrite Report
     await runCommand(
-      'npx tsx --env-file=.env.local scripts/3-rewrite-report.ts',
+      ['npx', 'tsx', envFileArg, 'scripts/3-rewrite-report.ts'].filter(Boolean).join(' '),
       'Step 3: Rewrite Report'
     );
 

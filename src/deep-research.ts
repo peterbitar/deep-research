@@ -953,28 +953,23 @@ export async function writeFinalReport({
       `Analyze the learnings below and identify distinct stories/developments that should become cards.
 
 For each potential card, provide:
-1. A title: ONE short, message-style sentence (9-14 words) that explains why this story is interesting
+1. A title: ONE short, clear sentence (8–14 words) that anyone can understand at a glance
 2. Which learnings it covers
 3. Why it matters (impact/importance)
 4. Whether it provides actionable value
 
-TITLE REQUIREMENTS (MAGIC FORMULA - MANDATORY):
-- Follow this formula: What they did + Why they did it + Why it matters
-- MUST be 9–14 words (no exceptions)
-- One sentence only
-- Casual, conversational tone (like a text message)
-- Not a headline, not a summary
+TITLE REQUIREMENTS (CLEAR & UNDERSTANDABLE - MANDATORY):
+- Write so someone not familiar with finance understands immediately. Plain English only.
+- Formula: What happened + why it matters (e.g. "Bitcoin dropped as ETF outflows and a stronger dollar weighed on crypto").
+- 8–14 words, one sentence. Casual, conversational — like a friend summarizing the story.
+- No jargon, no acronyms (or explain in the sentence). No analyst or corporate speak.
+- Prefer: "Bitcoin fell as investors pulled money out of ETFs" over "BTC faced outflow headwinds amid macro rotation".
 
-TITLE STYLE RULES:
-- No jargon or acronyms
-- No corporate or analyst language
-- Verbs over abstract nouns
-- Calm, confident, human
-
-CRITICAL: The title MUST be a complete sentence that tells a story, not just a phrase. Examples:
-- GOOD: "Netflix switched to all-cash offer to speed up the deal and avoid regulatory delays" (14 words) ✓
-- BAD: "Netflix Update" (2 words) ✗
-- BAD: "Merger Deal" (2 words) ✗
+TITLE STYLE:
+- Clear and understandable at a glance. Verbs over abstract nouns. Calm, human.
+- BAD: "Netflix Update", "Merger Deal", "BTC faced macro headwinds" (vague or jargon)
+- GOOD: "Netflix switched to an all-cash offer to speed up the deal and avoid regulatory delays" ✓
+- GOOD: "Bitcoin dropped below $80k as ETF outflows and a stronger dollar weighed on prices" ✓
 
 GROUPING — CRITICAL: One storyline per holding when possible
 - For the SAME holding (e.g., BTC, AAPL, NVDA), prefer ONE card that weaves together all related developments into a single storyline.
@@ -1002,7 +997,7 @@ ${learningsString}
     schema: z.object({
       potentialCards: z.array(
         z.object({
-          title: z.string().describe('Card title: ONE short, message-style sentence (9-14 words) following the magic formula: what they did + why they did it + why it matters'),
+          title: z.string().describe('Card title: ONE clear, understandable sentence (8-14 words), plain English — what happened and why it matters'),
           relatedLearnings: z.array(z.string()).describe('Which learnings this card covers'),
           whyItMatters: z.string().describe('Why this story is important and impactful'),
           actionableValue: z.string().describe('What actionable insights this provides'),
@@ -1459,14 +1454,14 @@ ${selectedLearningsString}
       prompt: trimPrompt(
         `Generate a card title and emoji for this story.
 
-TITLE REQUIREMENTS:
-- ONE short, message-style sentence (9-14 words)
-- Follow formula: What they did + Why they did it + Why it matters
-- Casual, conversational tone (like a text message)
+TITLE REQUIREMENTS (MUST BE UNDERSTANDABLE):
+- ONE short, clear sentence (8–14 words) that anyone can understand at a glance.
+- Plain English: what happened and why it matters. No jargon, no vague or cryptic phrasing.
+- Like a friend summarizing the story in one sentence (e.g. "Bitcoin dropped as ETF outflows and a stronger dollar weighed on crypto").
+- BAD: "BTC faced macro headwinds amid flow rotation". GOOD: "Bitcoin fell as investors pulled money out of ETFs and the dollar strengthened".
 
 EMOJI:
-- Choose ONE relevant emoji that represents the story
-- Examples: 🎬 for entertainment, 🌍 for macro, 💰 for financial, 📊 for data
+- Choose ONE relevant emoji that represents the story (e.g. 🎬 entertainment, 🌍 macro, 💰 financial, 📊 data).
 
 STORY:
 Title: ${card.title}
@@ -1475,7 +1470,7 @@ Actionable Value: ${card.actionableValue}`,
       ),
       schema: z.object({
         emoji: z.string().describe('One emoji representing the story (required)'),
-        title: z.string().describe('Card title: ONE short, message-style sentence (9-14 words)'),
+        title: z.string().describe('Card title: ONE clear, understandable sentence (8-14 words), plain English'),
       }),
     });
 

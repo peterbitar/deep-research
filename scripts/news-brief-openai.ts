@@ -22,8 +22,17 @@ if (existsSync(join(__dirname, '..', '.env.local'))) {
 }
 
 import { fetchUserHoldings } from '../src/fetch-holdings';
-import { saveLearnings, saveReport } from '../src/db/reports';
-import { writeFinalReport } from '../src/deep-research';
+import {
+  ensureNewsBriefRun,
+  appendLearningsForHolding,
+  appendCardToReport,
+  getLearnings,
+  saveReport,
+} from '../src/db/reports';
+import {
+  generateOneCardFromLearnings,
+  generateOpeningForReport,
+} from '../src/deep-research';
 import { pool } from '../src/db/client';
 import {
   newsBriefOpenAI,
@@ -145,29 +154,55 @@ async function main() {
   }
   console.log(`Holdings: ${holdings.length} (${holdings.map((h) => h.symbol).join(', ')})\n`);
 
-  console.log('Calling OpenAI web search...');
-  const start = Date.now();
-  const { learnings, urls } = await newsBriefOpenAI({
-    holdings,
-    mode,
-    includeMacro,
-  });
-  const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-  console.log(`Learnings: ${learnings.length} | URLs: ${urls.length} | ${elapsed}s\n`);
-
   const runId = `news-openai-${mode}-${Date.now()}`;
   const holdingsSymbols = holdings.map((h) => h.symbol.toUpperCase());
+  const portfolioQuery = `Research in progress | HOLDINGS: ${holdingsSymbols.join(',')}`;
 
-  await saveLearnings(runId, learnings, urls, holdingsSymbols);
+  await ensureNewsBriefRun(runId, portfolioQuery);
 
-  const uniqueUrls = [...new Set(urls)];
-  for (let i = 0; i < uniqueUrls.length; i++) {
+  let learningOrderStart = 0;
+  const generatedCards: Array<{ title: string; emoji: string; content: string; ticker: string }> = [];
+
+  for (let i = 0; i < holdings.length; i++) {
+    const holding = holdings[i];
+    const sym = holding.symbol.toUpperCase();
+    console.log(`[${i + 1}/${holdings.length}] ${sym} — OpenAI web search...`);
+    const start = Date.now();
+    const { learnings, urls } = await newsBriefOpenAI({
+      holdings: [holding],
+      mode,
+      includeMacro,
+    });
+    const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+    await appendLearningsForHolding(runId, sym, learnings, urls, learningOrderStart);
+    learningOrderStart += learnings.length;
+    console.log(`  Completed ${sym} — ${learnings.length} learnings | ${elapsed}s`);
+
+    if (learnings.length > 0) {
+      console.log(`  Generating card for ${sym}...`);
+      const cardStart = Date.now();
+      const card = await generateOneCardFromLearnings(learnings, sym);
+      const cardElapsed = ((Date.now() - cardStart) / 1000).toFixed(1);
+      if (card) {
+        generatedCards.push({ ...card, ticker: sym });
+        await appendCardToReport(runId, card, i, sym, null);
+        console.log(`  Card: "${card.title.slice(0, 50)}..." | ${cardElapsed}s (saved)\n`);
+      } else {
+        console.log(`  No card generated | ${cardElapsed}s\n`);
+      }
+    } else {
+      console.log('');
+    }
+  }
+
+  const merged = await getLearnings(runId);
+  if (!merged || merged.learnings.length === 0) {
+    console.log('No learnings saved. Skipping report.');
     await pool.query(
-      `INSERT INTO report_sources (run_id, source_url, source_order)
-       VALUES ($1, $2, $3)
-       ON CONFLICT DO NOTHING`,
-      [runId, uniqueUrls[i], i]
+      `UPDATE research_runs SET status = 'completed' WHERE run_id = $1`,
+      [runId]
     );
+    return;
   }
 
   await pool.query(
@@ -175,27 +210,26 @@ async function main() {
     [runId]
   );
 
-  const portfolioQuery = `Research in progress | HOLDINGS: ${holdingsSymbols.join(',')}`;
-  console.log('Generating report (cards)...');
+  console.log('Generating opening and assembling report...');
   const reportStart = Date.now();
-  const { reportMarkdown, cardMetadata } = await writeFinalReport({
-    prompt: portfolioQuery,
-    learnings,
-    visitedUrls: urls,
-    skipRewrite: true,
-    holdings: holdingsSymbols,
-  });
+  const opening = await generateOpeningForReport(merged.learnings);
+  const cardSections = generatedCards.map(
+    (c) => `## ${c.emoji} ${c.title}\n\n${c.content}`
+  );
+  const reportMarkdown =
+    opening + (cardSections.length ? '\n\n' + cardSections.join('\n\n') : '');
+  const urlsSection = `\n\n## Sources\n\n${merged.urls.map((u: string) => `- ${u}`).join('\n')}`;
+  const cardMetadata = generatedCards.map((c) => ({ ticker: c.ticker }));
   const reportElapsed = ((Date.now() - reportStart) / 1000).toFixed(1);
-  const cardCount = cardMetadata?.length ?? 0;
-  console.log(`Report: ${reportElapsed}s | Cards: ${cardCount}\n`);
+  console.log(`Report: ${reportElapsed}s | Cards: ${generatedCards.length}\n`);
 
   await saveReport({
     runId,
     query: portfolioQuery,
     depth: 0,
     breadth: 0,
-    reportMarkdown,
-    sources: uniqueUrls,
+    reportMarkdown: reportMarkdown + urlsSection,
+    sources: merged.urls,
     cardMetadata,
   });
 

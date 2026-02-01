@@ -329,6 +329,124 @@ export async function saveLearnings(
   }
 }
 
+/** Ensure news_brief_holdings table exists (for DBs created before this table was added). */
+async function ensureNewsBriefHoldingsTable(): Promise<void> {
+  if (!pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS news_brief_holdings (
+      run_id VARCHAR(255) NOT NULL,
+      symbol VARCHAR(20) NOT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'completed',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (run_id, symbol)
+    )
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_news_brief_holdings_run_id ON news_brief_holdings(run_id)`
+  );
+}
+
+/**
+ * Create or ensure a news-brief run exists (status in_progress). Call at start of run.
+ * Also creates a placeholder reports row so the app can show this run and cards as they are appended.
+ */
+export async function ensureNewsBriefRun(
+  runId: string,
+  queryText: string
+): Promise<void> {
+  if (!pool) throw new Error('Database not configured');
+  await ensureNewsBriefHoldingsTable();
+  await pool.query(
+    `INSERT INTO research_runs (run_id, query, depth, breadth, status)
+     VALUES ($1, $2, 0, 0, 'in_progress')
+     ON CONFLICT (run_id) DO UPDATE SET
+       query = EXCLUDED.query,
+       status = 'in_progress',
+       updated_at = CURRENT_TIMESTAMP`,
+    [runId, queryText]
+  );
+  await pool.query(
+    `INSERT INTO reports (run_id, report_markdown, opening)
+     VALUES ($1, 'Report in progress.', '')
+     ON CONFLICT (run_id) DO NOTHING`,
+    [runId]
+  );
+}
+
+/**
+ * Append a single card for a run so the app can show it immediately.
+ * Call after each card is generated; saveReport at the end will replace all cards with the final set.
+ */
+export async function appendCardToReport(
+  runId: string,
+  card: { title: string; content: string; emoji?: string },
+  cardOrder: number,
+  ticker?: string | null,
+  macro?: string | null
+): Promise<void> {
+  if (!pool) throw new Error('Database not configured');
+  await pool.query(
+    `INSERT INTO report_cards (run_id, title, content, emoji, ticker, macro, card_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      runId,
+      card.title,
+      card.content,
+      card.emoji ?? null,
+      ticker ?? null,
+      macro ?? null,
+      cardOrder,
+    ]
+  );
+}
+
+/**
+ * Append learnings for one holding and mark that holding complete. Call after each holding E2E.
+ */
+export async function appendLearningsForHolding(
+  runId: string,
+  symbol: string,
+  learnings: string[],
+  urls: string[],
+  learningOrderStart: number
+): Promise<void> {
+  if (!pool) throw new Error('Database not configured');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (let i = 0; i < learnings.length; i++) {
+      await client.query(
+        `INSERT INTO research_learnings (run_id, learning, learning_order, source_url)
+         VALUES ($1, $2, $3, $4)`,
+        [runId, learnings[i], learningOrderStart + i, null]
+      );
+    }
+    const urlOrderRes = await client.query(
+      `SELECT COALESCE(MAX(source_order), -1) + 1 AS next_order FROM report_sources WHERE run_id = $1`,
+      [runId]
+    );
+    const urlOrderStart = (urlOrderRes.rows[0]?.next_order as number) ?? 0;
+    const uniqueUrls = [...new Set(urls)];
+    for (let i = 0; i < uniqueUrls.length; i++) {
+      await client.query(
+        `INSERT INTO report_sources (run_id, source_url, source_order) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+        [runId, uniqueUrls[i], urlOrderStart + i]
+      );
+    }
+    await client.query(
+      `INSERT INTO news_brief_holdings (run_id, symbol, status) VALUES ($1, $2, 'completed')
+       ON CONFLICT (run_id, symbol) DO UPDATE SET status = 'completed', created_at = CURRENT_TIMESTAMP`,
+      [runId, symbol]
+    );
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * Get research learnings from database
  */

@@ -56,6 +56,16 @@ CREATE TABLE IF NOT EXISTS research_learnings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- News brief progress: one row per holding per run (mark complete after each holding)
+CREATE TABLE IF NOT EXISTS news_brief_holdings (
+    run_id VARCHAR(255) NOT NULL,
+    symbol VARCHAR(20) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'completed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (run_id, symbol)
+);
+CREATE INDEX IF NOT EXISTS idx_news_brief_holdings_run_id ON news_brief_holdings(run_id);
+
 -- Chat Sessions table
 CREATE TABLE IF NOT EXISTS chat_sessions (
     id SERIAL PRIMARY KEY,

@@ -102,26 +102,56 @@ type InsertParams = {
 
 async function insertCostLog(params: InsertParams): Promise<void> {
   if (!pool) return;
+  const metadata = JSON.stringify({
+    ...params.metadata,
+    ...(params.usageCredits != null && { usage_credits: params.usageCredits }),
+  });
+  const fullParams = [
+    params.service,
+    params.operation,
+    params.model,
+    params.inputTokens,
+    params.outputTokens,
+    params.count,
+    params.costPerUnit,
+    params.totalCost,
+    params.usageCredits,
+    params.runId ?? null,
+    metadata,
+  ];
+  const fallbackParams = [
+    params.service,
+    params.operation,
+    params.model,
+    params.inputTokens,
+    params.outputTokens,
+    params.count,
+    params.costPerUnit,
+    params.totalCost,
+    params.runId ?? null,
+    metadata,
+  ];
   try {
     await pool.query(
       `INSERT INTO cost_logs (service, operation, model, input_tokens, output_tokens, count, cost_per_unit, total_cost, usage_credits, run_id, metadata)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [
-        params.service,
-        params.operation,
-        params.model,
-        params.inputTokens,
-        params.outputTokens,
-        params.count,
-        params.costPerUnit,
-        params.totalCost,
-        params.usageCredits,
-        params.runId ?? null,
-        JSON.stringify(params.metadata),
-      ]
+      fullParams
     );
-  } catch (err) {
-    console.error('[cost-logger] Failed to insert cost log:', err);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('usage_credits') && msg.includes('does not exist')) {
+      try {
+        await pool.query(
+          `INSERT INTO cost_logs (service, operation, model, input_tokens, output_tokens, count, cost_per_unit, total_cost, run_id, metadata)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          fallbackParams
+        );
+      } catch (fallbackErr) {
+        console.error('[cost-logger] Failed to insert cost log (fallback):', fallbackErr);
+      }
+    } else {
+      console.error('[cost-logger] Failed to insert cost log:', err);
+    }
   }
 }
 

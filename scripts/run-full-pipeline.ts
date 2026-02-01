@@ -52,21 +52,21 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    // Step 1: Research
+    // Step 1: Research (--env-file loads .env.local; on Railway, env vars come from service)
     await runCommand(
-      'npx tsx scripts/1-research-only.ts',
+      'npx tsx --env-file=.env.local scripts/1-research-only.ts',
       'Step 1: Research Only'
     );
 
     // Step 2: Generate Report
     await runCommand(
-      'npx tsx scripts/2-generate-report.ts',
+      'npx tsx --env-file=.env.local scripts/2-generate-report.ts',
       'Step 2: Generate Report'
     );
 
     // Step 3: Rewrite Report
     await runCommand(
-      'npx tsx scripts/3-rewrite-report.ts',
+      'npx tsx --env-file=.env.local scripts/3-rewrite-report.ts',
       'Step 3: Rewrite Report'
     );
 

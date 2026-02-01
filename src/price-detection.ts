@@ -7,7 +7,25 @@ export type PriceData = {
   price7DaysAgo: number;
   changePercent: number;
   changeAbsolute: number;
+  /** Previous session close; present when we have at least 2 days. */
+  price1DayAgo?: number;
+  /** 1-day % change (current vs previous close). */
+  changePercent1d?: number;
 };
+
+/**
+ * Map our symbol to Yahoo Finance symbol (crypto uses -USD suffix).
+ */
+export function getYahooSymbol(symbol: string): string {
+  const s = symbol.toUpperCase().trim();
+  const mapping: Record<string, string> = {
+    BTC: 'BTC-USD',
+    ETH: 'ETH-USD',
+    SOL: 'SOL-USD',
+    DXY: 'DX-Y.NYB', // US Dollar Index
+  };
+  return mapping[s] ?? s;
+}
 
 /**
  * Get price data for a holding using Yahoo Finance API
@@ -48,16 +66,24 @@ export async function getPriceData(symbol: string): Promise<PriceData | null> {
     
     const price7DaysAgo = validPrices[0];
     const currentPrice = validPrices[validPrices.length - 1];
-    
     const changeAbsolute = currentPrice - price7DaysAgo;
     const changePercent = (changeAbsolute / price7DaysAgo) * 100;
-    
+
+    const price1DayAgo =
+      validPrices.length >= 2 ? validPrices[validPrices.length - 2] : undefined;
+    const changePercent1d =
+      price1DayAgo != null && price1DayAgo !== 0
+        ? ((currentPrice - price1DayAgo) / price1DayAgo) * 100
+        : undefined;
+
     return {
       symbol,
       currentPrice,
       price7DaysAgo,
       changePercent,
       changeAbsolute,
+      ...(price1DayAgo != null && { price1DayAgo }),
+      ...(changePercent1d != null && { changePercent1d }),
     };
   } catch (error) {
     console.warn(`Error fetching price data for ${symbol}:`, error);
@@ -84,6 +110,37 @@ export async function getPriceDataBatch(
   
   await Promise.all(pricePromises);
   return priceMap;
+}
+
+/**
+ * Get price data for one holding (maps symbol to Yahoo symbol, e.g. BTC -> BTC-USD).
+ * Returns PriceData keyed by the original symbol.
+ */
+export async function getPriceDataForHolding(
+  ourSymbol: string
+): Promise<PriceData | null> {
+  const yahooSymbol = getYahooSymbol(ourSymbol);
+  const data = await getPriceData(yahooSymbol);
+  if (!data) return null;
+  return { ...data, symbol: ourSymbol.toUpperCase() };
+}
+
+/**
+ * Get price data for all holdings; returns Map keyed by original symbol (e.g. NVDA, BTC).
+ * Use at the start of a pipeline so prompts can inject "reference prices" from Yahoo.
+ */
+export async function getPriceDataBatchForHoldings(holdings: {
+  symbol: string;
+}[]): Promise<Map<string, PriceData>> {
+  const symbols = [...new Set(holdings.map((h) => h.symbol.toUpperCase()))];
+  const map = new Map<string, PriceData>();
+  const results = await Promise.all(
+    symbols.map((sym) => getPriceDataForHolding(sym))
+  );
+  for (const data of results) {
+    if (data) map.set(data.symbol, data);
+  }
+  return map;
 }
 
 /**

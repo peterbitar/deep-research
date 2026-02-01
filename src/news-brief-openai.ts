@@ -6,6 +6,7 @@
 
 import OpenAI from 'openai';
 import { generateAllQueries } from './news-brief-queries';
+import type { PriceData } from './price-detection';
 
 export type NewsBriefMode = 'non-reasoning' | 'agentic' | 'deep-research';
 
@@ -72,13 +73,30 @@ OUTPUT:
 - List format only. No preamble or conclusion. Include ONLY past 5–7 days. Tier 1 sources only.`;
 }
 
+/** Format one reference price line for the prompt. */
+function formatReferencePrice(p: PriceData): string {
+  const priceStr =
+    p.currentPrice >= 1
+      ? p.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : p.currentPrice.toFixed(4);
+  const dir7 = p.changePercent >= 0 ? 'up' : 'down';
+  const pct7 = Math.abs(p.changePercent).toFixed(1);
+  const sevenDay = `${dir7} ${pct7}% (7d)`;
+  const oneDay =
+    p.changePercent1d != null
+      ? `${p.changePercent1d >= 0 ? 'up' : 'down'} ${Math.abs(p.changePercent1d).toFixed(1)}% (1d)`
+      : '';
+  return `${p.symbol}: $${priceStr}, ${sevenDay}${oneDay ? ', ' + oneDay : ''}`;
+}
+
 /**
  * Build a prompt for a single pass (1, 2, or 3). Used for 3 consecutive API calls.
  */
 export function buildNewsBriefPromptForPass(
   holdings: HoldingEntry[],
   includeMacro: boolean,
-  passNumber: 1 | 2 | 3
+  passNumber: 1 | 2 | 3,
+  referencePrices?: Map<string, PriceData>
 ): string {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', {
@@ -95,6 +113,19 @@ export function buildNewsBriefPromptForPass(
   const hasCrypto = holdings.some((h) => h.type === 'Cryptocurrency' || h.symbol === 'BTC' || h.symbol === 'ETH');
   const passLabel = PASS_LABELS[passNumber];
 
+  const referenceBlock =
+    referencePrices && holdings.length > 0
+      ? holdings
+          .filter((h) => referencePrices.has(h.symbol.toUpperCase()))
+          .map((h) => referencePrices.get(h.symbol.toUpperCase())!)
+          .map(formatReferencePrice)
+          .join('; ')
+      : '';
+  const referenceLine =
+    referenceBlock.length > 0
+      ? `\nREFERENCE PRICES (from Yahoo Finance; use these numbers — do not contradict): ${referenceBlock}. When mentioning price or % change for these symbols, use only these values.\n`
+      : '';
+
   let prompt = `GOAL: "What changed this week, what didn't — and why that matters to a long-term investor."
 Keep the whole picture. Write as if talking to someone not very financially literate: conversational, no jargon, big picture only — do not go too technical.
 
@@ -105,7 +136,7 @@ This is PASS ${passNumber} of 3: ${passLabel}.
 Use web search for the queries below. Only include developments from the past 5–7 days. Cite source and date. Use Tier 1 sources only (see Step 3). Extract hard data + cause (Step 4); note structural connections (Step 5). Express everything in plain, conversational English — no analyst or chart jargon.${hasCrypto && passNumber === 1 ? ' For crypto, prefer data up to the day or hour.' : ''}
 
 STALE DATA — Only cite prices and facts from sources dated within the last 7 days of today (${dateStr}). If search returns 2023/2024 or older, ignore those price levels. If a price looks wrong for "this week" (e.g. Bitcoin at $28k when it has been far higher), do not output it.
-
+${referenceLine}
 Today's date: ${dateStr}. Holdings: ${holdings.map((h) => `${h.symbol} (${h.name})`).join('; ')}.
 
 QUERIES FOR THIS PASS (run separately for precision; search in this order):
@@ -305,6 +336,8 @@ export interface NewsBriefOpenAIOptions {
   holdings: HoldingEntry[];
   mode: NewsBriefMode;
   includeMacro: boolean;
+  /** Optional: reference prices from Yahoo Finance; when set, prompt instructs model to use these and not contradict. */
+  referencePrices?: Map<string, PriceData>;
 }
 
 /**
@@ -314,6 +347,7 @@ export async function newsBriefOpenAI({
   holdings,
   mode,
   includeMacro,
+  referencePrices,
 }: NewsBriefOpenAIOptions): Promise<{ learnings: string[]; urls: string[] }> {
   const passes: Array<1 | 2 | 3> = includeMacro ? [1, 2, 3] : [1, 2];
   const allLearnings: string[] = [];
@@ -321,7 +355,12 @@ export async function newsBriefOpenAI({
 
   for (const holding of holdings) {
     for (const passNumber of passes) {
-      const prompt = buildNewsBriefPromptForPass([holding], includeMacro, passNumber);
+      const prompt = buildNewsBriefPromptForPass(
+        [holding],
+        includeMacro,
+        passNumber,
+        referencePrices
+      );
       if (!prompt) continue;
       const { text, urls } = await runOpenAIWebSearch(prompt, mode);
       const learnings = parseLearningsFromText(text);

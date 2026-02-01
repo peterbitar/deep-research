@@ -39,6 +39,7 @@ import {
   type NewsBriefMode,
   type HoldingEntry,
 } from '../src/news-brief-openai';
+import { getPriceDataBatchForHoldings } from '../src/price-detection';
 
 const DEFAULT_HOLDINGS_API =
   'https://wealthyrabbitios-production-03a4.up.railway.app';
@@ -54,6 +55,7 @@ const PREDEFINED_HOLDINGS: Record<string, HoldingEntry> = {
   BTC: { symbol: 'BTC', type: 'Cryptocurrency', name: 'Bitcoin' },
   NVDA: { symbol: 'NVDA', type: 'Stock', name: 'NVIDIA' },
   VOO: { symbol: 'VOO', type: 'ETF', name: 'Vanguard S&P 500' },
+  JPM: { symbol: 'JPM', type: 'Stock', name: 'JPMorgan Chase' },
 };
 
 function getHoldingsBaseUrl(): string {
@@ -88,12 +90,14 @@ async function getHoldings(): Promise<HoldingEntry[]> {
       .split(',')
       .map((s) => s.trim().toUpperCase())
       .filter(Boolean);
-    const holdings: HoldingEntry[] = [];
-    for (const sym of symbols) {
-      const predefined = PREDEFINED_HOLDINGS[sym];
-      if (predefined) holdings.push(predefined);
-    }
-    return holdings;
+    return symbols.map(
+      (sym) =>
+        PREDEFINED_HOLDINGS[sym] ?? {
+          symbol: sym,
+          type: 'Stock',
+          name: sym,
+        }
+    );
   }
 
   const baseURL = getHoldingsBaseUrl();
@@ -154,6 +158,21 @@ async function main() {
   }
   console.log(`Holdings: ${holdings.length} (${holdings.map((h) => h.symbol).join(', ')})\n`);
 
+  const referencePrices = await getPriceDataBatchForHoldings(holdings);
+  if (referencePrices.size > 0) {
+    const lines = Array.from(referencePrices.entries())
+      .map(([sym, p]) => {
+        const s7 = `${p.changePercent >= 0 ? '+' : ''}${p.changePercent.toFixed(1)}% 7d`;
+        const s1 =
+          p.changePercent1d != null
+            ? `, ${p.changePercent1d >= 0 ? '+' : ''}${p.changePercent1d.toFixed(1)}% 1d`
+            : '';
+        return `${sym} $${p.currentPrice.toFixed(2)} (${s7}${s1})`;
+      })
+      .join(', ');
+    console.log(`Reference prices (Yahoo): ${lines}\n`);
+  }
+
   const runId = `news-openai-${mode}-${Date.now()}`;
   const holdingsSymbols = holdings.map((h) => h.symbol.toUpperCase());
   const portfolioQuery = `Research in progress | HOLDINGS: ${holdingsSymbols.join(',')}`;
@@ -172,6 +191,7 @@ async function main() {
       holdings: [holding],
       mode,
       includeMacro,
+      referencePrices,
     });
     const elapsed = ((Date.now() - start) / 1000).toFixed(1);
     await appendLearningsForHolding(runId, sym, learnings, urls, learningOrderStart);

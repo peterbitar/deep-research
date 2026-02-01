@@ -54,13 +54,13 @@ function buildHoldingQuery(
   const name = holding.name || holding.symbol;
 
   if (type === 'Stock') {
-    return `Research ${holding.symbol} (${name}) developments in the last 7 days. Focus on: earnings releases, SEC filings (8-K, 10-Q, 10-K), regulatory actions, official announcements, partnerships, price movements, analyst updates. Prioritize Tier 1 sources (Reuters, Bloomberg, FT, WSJ, SEC filings).`;
+    return `Research ${holding.symbol} (${name}) developments in the last 7 days. Focus on: earnings releases, SEC filings (8-K, 10-Q, 10-K), regulatory actions, official announcements, partnerships, price movements (including crashes and all-time highs — when covering these, capture WHY, what happened before, and what next), analyst updates. Prioritize Tier 1 sources (Reuters, Bloomberg, FT, WSJ, SEC filings).`;
   }
   if (type === 'Cryptocurrency') {
-    return `Research ${holding.symbol} (${name}) developments in the last 7 days. Focus on: protocol upgrades, institutional adoption announcements, regulatory news, major hacks (confirmed), price movements, exchange listings. Prioritize Tier 1 sources (Reuters, Bloomberg, official project announcements).`;
+    return `Research ${holding.symbol} (${name}) developments in the last 7 days. Focus on: protocol upgrades, institutional adoption announcements, regulatory news, major hacks (confirmed), price movements (including crashes and all-time highs — when covering these, capture WHY, what happened before, and what next), exchange listings. Prioritize Tier 1 sources (Reuters, Bloomberg, official project announcements).`;
   }
   if (type === 'Commodity') {
-    return `Research ${holding.symbol} (${name}) developments in the last 7 days. Focus on: price data (actual numbers), supply/demand data (official sources like EIA, OPEC), producer decisions, inventory levels, geopolitical factors affecting supply. Prioritize Tier 1 sources (Reuters, Bloomberg, EIA, OPEC, government data).`;
+    return `Research ${holding.symbol} (${name}) developments in the last 7 days. Focus on: price data (actual numbers), major price moves (crashes, spikes — when covering these, capture WHY, what happened before, and what next), supply/demand data (official sources like EIA, OPEC), producer decisions, inventory levels, geopolitical factors affecting supply. Prioritize Tier 1 sources (Reuters, Bloomberg, EIA, OPEC, government data).`;
   }
   if (type === 'Real Estate') {
     return `Research ${holding.symbol} (Real Estate Investment Trusts) developments in the last 7 days. Focus on: earnings releases, SEC filings, property acquisitions/dispositions, dividend announcements, interest rate impacts, sector trends. Prioritize Tier 1 sources (Reuters, Bloomberg, FT, WSJ, SEC filings).`;

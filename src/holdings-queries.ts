@@ -107,6 +107,10 @@ FACTUAL UPDATES TO CHECK FOR (Comprehensive List):
     - Currency impacts (for international companies)
     - Demand or supply shocks in the industry
 
+11. PRICE MILESTONES (crashes, all-time highs, major drawdowns):
+    - Significant stock price moves that help investors make decisions
+    - When covering these: capture WHY (causes, catalysts), WHAT happened before (context), WHAT NEXT (implications)
+
 REQUIREMENTS:
 - Focus on information published in the LAST 7 DAYS only
 - Prioritize Tier 1 sources: SEC.gov, company IR pages, Reuters, Bloomberg, FT, WSJ
@@ -156,6 +160,7 @@ FACTUAL UPDATES TO CHECK FOR:
 - Major regulatory news (SEC, CFTC official statements, legislation)
 - Major hacks/exploits (confirmed on-chain, not rumors)
 - Macro influences (Fed rate decisions, USD moves - only if confirmed official data)
+- PRICE MILESTONES: crashes, all-time highs, liquidity events (when covering: WHY, what before, what next)
 
 REQUIREMENTS:
 - Focus on information published in the LAST 7 DAYS only
@@ -204,6 +209,7 @@ export async function generateCommodityQueries({
 
 FACTUAL UPDATES TO CHECK FOR:
 - Current price levels and recent movements (actual numbers, not just "prices rose")
+- PRICE MILESTONES: crashes, spikes, all-time highs (when covering these, capture WHY, what happened before, what next)
 - Supply/demand balance (inventory data, production data from official sources)
 - Producer decisions (OPEC statements, major producer announcements)
 - Regulatory/policy changes (government decisions, trade policy)

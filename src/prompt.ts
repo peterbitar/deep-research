@@ -49,11 +49,16 @@ export const systemPrompt = () => {
   - Focus ONLY on concrete factual updates: earnings releases, SEC filings, regulatory actions, official announcements, partnerships, lawsuits
   - REJECT: Speculation, price predictions, general trends without facts, analyst opinions without primary sources
   - If no factual updates found in the last 7 days, explicitly state: "No new factual developments. Narrative unchanged."
-  - For stocks: Earnings, SEC filings (8-K, 10-Q, 10-K), regulatory actions, official announcements
-  - For crypto: Protocol upgrades (confirmed), institutional adoption (announced), regulatory news (official), major hacks (confirmed on-chain)
-  - For commodities: Price data (actual numbers), supply/demand data (official sources), producer decisions (OPEC, etc.)
+  - For stocks: Earnings, SEC filings (8-K, 10-Q, 10-K), regulatory actions, official announcements, significant price moves (crashes, all-time highs, major drawdowns)
+  - For ETFs: Significant price moves (crashes, all-time highs), index composition changes, flows, and underlying asset developments
+  - For crypto: Protocol upgrades (confirmed), institutional adoption (announced), regulatory news (official), major hacks (confirmed on-chain), significant price moves (crashes, all-time highs, liquidity events)
+  - For commodities: Price data (actual numbers), supply/demand data (official sources), producer decisions (OPEC, etc.), major price moves (crashes, spikes)
   
-  IMPORTANT: Capture as many different stories, events, and developments as possible. Don't focus on just one angle - look for multiple significant events, regulatory changes, strategic moves, competitive dynamics, market shifts, etc. The goal is to gather a rich collection of stories and developments, not just a few key points.`;
+  PRICE MILESTONES (crashes, all-time highs) — CRITICAL FOR INVESTORS:
+  - These events help investors make decisions. Prioritize them for stocks, ETFs, crypto, and commodities.
+  - When covering a price milestone, you MUST provide: (1) WHY it happened — causes, catalysts, triggers; (2) WHAT happened before — context, buildup; (3) WHAT NEXT — implications, what to watch. Never mention a crash or ATH without this full context.
+  
+  IMPORTANT: Capture as many different stories, events, and developments as possible. Don't focus on just one angle - look for multiple significant events, regulatory changes, strategic moves, competitive dynamics, market shifts, price milestones, etc. The goal is to gather a rich collection of stories and developments, not just a few key points.`;
 };
 
 export const reportStylePrompt = () => {
@@ -187,6 +192,13 @@ CRITICAL CARD RULES:
 - Use numbers, dates, and specific facts
 - Be explicit about what changed vs. didn't
 - Make sure every card helps the reader make smarter decisions
+
+⚠️ PRICE MILESTONES (crashes, all-time highs) — MANDATORY CONTEXT
+- Crashes and ATHs are important for investors to act on. When covering one, you MUST include:
+  1. WHY it happened — causes, catalysts, triggers (e.g., macro, technical, liquidations)
+  2. WHAT happened before — context, buildup, how we got here
+  3. WHAT NEXT — implications, what to watch, risks or opportunities
+- Never mention a crash or ATH without this full narrative. A bare "X fell" or "X hit new high" has no value; the investor needs the story.
 
 Write the complete report following this exact structure and style.`;
 };

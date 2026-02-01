@@ -132,9 +132,10 @@ export async function generateSerpQueries({
   learnings?: string[];
 }) {
   // Check if query is about commodities/energy
-  const isCommodityQuery = /\b(oil|energy|gas|crude|commodit|natural gas|LNG|petroleum|OPEC|WTI|Brent)\b/i.test(query);
+  const isCommodityQuery = /\b(oil|energy|gas|crude|commodit|natural gas|LNG|petroleum|OPEC|WTI|Brent|gold|silver|XAU|XAG)\b/i.test(query);
   const isCompanyQuery = /\b(NVIDIA|AAPL|MSFT|GOOGL|JPM|XOM|Exxon|company|earnings|stock)\b/i.test(query);
   const isCryptoQuery = /\b(BTC|Bitcoin|XRP|Ripple|ETH|Ethereum|cryptocurrency|crypto|blockchain|digital currency)\b/i.test(query);
+  const isETFQuery = /\b(SPY|QQQ|VOO|VTI|ETF|index fund)\b/i.test(query);
   
   const res = await generateObject({
     model: getModel(),
@@ -157,6 +158,7 @@ ${isCommodityQuery ? `FOR COMMODITIES/ENERGY QUERIES (like this one), you MUST:
 2. Include queries about:
    - General recent news and developments (start broad, then narrow)
    - Current price levels and recent price movements (search for actual current prices)
+   - PRICE MILESTONES: crashes, spikes, all-time highs (e.g., "gold price crash January 2026" or "silver drop why")
    - Supply vs demand balance (is supply exceeding demand? vice versa?)
    - Inventory levels (are inventories rising or falling?)
    - OPEC/producer behavior (what are producers doing?)
@@ -164,11 +166,12 @@ ${isCommodityQuery ? `FOR COMMODITIES/ENERGY QUERIES (like this one), you MUST:
 3. Use date ranges like "January 2026" or "last week" instead of restrictive "last 7 days" quotes
 4. Don't be too restrictive - include general news queries to catch all developments` : ''}
 
-${isCompanyQuery ? `FOR COMPANY QUERIES, you MUST:
+${isCompanyQuery ? `FOR COMPANY/STOCK QUERIES, you MUST:
 1. Create at least ONE simple, broad query that searches for general recent news (e.g., "NVIDIA news January 2026" or "Apple stock last week")
 2. Include queries about:
    - General recent news and developments (start broad, then narrow)
    - Specific company filings or earnings releases
+   - PRICE MILESTONES: stock crashes, all-time highs, major drawdowns (e.g., "NVIDIA stock drop January 2026 why")
    - Holdings-level impact (what does this mean for holders?)
    - Company-specific implications (bullish/neutral/bearish? near-term vs long-term?)
 3. Use date ranges like "January 2026" or "last week" instead of restrictive "last 7 days" quotes
@@ -179,14 +182,23 @@ ${isCryptoQuery ? `FOR CRYPTOCURRENCY QUERIES (like this one), you MUST:
 2. Search for both the symbol (e.g., BTC) AND the full name (e.g., Bitcoin) - use both terms in queries
 3. Include queries about:
    - General recent news and developments (start broad, then narrow)
+   - PRICE MILESTONES: crashes, all-time highs, liquidity events (e.g., "Bitcoin crash January 2026" or "BTC all-time high why")
    - Protocol upgrades and technical developments
    - Institutional adoption and major announcements
    - Regulatory news and government actions
    - Exchange listings and trading volume
-   - Price movements and market trends
    - Security incidents (confirmed hacks, exploits)
 4. Use date ranges like "January 2026" or "last week" instead of restrictive "last 7 days" quotes
 5. Don't be too restrictive - include general news queries to catch all developments` : ''}
+
+${isETFQuery ? `FOR ETF QUERIES (like this one), you MUST:
+1. Create at least ONE simple, broad query that searches for general recent news (e.g., "SPY January 2026" or "S&P 500 ETF last week")
+2. Include queries about:
+   - General recent news and developments (start broad, then narrow)
+   - PRICE MILESTONES: crashes, all-time highs, major drawdowns (e.g., "S&P 500 drop January 2026 why")
+   - Index composition changes, flows, underlying asset developments
+3. Use date ranges like "January 2026" or "last week" instead of restrictive "last 7 days" quotes
+4. Don't be too restrictive - include general news queries to catch all developments` : ''}
 
 IMPORTANT: When researching companies, look for:
 - Strategic implications and directional indicators (where is the company heading?)
@@ -194,7 +206,9 @@ IMPORTANT: When researching companies, look for:
 - Competitive dynamics and market positioning (who has leverage and why?)
 - Regulatory/political impacts that show company strength (e.g., if a company can require upfront payments despite regulatory pressure, that shows power)
 
-CRITICAL: Capture as many different stories, events, and developments as possible. Generate queries that will uncover multiple significant events, regulatory changes, strategic moves, competitive dynamics, market shifts, earnings surprises, product launches, partnerships, regulatory battles, etc. The goal is to gather a rich collection of stories, not just focus on one angle.
+CRITICAL: Capture as many different stories, events, and developments as possible. Generate queries that will uncover multiple significant events, regulatory changes, strategic moves, competitive dynamics, market shifts, price milestones (crashes, all-time highs), earnings surprises, product launches, partnerships, regulatory battles, etc. The goal is to gather a rich collection of stories, not just focus on one angle.
+
+PRICE MILESTONES: For any asset (stocks, ETFs, crypto, commodities), include at least one query about significant price moves (crashes, ATHs) when relevant. These help investors make decisions.
 
 Focus on what will impact the company's direction and reveal its competitive position, not just news events.
 
@@ -274,6 +288,8 @@ CRITICAL SELECTION CRITERIA (select ALL articles that meet these):
    - Select articles that reveal company power/position (not just news events)
    - Select articles with competitive dynamics and market positioning insights
    - Select articles with regulatory/political impacts that show company strength
+   - Select articles about PRICE MILESTONES: crashes, all-time highs, major drawdowns — these help investors make decisions (stocks, ETFs, crypto, commodities)
+   - PREFER price-milestone articles that explain WHY (causes), WHAT happened before (context), and WHAT NEXT (implications)
    - REJECT articles that are clearly not relevant to the query
    - REJECT articles that are not important (trivial news, noise)
 
@@ -374,6 +390,8 @@ CRITICAL SELECTION CRITERIA (select ALL articles that meet these):
    - Select articles that reveal company power/position (not just news events)
    - Select articles with competitive dynamics and market positioning insights
    - Select articles with regulatory/political impacts that show company strength
+   - Select articles about PRICE MILESTONES: crashes, all-time highs, major drawdowns — these help investors make decisions (stocks, ETFs, crypto, commodities)
+   - PREFER price-milestone articles that explain WHY (causes), WHAT happened before (context), and WHAT NEXT (implications)
    - REJECT articles that are clearly not relevant to the query
    - REJECT articles that are not important (trivial news, noise)
 
@@ -438,6 +456,8 @@ CRITICAL SELECTION CRITERIA (select ALL articles that meet these):
    - Select articles that reveal company power/position (not just news events)
    - Select articles with competitive dynamics and market positioning insights
    - Select articles with regulatory/political impacts that show company strength
+   - Select articles about PRICE MILESTONES: crashes, all-time highs, major drawdowns — these help investors make decisions (stocks, ETFs, crypto, commodities)
+   - PREFER price-milestone articles that explain WHY (causes), WHAT happened before (context), and WHAT NEXT (implications)
    - REJECT articles that are clearly not relevant to the query
    - REJECT articles that are not important (trivial news, noise)
 
@@ -960,6 +980,8 @@ CRITICAL: Only include cards that:
 - Have clear context and implications
 - Are NOT empty drama - must have real value
 
+PRICE MILESTONES (crashes, all-time highs): These are important for investors. When identifying a price-milestone story (crash, ATH, major drawdown), ensure the learnings provide: (1) WHY it happened — causes, catalysts; (2) WHAT happened before — context; (3) WHAT NEXT — implications. Prefer learnings that have this full narrative over bare headlines.
+
 <prompt>${prompt}</prompt>
 
 <learnings>
@@ -1099,6 +1121,8 @@ SELECTION CRITERIA (ALL must be true):
 4. Has future implications - can discuss what might happen next
 5. NOT empty drama - must have real, useful information
 6. Leaves reader smarter - teaches something valuable
+
+PRICE MILESTONES (crashes, all-time highs): When choosing between cards about price moves, PREFER cards whose learnings explain WHY (causes), WHAT happened before (context), and WHAT NEXT (implications). Reject bare "X crashed" or "X hit ATH" without this full narrative — they have no value for investors.
 
 EXCLUDE cards that:
 - Are just noise or hype without substance

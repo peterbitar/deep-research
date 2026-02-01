@@ -13,7 +13,7 @@
     "generate-report": "tsx scripts/2-generate-report.ts",
     "rewrite-report": "tsx scripts/3-rewrite-report.ts",
     "full-pipeline": "tsx scripts/run-full-pipeline.ts",
-    "news-brief": "tsx --env-file=.env.local scripts/news-brief-openai.ts",
+    "news-brief": "tsx scripts/news-brief-openai.ts",
     "test-report-gen": "tsx --env-file=.env.local scripts/test-report-generation.ts",
     "api": "tsx --env-file=.env.local src/api.ts",
     "docker": "tsx src/run.ts",

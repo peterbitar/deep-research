@@ -9,7 +9,17 @@
  *
  * Env: NEWS_BRIEF_MODE (non-reasoning | agentic | deep-research), NEWS_BRIEF_MACRO (1/true),
  *      MAIN_BACKEND_URL or HOLDINGS_API_BASE_URL, OPENAI_KEY or OPENAI_API_KEY, DATABASE_URL.
+ *
+ * On Railway, env vars come from the dashboard (no .env.local). Locally, .env.local is loaded if present.
  */
+
+import { config } from 'dotenv';
+import { existsSync } from 'fs';
+import { join } from 'path';
+
+if (existsSync(join(__dirname, '..', '.env.local'))) {
+  config({ path: join(__dirname, '..', '.env.local') });
+}
 
 import { fetchUserHoldings } from '../src/fetch-holdings';
 import { saveLearnings, saveReport } from '../src/db/reports';

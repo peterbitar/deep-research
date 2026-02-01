@@ -987,6 +987,7 @@ CRITICAL: Only include cards that:
 - Are impactful and newsworthy
 - Have clear context and implications
 - Are NOT empty drama - must have real value
+- Reflect honest takes — include bearish/negative cards when the news warrants it. Don't favor only positive stories.
 - Have concrete numbers — prices, percentages, dates, earnings figures. Stories without key numbers are weak.
 - Include benchmark context for numbers when possible — how big/small, vs expectations, vs prior period. Readers need to know "is that good or bad?"
 
@@ -1144,6 +1145,9 @@ EXCLUDE cards that:
 - Don't provide actionable insights
 - Are too vague or generic
 - Don't have clear impact or implications
+- Spin bad news positive — if the development is bearish, the card should reflect that. Reject cards that sugarcoat.
+
+DO NOT favor positive cards over negative ones. Include bearish cards when the facts warrant it.
 
 IMPORTANT: Select ALL cards that meet the criteria above. Do not artificially limit the count. If 10 cards meet the criteria, select all 10.${finalHoldings.length > 0 ? ` Additionally, ensure at least one card per holding from: ${finalHoldings.join(', ')}` : ''}
 
@@ -1510,7 +1514,8 @@ CONTENT REQUIREMENTS:
 - Why it matters and why it's in the news
 - Context and backstory — weave it in naturally
 - Future implications — share what you're watching
-- Actionable insights — give clear, friendly guidance
+- Actionable insights — give clear, direct guidance
+- BRUTAL HONESTY: If the news is bad or bearish, say so. Don't spin negative into positive. Truth over comfort. The reader needs the unfiltered take.
 - IMPORTANT NUMBERS: Include key figures from the learnings — prices, percentages, dates, earnings, guidance. Never be vague (e.g., "prices fell" is bad; "fell 15% to $78,000" is good). The investor needs concrete data.
 - BENCHMARK EVERY NUMBER: When you mention a number, explain what it means — is it big or small? Compare to typical moves, prior period, or expectations. The reader should never wonder "is that good or bad?" Tell them (e.g., "a 15% drop — unusually large for a single week" or "beat estimates by 8%").
 

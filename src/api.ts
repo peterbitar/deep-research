@@ -10,7 +10,8 @@ import { getModel } from './ai/providers';
 import { pool, testConnection, initializeSchema } from './db/client';
 import { saveReport, getLatestReport, getReportCards } from './db/reports';
 import { saveChatSession, getChatSession, cleanupOldChatSessions } from './db/chat';
-import { getCostLogs, getCostSummary } from './db/cost-logs';
+import { getCostLogs, getCostSummary, getCostLogsWithBreakdown } from './db/cost-logs';
+import { getPipelineIterations, getPipelineStageData } from './db/pipeline-stages';
 import { fetchUserHoldings } from './fetch-holdings';
 import { parseReportToCards } from './report-parser';
 
@@ -558,11 +559,14 @@ app.post('/api/generate-report-json', async (req: Request, res: Response) => {
     if (!query) {
       return res.status(400).json({ error: 'Query is required' });
     }
+    // Create runId up front so pipeline stages (gathered, triaged, filter, scraped) are saved to DB
+    const runId = `research-${Date.now()}`;
     log('\n Starting research...\n');
     const { learnings, visitedUrls } = await deepResearch({
       query,
       breadth,
       depth,
+      dbRunId: runId,
     });
     
     // Include macro research if requested (default: true for comprehensive reports)
@@ -573,7 +577,7 @@ app.post('/api/generate-report-json', async (req: Request, res: Response) => {
       log('\n🌍 Including macro & liquidity scan...\n');
       try {
         const { scanMacro } = await import('./macro-scan');
-        const macroResult = await scanMacro(Math.min(breadth, 2), 1);
+        const macroResult = await scanMacro(Math.min(breadth, 2), 1, undefined, undefined, runId);
         log(`  ✅ Macro learnings: ${macroResult.learnings.length}`);
         log(`  ✅ Macro URLs: ${macroResult.visitedUrls.length}\n`);
         allLearnings.push(...macroResult.learnings);
@@ -598,7 +602,6 @@ app.post('/api/generate-report-json', async (req: Request, res: Response) => {
     const parsed = parseReportToCards(reportMarkdown);
 
     // Save to database if available (with pipeline-tagged ticker/macro per card)
-    const runId = `research-${Date.now()}`;
     if (pool) {
       try {
         await saveReport({
@@ -1075,8 +1078,11 @@ app.get('/api/cost-logs', async (req: Request, res: Response) => {
     const runId = req.query.runId as string | undefined;
     const sinceParam = req.query.since as string | undefined;
     const since = sinceParam ? new Date(sinceParam) : undefined;
+    const breakdown = req.query.breakdown === '1' || req.query.breakdown === 'true';
 
-    const logs = await getCostLogs({ limit, offset, service, runId, since });
+    const logs = breakdown
+      ? await getCostLogsWithBreakdown({ limit, offset, service, runId, since })
+      : await getCostLogs({ limit, offset, service, runId, since });
     const summary = await getCostSummary({ since, runId });
 
     return res.json({
@@ -1087,6 +1093,82 @@ app.get('/api/cost-logs', async (req: Request, res: Response) => {
     console.error('Error fetching cost logs:', error);
     return res.status(500).json({
       error: 'Failed to fetch cost logs',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// Cost logs CSV export - columns: service, firecrawl_credits_used, firecrawl_effective_usd_per_credit, openai_input_tokens, openai_output_tokens, openai_input_rate, openai_output_rate, total_cost_usd
+app.get('/api/cost-logs/csv', async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 10000, 50000);
+    const offset = parseInt(req.query.offset as string, 10) || 0;
+    const service = req.query.service as string | undefined;
+    const runId = req.query.runId as string | undefined;
+    const sinceParam = req.query.since as string | undefined;
+    const since = sinceParam ? new Date(sinceParam) : undefined;
+
+    const rows = await getCostLogsWithBreakdown({ limit, offset, service, runId, since });
+    const cols = [
+      'id',
+      'service',
+      'operation',
+      'model',
+      'firecrawl_credits_used',
+      'firecrawl_effective_usd_per_credit',
+      'openai_input_tokens',
+      'openai_output_tokens',
+      'openai_input_rate',
+      'openai_output_rate',
+      'total_cost_usd',
+      'run_id',
+      'created_at',
+    ];
+    const escape = (v: unknown): string => {
+      if (v == null) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [cols.join(','), ...rows.map((r) => cols.map((c) => escape((r as Record<string, unknown>)[c])).join(','))];
+    const csv = lines.join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=cost_logs.csv');
+    return res.send(csv);
+  } catch (error: unknown) {
+    console.error('Error exporting cost logs CSV:', error);
+    return res.status(500).json({
+      error: 'Failed to export cost logs CSV',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get('/api/pipeline-stages/:runId', async (req: Request, res: Response) => {
+  try {
+    const { runId } = req.params;
+    const iterationIdParam = req.query.iterationId as string | undefined;
+    const stage = req.query.stage as string | undefined;
+
+    const iterations = await getPipelineIterations(runId);
+    if (iterations.length === 0) {
+      return res.json({ iterations: [], message: 'No pipeline data for this run' });
+    }
+
+    if (iterationIdParam && stage) {
+      const iterationId = parseInt(iterationIdParam, 10);
+      const validStages = ['gathered', 'triaged', 'filter', 'scraped'];
+      if (!validStages.includes(stage)) {
+        return res.status(400).json({ error: 'Invalid stage. Use: gathered, triaged, filter, scraped' });
+      }
+      const data = await getPipelineStageData(iterationId, stage as any);
+      return res.json({ iterationId, stage, data });
+    }
+
+    return res.json({ iterations });
+  } catch (error: unknown) {
+    console.error('Error fetching pipeline stages:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch pipeline stages',
       message: error instanceof Error ? error.message : String(error),
     });
   }

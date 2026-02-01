@@ -1,5 +1,16 @@
 # Database Migration Guide - DBeaver & Manual Migration
 
+## Cost logs: add `usage_credits` (Firecrawl credit-based costing)
+
+If you use cost logging and have an existing `cost_logs` table, run this once to add the `usage_credits` column (for Firecrawl credit-based costing):
+
+```bash
+export DATABASE_URL="postgresql://..."
+npx tsx scripts/migrate-cost-logs-usage-credits.ts
+```
+
+---
+
 This guide shows you how to migrate your latest report to the Railway PostgreSQL database using either:
 1. **Automated script** (recommended)
 2. **DBeaver manual import** (for manual control)

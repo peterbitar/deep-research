@@ -28,9 +28,10 @@ async function main() {
     outputTokens: 200,
     operation: 'generateObject',
   });
-  await logFirecrawlCost({ operation: 'search', count: 2 });
-  await logFirecrawlCost({ operation: 'scrape', count: 1 });
-  console.log('✅ Logged: 1 LLM call, 2 searches, 1 scrape\n');
+  await logFirecrawlCost({ operation: 'search' });
+  await logFirecrawlCost({ operation: 'search' });
+  await logFirecrawlCost({ operation: 'scrape', creditsUsed: 1 });
+  console.log('✅ Logged: 1 LLM call, 2 searches (0 credits each), 1 scrape (1 credit)\n');
 
   if (connected) {
     const summary = await getCostSummary();

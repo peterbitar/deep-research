@@ -69,6 +69,24 @@ FIRECRAWL_CONCURRENCY=2  # Optional, defaults to 2
 - Number of concurrent Firecrawl requests
 - Increase if you have higher rate limits
 
+### Cost tracking (optional)
+
+Firecrawl is credit-based; cost is derived from your plan and credits used per run.
+
+```
+FIRECRAWL_PLAN_PRICE_USD=113       # Optional, defaults to 113
+FIRECRAWL_MONTHLY_CREDITS=100000   # Optional, defaults to 100000
+```
+- Used to compute effective cost per credit: `plan_price / monthly_credits`
+- Each successful scrape/crawl page ≈ 1 credit; search = 0 credits
+
+OpenAI costs are token-based. Set rates (USD per 1M tokens) to match your billing:
+
+```
+OPENAI_INPUT_USD_PER_1M=0.15   # Optional, defaults to 0.15
+OPENAI_OUTPUT_USD_PER_1M=0.6   # Optional, defaults to 0.6
+```
+
 ---
 
 ## 📋 Complete Example (Railway/Render)

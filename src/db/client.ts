@@ -122,7 +122,66 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
     last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Cost Logs table
+-- Pipeline iterations
+CREATE TABLE IF NOT EXISTS pipeline_iterations (
+    id SERIAL PRIMARY KEY,
+    run_id VARCHAR(255) NOT NULL,
+    research_label VARCHAR(100),
+    iteration INTEGER NOT NULL,
+    depth INTEGER NOT NULL,
+    query TEXT NOT NULL,
+    serp_queries JSONB NOT NULL DEFAULT '[]',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS pipeline_gathered (
+    id SERIAL PRIMARY KEY,
+    iteration_id INTEGER NOT NULL REFERENCES pipeline_iterations(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    title TEXT,
+    description TEXT,
+    snippet TEXT,
+    source_queries JSONB DEFAULT '[]',
+    item_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS pipeline_triaged (
+    id SERIAL PRIMARY KEY,
+    iteration_id INTEGER NOT NULL REFERENCES pipeline_iterations(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    title TEXT,
+    description TEXT,
+    snippet TEXT,
+    item_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS pipeline_filter (
+    id SERIAL PRIMARY KEY,
+    iteration_id INTEGER NOT NULL REFERENCES pipeline_iterations(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    decision VARCHAR(20) NOT NULL CHECK (decision IN ('scrape', 'metadata_only')),
+    reason TEXT,
+    title TEXT,
+    description TEXT,
+    item_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS pipeline_scraped (
+    id SERIAL PRIMARY KEY,
+    iteration_id INTEGER NOT NULL REFERENCES pipeline_iterations(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    markdown TEXT,
+    error TEXT,
+    published_date VARCHAR(50),
+    item_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_pipeline_iterations_run_id ON pipeline_iterations(run_id);
+CREATE INDEX IF NOT EXISTS idx_pipeline_gathered_iteration_id ON pipeline_gathered(iteration_id);
+CREATE INDEX IF NOT EXISTS idx_pipeline_triaged_iteration_id ON pipeline_triaged(iteration_id);
+CREATE INDEX IF NOT EXISTS idx_pipeline_filter_iteration_id ON pipeline_filter(iteration_id);
+CREATE INDEX IF NOT EXISTS idx_pipeline_scraped_iteration_id ON pipeline_scraped(iteration_id);
+
+-- Cost Logs table (Firecrawl: usage_credits + total_cost; OpenAI: tokens + total_cost)
 CREATE TABLE IF NOT EXISTS cost_logs (
     id SERIAL PRIMARY KEY,
     service VARCHAR(50) NOT NULL,
@@ -133,6 +192,7 @@ CREATE TABLE IF NOT EXISTS cost_logs (
     count INTEGER DEFAULT 1,
     cost_per_unit DECIMAL(12, 6),
     total_cost DECIMAL(12, 6) NOT NULL,
+    usage_credits INTEGER,
     run_id VARCHAR(255),
     metadata JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

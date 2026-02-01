@@ -8,6 +8,9 @@
  *   npm run research-only
  *   # or
  *   npx tsx --env-file=.env.local scripts/1-research-only.ts
+ * 
+ * Limit to specific symbols (no API fetch):
+ *   RESEARCH_SYMBOLS=GOLD,SILVER,SPY,BTC npx tsx --env-file=.env.local scripts/1-research-only.ts
  */
 
 import { deepResearch } from '../src/deep-research';
@@ -19,6 +22,17 @@ import pLimit from 'p-limit';
 
 const DEFAULT_HOLDINGS_API =
   'https://wealthyrabbitios-production-03a4.up.railway.app';
+
+/** Predefined holdings for RESEARCH_SYMBOLS (gold, silver, S&P 500, BTC) */
+const PREDEFINED_HOLDINGS: Record<string, { symbol: string; type: string; name: string }> = {
+  GOLD: { symbol: 'GOLD', type: 'Commodity', name: 'Gold' },
+  GLD: { symbol: 'GLD', type: 'Commodity', name: 'Gold' },
+  SILVER: { symbol: 'SILVER', type: 'Commodity', name: 'Silver' },
+  SLV: { symbol: 'SLV', type: 'Commodity', name: 'Silver' },
+  SPY: { symbol: 'SPY', type: 'Stock', name: 'S&P 500' },
+  SPX: { symbol: 'SPX', type: 'Stock', name: 'S&P 500' },
+  BTC: { symbol: 'BTC', type: 'Cryptocurrency', name: 'Bitcoin' },
+};
 
 function getHoldingsBaseUrl(): string {
   const url =
@@ -64,50 +78,69 @@ async function main() {
     throw new Error('Database pool not initialized. Check DATABASE_URL.');
   }
 
-  const baseURL = getHoldingsBaseUrl();
-  console.log(`📡 Holdings API: ${baseURL}\n`);
+  const researchSymbolsEnv = process.env.RESEARCH_SYMBOLS?.trim();
+  let holdings: Array<{ symbol: string; type: string; name: string }>;
 
-  // --- 1. Fetch users ---
-  console.log('1️⃣  Fetching users...');
-  const usersRes = await fetch(`${baseURL}/api/users`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-  });
-  if (!usersRes.ok) {
-    throw new Error(`Holdings API users failed: ${usersRes.status} ${usersRes.statusText}`);
-  }
-  const users = (await usersRes.json()) as Array<{ user_id?: string; userId?: string }>;
-  if (!Array.isArray(users) || users.length === 0) {
-    throw new Error('No users returned from holdings API.');
-  }
-  console.log(`   ✅ ${users.length} user(s)\n`);
-
-  // --- 2. Fetch holdings per user, deduplicate ---
-  console.log('2️⃣  Fetching holdings per user...');
-  const allHoldings: Array<{ symbol: string; type: string; name: string }> = [];
-  for (const u of users) {
-    const uid = u.user_id ?? u.userId;
-    if (!uid) continue;
-    try {
-      const list = await fetchUserHoldings({
-        userId: uid,
-        baseURL,
-        healthCheck: false,
-      });
-      console.log(`   📦 ${uid}: ${list.length} holdings`);
-      allHoldings.push(...list);
-    } catch (e) {
-      console.warn(`   ⚠️  ${uid}: ${e instanceof Error ? e.message : String(e)}`);
+  if (researchSymbolsEnv) {
+    // Limit to predefined symbols (gold, silver, S&P 500, BTC) — no API fetch
+    const symbols = researchSymbolsEnv.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+    holdings = [];
+    for (const sym of symbols) {
+      const predefined = PREDEFINED_HOLDINGS[sym];
+      if (predefined) {
+        holdings.push(predefined);
+      } else {
+        console.warn(`   ⚠️  Unknown symbol "${sym}" (known: ${Object.keys(PREDEFINED_HOLDINGS).join(', ')})`);
+      }
     }
-  }
+    console.log(`📌 RESEARCH_SYMBOLS set: researching only ${holdings.map((h) => h.symbol).join(', ')}\n`);
+  } else {
+    // Fetch from holdings API
+    const baseURL = getHoldingsBaseUrl();
+    console.log(`📡 Holdings API: ${baseURL}\n`);
 
-  const seen = new Set<string>();
-  const holdings = allHoldings.filter((h) => {
-    const s = h.symbol.toUpperCase().trim();
-    if (seen.has(s)) return false;
-    seen.add(s);
-    return true;
-  });
+    // --- 1. Fetch users ---
+    console.log('1️⃣  Fetching users...');
+    const usersRes = await fetch(`${baseURL}/api/users`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    });
+    if (!usersRes.ok) {
+      throw new Error(`Holdings API users failed: ${usersRes.status} ${usersRes.statusText}`);
+    }
+    const users = (await usersRes.json()) as Array<{ user_id?: string; userId?: string }>;
+    if (!Array.isArray(users) || users.length === 0) {
+      throw new Error('No users returned from holdings API.');
+    }
+    console.log(`   ✅ ${users.length} user(s)\n`);
+
+    // --- 2. Fetch holdings per user, deduplicate ---
+    console.log('2️⃣  Fetching holdings per user...');
+    const allHoldings: Array<{ symbol: string; type: string; name: string }> = [];
+    for (const u of users) {
+      const uid = u.user_id ?? u.userId;
+      if (!uid) continue;
+      try {
+        const list = await fetchUserHoldings({
+          userId: uid,
+          baseURL,
+          healthCheck: false,
+        });
+        console.log(`   📦 ${uid}: ${list.length} holdings`);
+        allHoldings.push(...list);
+      } catch (e) {
+        console.warn(`   ⚠️  ${uid}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+
+    const seen = new Set<string>();
+    holdings = allHoldings.filter((h) => {
+      const s = h.symbol.toUpperCase().trim();
+      if (seen.has(s)) return false;
+      seen.add(s);
+      return true;
+    });
+  }
 
   const breadthPerHolding = 3;
   const depthPerHolding = 1;
@@ -145,6 +178,7 @@ async function main() {
             totalDepth: depthPerHolding,
             iteration: 1,
             researchLabel: h.symbol,
+            dbRunId: runId,
           });
           console.log(`      ✅ ${h.symbol}: ${learnings.length} learnings, ${visitedUrls.length} URLs`);
           return { symbol: h.symbol, learnings, visitedUrls, error: null };
@@ -193,7 +227,7 @@ async function main() {
   const macroLearnings: string[] = [];
   const macroUrls: string[] = [];
   try {
-    const macro = await scanMacro(2, 1, undefined, 'Central Bank Policy');
+    const macro = await scanMacro(2, 1, undefined, 'Central Bank Policy', runId);
     macroLearnings.push(...macro.learnings);
     macroUrls.push(...macro.visitedUrls);
     console.log(`   ✅ ${macro.learnings.length} learnings, ${macro.visitedUrls.length} URLs`);

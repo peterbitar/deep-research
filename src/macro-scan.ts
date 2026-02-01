@@ -52,7 +52,7 @@ export interface MacroResult {
 /**
  * Scan macro and liquidity conditions
  */
-export async function scanMacro(breadth = 2, depth = 1, dataSaver?: any, categoryFilter?: string): Promise<MacroResult> {
+export async function scanMacro(breadth = 2, depth = 1, dataSaver?: any, categoryFilter?: string, dbRunId?: string): Promise<MacroResult> {
   console.log('\n🌍 Scanning macro & liquidity conditions...\n');
   
   const allLearnings: string[] = [];
@@ -79,6 +79,7 @@ export async function scanMacro(breadth = 2, depth = 1, dataSaver?: any, categor
       dataSaver,
       iteration: 1, // Set to 1 to skip portfolio detection and avoid overwriting iteration-0
       researchLabel,
+      dbRunId,
     });
     
     allLearnings.push(...learnings);

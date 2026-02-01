@@ -1,27 +1,14 @@
 /**
- * Cost logger - tracks LLM and Firecrawl costs and persists to DB
+ * Cost logger - tracks LLM (token-based) and Firecrawl (credit-based) costs and persists to DB.
+ * Firecrawl: credits_used per run (scrape/crawl = pages scraped; search = 0). Cost = credits * (plan_price / monthly_credits).
+ * OpenAI: cost from input/output tokens using config rates.
  */
 
 import { pool } from './db/client';
-
-// Pricing (approximate, varies by provider/plan)
-const FIRECRAWL_SEARCH_COST = 0.01;
-const FIRECRAWL_SCRAPE_COST = 0.075;
-
-function getLLMRates(modelId: string): { inputPer1M: number; outputPer1M: number } {
-  if (!modelId) {
-    return { inputPer1M: 0.15, outputPer1M: 0.6 };
-  }
-  const m = modelId.toLowerCase();
-  if (m.includes('r1') || m.includes('fireworks')) {
-    return { inputPer1M: 0.2, outputPer1M: 0.8 };
-  }
-  if (m.includes('gpt-4') || m.includes('o1')) {
-    return { inputPer1M: 2.5, outputPer1M: 10.0 };
-  }
-  // o3-mini, o3, default
-  return { inputPer1M: 0.15, outputPer1M: 0.6 };
-}
+import {
+  getFirecrawlEffectiveUsdPerCredit,
+  getOpenAIRates,
+} from './cost-config';
 
 export type LogLLMCostParams = {
   modelId: string;
@@ -40,7 +27,7 @@ export async function logLLMCost(params: LogLLMCostParams): Promise<void> {
     runId,
   } = params;
 
-  const { inputPer1M, outputPer1M } = getLLMRates(modelId);
+  const { inputPer1M, outputPer1M } = getOpenAIRates(modelId);
   const inputCost = (inputTokens / 1_000_000) * inputPer1M;
   const outputCost = (outputTokens / 1_000_000) * outputPer1M;
   const totalCost = inputCost + outputCost;
@@ -55,21 +42,31 @@ export async function logLLMCost(params: LogLLMCostParams): Promise<void> {
     count: 1,
     costPerUnit: totalCost,
     totalCost,
+    usageCredits: null,
     runId,
-    metadata: { inputCost, outputCost },
+    metadata: {
+      inputCost,
+      outputCost,
+      openai_input_rate_per_1m: inputPer1M,
+      openai_output_rate_per_1m: outputPer1M,
+    },
   });
 }
 
 export type LogFirecrawlCostParams = {
-  operation: 'search' | 'scrape';
-  count?: number;
+  operation: 'search' | 'scrape' | 'crawl';
+  /** Credits used this call: search=0, scrape/crawl=pages_scraped_successfully (default 1 per call) */
+  creditsUsed?: number;
   runId?: string;
 };
 
 export async function logFirecrawlCost(params: LogFirecrawlCostParams): Promise<void> {
-  const { operation, count = 1, runId } = params;
-  const costPerUnit = operation === 'search' ? FIRECRAWL_SEARCH_COST : FIRECRAWL_SCRAPE_COST;
-  const totalCost = costPerUnit * count;
+  const { operation, runId } = params;
+  const creditsUsed =
+    operation === 'search' ? 0 : Math.max(0, params.creditsUsed ?? 1);
+
+  const effectiveUsdPerCredit = getFirecrawlEffectiveUsdPerCredit();
+  const estimatedCostUsd = creditsUsed * effectiveUsdPerCredit;
 
   await insertCostLog({
     service: 'firecrawl',
@@ -77,11 +74,15 @@ export async function logFirecrawlCost(params: LogFirecrawlCostParams): Promise<
     model: null,
     inputTokens: null,
     outputTokens: null,
-    count,
-    costPerUnit,
-    totalCost,
+    count: creditsUsed,
+    costPerUnit: effectiveUsdPerCredit,
+    totalCost: estimatedCostUsd,
+    usageCredits: creditsUsed,
     runId,
-    metadata: {},
+    metadata: {
+      firecrawl_credits_used: creditsUsed,
+      firecrawl_effective_usd_per_credit: effectiveUsdPerCredit,
+    },
   });
 }
 
@@ -94,6 +95,7 @@ type InsertParams = {
   count: number;
   costPerUnit: number;
   totalCost: number;
+  usageCredits: number | null;
   runId?: string;
   metadata: Record<string, unknown>;
 };
@@ -102,8 +104,8 @@ async function insertCostLog(params: InsertParams): Promise<void> {
   if (!pool) return;
   try {
     await pool.query(
-      `INSERT INTO cost_logs (service, operation, model, input_tokens, output_tokens, count, cost_per_unit, total_cost, run_id, metadata)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      `INSERT INTO cost_logs (service, operation, model, input_tokens, output_tokens, count, cost_per_unit, total_cost, usage_credits, run_id, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
       [
         params.service,
         params.operation,
@@ -113,6 +115,7 @@ async function insertCostLog(params: InsertParams): Promise<void> {
         params.count,
         params.costPerUnit,
         params.totalCost,
+        params.usageCredits,
         params.runId ?? null,
         JSON.stringify(params.metadata),
       ]
@@ -122,9 +125,6 @@ async function insertCostLog(params: InsertParams): Promise<void> {
   }
 }
 
-/**
- * Fire-and-forget: log without awaiting. Use when you don't want to block.
- */
 export function logLLMCostAsync(params: LogLLMCostParams): void {
   logLLMCost(params).catch((err) =>
     console.error('[cost-logger] Async LLM log failed:', err)

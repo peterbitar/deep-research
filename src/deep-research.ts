@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { getModel, trimPrompt } from './ai/providers';
 import { logFirecrawlCostAsync } from './cost-logger';
+import { savePipelineIteration } from './db/pipeline-stages';
 import { parseDateFromMarkdown, parseDateFromUrl } from './parse-date-from-markdown';
 import { systemPrompt, reportStylePrompt } from './prompt';
 import { PipelineDataSaver } from './pipeline-data-saver';
@@ -86,7 +87,8 @@ export async function retryFirecrawlSearch<T>(
   try {
     const result = await searchFn();
     if (operation) {
-      logFirecrawlCostAsync({ operation, count: 1 });
+      const creditsUsed = operation === 'search' ? 0 : 1;
+      logFirecrawlCostAsync({ operation, creditsUsed });
     }
     return result;
   } catch (error: any) {
@@ -1819,6 +1821,7 @@ export async function deepResearch({
   initialQuery,
   totalDepth,
   researchLabel,
+  dbRunId,
 }: {
   query: string;
   breadth: number;
@@ -1831,6 +1834,7 @@ export async function deepResearch({
   initialQuery?: string;
   totalDepth?: number;
   researchLabel?: string; // Label for this research (e.g., "BTC", "NVIDIA") - used for portfolio research
+  dbRunId?: string; // When set, saves pipeline stages (gathered, triaged, filter, scraped) to DB
 }): Promise<ResearchResult> {
   log('debug', `🔍 deepResearch called: query="${query.substring(0, 100)}...", iteration=${iteration}, breadth=${breadth}, depth=${depth}`);
   
@@ -1932,6 +1936,7 @@ IMPORTANT: Generate queries that include:
             initialQuery: holdingQuery,
             totalDepth: depthPerHolding,
             researchLabel: holding.symbol, // Pass research label to track which holding
+            dbRunId,
           });
 
           log('info', `  ✅ ${holding.symbol}: ${holdingLearnings.length} learnings, ${holdingUrls.length} URLs`);
@@ -1956,7 +1961,7 @@ IMPORTANT: Generate queries that include:
         log('info', '🌍 Query mentions macro factors. Adding macro research...\n');
         try {
           const { scanMacro } = await import('./macro-scan');
-          const macroResult = await scanMacro(2, 1, dataSaver);
+          const macroResult = await scanMacro(2, 1, dataSaver, undefined, dbRunId);
           log('info', `  ✅ Macro learnings: ${macroResult.learnings.length}`);
           log('info', `  ✅ Macro URLs: ${macroResult.visitedUrls.length}\n`);
           allPortfolioLearnings.push(...macroResult.learnings);
@@ -2104,9 +2109,25 @@ IMPORTANT: Generate queries that include:
         triagedArticles: [],
         toScrape: [],
         metadataOnly: [],
+        scrapedContent: [],
         learnings: [],
         followUpQuestions: [],
         visitedUrls: [],
+      });
+    }
+    if (dbRunId) {
+      await savePipelineIteration({
+        runId: dbRunId,
+        researchLabel,
+        iteration,
+        depth,
+        query,
+        serpQueries,
+        gatheredArticles: [],
+        triagedArticles: [],
+        toScrape: [],
+        metadataOnly: [],
+        scrapedContent: [],
       });
     }
     return {
@@ -2137,6 +2158,21 @@ IMPORTANT: Generate queries that include:
 
   if (triagedArticles.length === 0) {
     log('warn', `No relevant articles selected after triage`);
+    if (dbRunId) {
+      await savePipelineIteration({
+        runId: dbRunId,
+        researchLabel,
+        iteration,
+        depth,
+        query,
+        serpQueries,
+        gatheredArticles: allArticles,
+        triagedArticles: [],
+        toScrape: [],
+        metadataOnly: [],
+        scrapedContent: [],
+      });
+    }
     return {
       learnings: [],
       visitedUrls: [],
@@ -2265,6 +2301,23 @@ IMPORTANT: Generate queries that include:
     });
   }
 
+  // Save pipeline stages to DB when dbRunId is provided
+  if (dbRunId) {
+    await savePipelineIteration({
+      runId: dbRunId,
+      researchLabel,
+      iteration,
+      depth,
+      query,
+      serpQueries,
+      gatheredArticles: allArticles,
+      triagedArticles,
+      toScrape,
+      metadataOnly,
+      scrapedContent,
+    });
+  }
+
   // Step 9: Recursive depth exploration
   if (newDepth > 0) {
     log('info', `\n🔍 Researching deeper, breadth: ${newBreadth}, depth: ${newDepth}`);
@@ -2291,6 +2344,7 @@ IMPORTANT: Generate queries that include:
       dataSaver,
       iteration: iteration + 1,
       initialQuery: finalInitialQuery,
+      dbRunId,
       totalDepth: finalTotalDepth,
       researchLabel, // Pass research label to next iteration
     });

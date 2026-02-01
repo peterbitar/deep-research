@@ -772,6 +772,8 @@ export async function processSerpResult({
         prompt: trimPrompt(
           `Given the following contents from a SERP search for the query <query>${query}</query>, generate a list of learnings from the contents. Return a maximum of ${numLearnings} learnings, but feel free to return less if the contents are clear. Make sure each learning is unique and not similar to each other. The learnings should be concise and to the point, as detailed and information dense as possible. Make sure to include any entities like people, places, companies, products, things, etc in the learnings, as well as any exact metrics, numbers, or dates.
 
+IMPORTANT NUMBERS: Always capture and preserve specific figures — prices (e.g., "$78,000"), percentage changes (e.g., "-15%"), dates, earnings/revenue numbers, guidance, inventory levels, rate decisions. These are critical for investor cards. Never summarize as "prices fell" — extract the actual numbers. Also capture benchmark/context when present (e.g., "largest drop since March", "beat estimates by 8%", "unusually volatile") so readers understand if a number is big or small.
+
 CRITICAL REQUIREMENTS:
 1. TIME FRAME: Only extract learnings about events/developments from the LAST 7 DAYS. If content discusses long-term trends (2025 outlooks, 2030 projections) without a specific recent event, flag it as "LONG-TERM TREND" or "CONTEXT", not as a recent change.
 
@@ -848,6 +850,8 @@ The learnings will be used to research the topic further.\n\n<contents>${batch
       system: systemPrompt(),
       prompt: trimPrompt(
         `Given the following contents from a SERP search for the query <query>${query}</query>, generate a list of learnings from the contents. Return a maximum of ${numLearnings} learnings, but feel free to return less if the contents are clear. Make sure each learning is unique and not similar to each other. The learnings should be concise and to the point, as detailed and information dense as possible. Make sure to include any entities like people, places, companies, products, things, etc in the learnings, as well as any exact metrics, numbers, or dates.
+
+IMPORTANT NUMBERS: Always capture and preserve specific figures — prices (e.g., "$78,000"), percentage changes (e.g., "-15%"), dates, earnings/revenue numbers, guidance, inventory levels, rate decisions. These are critical for investor cards. Never summarize as "prices fell" — extract the actual numbers. Also capture benchmark/context when present (e.g., "largest drop since March", "beat estimates by 8%", "unusually volatile") so readers understand if a number is big or small.
 
 CRITICAL REQUIREMENTS:
 1. TIME FRAME: Only extract learnings about events/developments from the LAST 7 DAYS. If content discusses long-term trends (2025 outlooks, 2030 projections) without a specific recent event, flag it as "LONG-TERM TREND" or "CONTEXT", not as a recent change.
@@ -972,15 +976,21 @@ CRITICAL: The title MUST be a complete sentence that tells a story, not just a p
 - BAD: "Netflix Update" (2 words) ✗
 - BAD: "Merger Deal" (2 words) ✗
 
-Group related stories together - they should be in the same card.
+GROUPING — CRITICAL: One storyline per holding when possible
+- For the SAME holding (e.g., BTC, AAPL, NVDA), prefer ONE card that weaves together all related developments into a single storyline.
+- Multiple developments about Bitcoin (crash + regulatory + ecosystem) should be ONE card, not three. Use transitions: "Meanwhile...", "Separately...", "Also this week..."
+- Only create separate cards for the same holding when stories are genuinely unrelated (e.g., earnings vs. a completely separate lawsuit in another jurisdiction).
+- Fewer, richer cards beat many fragmented ones. Each holding ideally gets 1 consolidated card.
 
 CRITICAL: Only include cards that:
 - Provide actionable insights (help make smarter decisions)
 - Are impactful and newsworthy
 - Have clear context and implications
 - Are NOT empty drama - must have real value
+- Have concrete numbers — prices, percentages, dates, earnings figures. Stories without key numbers are weak.
+- Include benchmark context for numbers when possible — how big/small, vs expectations, vs prior period. Readers need to know "is that good or bad?"
 
-PRICE MILESTONES (crashes, all-time highs): These are important for investors. When identifying a price-milestone story (crash, ATH, major drawdown), ensure the learnings provide: (1) WHY it happened — causes, catalysts; (2) WHAT happened before — context; (3) WHAT NEXT — implications. Prefer learnings that have this full narrative over bare headlines.
+PRICE MILESTONES (crashes, all-time highs): These are important for investors. When identifying a price-milestone story (crash, ATH, major drawdown), ensure the learnings provide: (1) WHY it happened — causes, catalysts; (2) WHAT happened before — context; (3) WHAT NEXT — implications; (4) THE NUMBERS — actual prices, % change, dates. Prefer learnings that have this full narrative and data over bare headlines.
 
 <prompt>${prompt}</prompt>
 
@@ -1121,6 +1131,11 @@ SELECTION CRITERIA (ALL must be true):
 4. Has future implications - can discuss what might happen next
 5. NOT empty drama - must have real, useful information
 6. Leaves reader smarter - teaches something valuable
+
+GROUPING — PREFER CONSOLIDATION:
+- When multiple potential cards cover the SAME holding (e.g., 3 Bitcoin cards), select at most ONE — the best or most comprehensive one.
+- Do NOT select 2–3 cards that all cover Bitcoin unless they tell genuinely separate stories (e.g., earnings vs. unrelated lawsuit). Prefer one consolidated card per holding.
+- Fewer, richer cards with full storylines beat many fragmented cards.
 
 PRICE MILESTONES (crashes, all-time highs): When choosing between cards about price moves, PREFER cards whose learnings explain WHY (causes), WHAT happened before (context), and WHAT NEXT (implications). Reject bare "X crashed" or "X hit ATH" without this full narrative — they have no value for investors.
 
@@ -1491,10 +1506,13 @@ FORBIDDEN FORMATS (DO NOT USE):
 
 CONTENT REQUIREMENTS:
 - What happened — tell it like you're recounting something interesting
+- If this card covers multiple developments for the same holding, weave them into one storyline with transitions ("Meanwhile...", "Separately...", "Also this week...")
 - Why it matters and why it's in the news
 - Context and backstory — weave it in naturally
 - Future implications — share what you're watching
 - Actionable insights — give clear, friendly guidance
+- IMPORTANT NUMBERS: Include key figures from the learnings — prices, percentages, dates, earnings, guidance. Never be vague (e.g., "prices fell" is bad; "fell 15% to $78,000" is good). The investor needs concrete data.
+- BENCHMARK EVERY NUMBER: When you mention a number, explain what it means — is it big or small? Compare to typical moves, prior period, or expectations. The reader should never wonder "is that good or bad?" Tell them (e.g., "a 15% drop — unusually large for a single week" or "beat estimates by 8%").
 
 STORY:
 Title: ${card.title}
@@ -1704,6 +1722,8 @@ CRITICAL FORMAT REQUIREMENTS:
 - ABSOLUTELY NO BULLET POINTS - Remove any "- " or "* " or bullet point formatting
 - Convert any bullet points to flowing paragraph text
 - Maintain original meaning and key information
+- PRESERVE ALL IMPORTANT NUMBERS: prices, percentages, dates, earnings figures, dollar amounts — do not remove or generalize them
+- PRESERVE BENCHMARKS: Keep any context that explains what numbers mean (e.g., "unusually large", "beat estimates", "lowest since March")
 - Keep the conversational, human tone
 - Ensure paragraphs flow naturally
 

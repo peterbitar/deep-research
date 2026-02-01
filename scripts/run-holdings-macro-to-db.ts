@@ -151,9 +151,9 @@ async function main() {
     }
   }
 
-  console.log('\n4️⃣  Macro scan (Central Bank Policy)...');
+  console.log('\n4️⃣  Macro scan (Central Bank, Economic Data, Currency, Geopolitical)...');
   try {
-    const macro = await scanMacro(2, 1, undefined, 'Central Bank Policy');
+    const macro = await scanMacro(2, 1, undefined);
     allLearnings.push(...macro.learnings);
     allUrls.push(...macro.visitedUrls);
     console.log(`   ✅ ${macro.learnings.length} learnings, ${macro.visitedUrls.length} URLs`);

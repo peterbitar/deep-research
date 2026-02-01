@@ -223,11 +223,11 @@ async function main() {
   }
 
   // --- 4. Macro scan (always runs) ---
-  console.log('4️⃣  Macro scan (Central Bank Policy)...');
+  console.log('4️⃣  Macro scan (Central Bank, Economic Data, Currency, Geopolitical)...');
   const macroLearnings: string[] = [];
   const macroUrls: string[] = [];
   try {
-    const macro = await scanMacro(2, 1, undefined, 'Central Bank Policy', runId);
+    const macro = await scanMacro(2, 1, undefined, undefined, runId);
     macroLearnings.push(...macro.learnings);
     macroUrls.push(...macro.visitedUrls);
     console.log(`   ✅ ${macro.learnings.length} learnings, ${macro.visitedUrls.length} URLs`);

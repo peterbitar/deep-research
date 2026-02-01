@@ -148,10 +148,10 @@ async function testHoldingsMacro() {
   console.log(`  Total holdings learnings: ${allLearnings.length}`);
   console.log(`  Total holdings URLs: ${allUrls.length}\n`);
 
-  // Step 2: Run macro scan for additional context (Central Bank Policy only)
-  console.log('🌍 Step 2: Running macro scan (Central Bank Policy only)...\n');
+  // Step 2: Run macro scan for additional context
+  console.log('🌍 Step 2: Running macro scan (all categories)...\n');
   try {
-    const macroResult = await scanMacro(2, 1, dataSaver, 'Central Bank Policy');
+    const macroResult = await scanMacro(2, 1, dataSaver);
     console.log(`  ✅ Macro learnings: ${macroResult.learnings.length}`);
     console.log(`  ✅ Macro URLs: ${macroResult.visitedUrls.length}`);
     

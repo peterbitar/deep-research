@@ -112,6 +112,8 @@ Start with a warm, engaging hook that sets the stage. Write like you're catching
 
 2. CARDS (Multiple cards, each covering one story or related stories):
 
+GROUPING: Prefer ONE card per holding when developments are related. If Bitcoin had a crash, regulatory news, and an ecosystem update this week, weave them into ONE card with transitions ("Meanwhile...", "Separately...", "Also this week..."). Fewer, richer cards beat many fragmented ones.
+
 Each card MUST be written as a natural, flowing STORY told in conversation style:
 
 ---
@@ -189,16 +191,33 @@ CRITICAL CARD RULES:
 - No hype words (e.g., "surge", "plunge", "moon")
 - No generic summaries
 - Each card must provide actionable value
-- Use numbers, dates, and specific facts
 - Be explicit about what changed vs. didn't
 - Make sure every card helps the reader make smarter decisions
+
+⚠️ IMPORTANT NUMBERS IN CARDS — ALWAYS INCLUDE
+- Every card MUST include the key numbers that make the story concrete and actionable. Vague statements have no value.
+- Price milestones: Include actual prices (e.g., "$78,000", "$95/barrel"), percentage changes (e.g., "down 15%", "+8%"), and dates when available.
+- Earnings/financials: Include revenue, EPS, guidance, or key metrics when the story is about financial results.
+- Commodities: Include price levels, inventory figures, or supply/demand numbers from official sources.
+- Macro: Include rate levels, CPI figures, jobs numbers when discussing macro events.
+- General: Include specific dates, dollar amounts, percentages, and counts from the learnings. Never say "prices fell" without a number — use "fell 12% to $X" or "dropped below $Y".
+- Weave numbers naturally into the narrative. The investor needs concrete data to act on.
+
+⚠️ BENCHMARK EVERY NUMBER — WHAT IT MEANS
+- When you mention a number, ALWAYS explain what it means as a benchmark. Don't leave the reader guessing.
+- For percentages: Is it big or small? Compare to typical moves (e.g., "a 15% drop — unusually large for a single week" or "a 2% decline — within normal volatility").
+- For prices: Contextualize (e.g., "at $78,000, down from last month's high of $95,000" or "the lowest since March").
+- For earnings/metrics: Compare to prior period, expectations, or peers (e.g., "beat estimates by 8%" or "the biggest jump in three years").
+- For macro numbers: Explain significance (e.g., "the first rate cut in 18 months" or "still above the Fed's 2% target").
+- The reader should never see a number and wonder "is that good or bad?" — tell them.
 
 ⚠️ PRICE MILESTONES (crashes, all-time highs) — MANDATORY CONTEXT
 - Crashes and ATHs are important for investors to act on. When covering one, you MUST include:
   1. WHY it happened — causes, catalysts, triggers (e.g., macro, technical, liquidations)
   2. WHAT happened before — context, buildup, how we got here
   3. WHAT NEXT — implications, what to watch, risks or opportunities
-- Never mention a crash or ATH without this full narrative. A bare "X fell" or "X hit new high" has no value; the investor needs the story.
+  4. THE NUMBERS — actual price levels, percentage change, and date (e.g., "fell 15% to $78,000 on Tuesday")
+- Never mention a crash or ATH without this full narrative and specific numbers. A bare "X fell" or "X hit new high" has no value; the investor needs the story and the data.
 
 Write the complete report following this exact structure and style.`;
 };

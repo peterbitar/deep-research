@@ -13,25 +13,27 @@ async function main() {
   const isCron = process.env.RAILWAY_CRON === 'true' || process.env.RUN_PIPELINE === 'true';
   
   if (isCron) {
-    console.log('🕐 Cron mode detected - running full pipeline...\n');
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execAsync = promisify(exec);
-    
+    console.log('🕐 Cron mode detected - running full pipeline (output streams in real-time)...\n');
+    const { spawn } = await import('child_process');
+    const path = await import('path');
+
     try {
-      const { stdout, stderr } = await execAsync('npm run full-pipeline', {
-        env: process.env,
-        maxBuffer: 10 * 1024 * 1024,
+      await new Promise<void>((resolve, reject) => {
+        const child = spawn('npm', ['run', 'full-pipeline'], {
+          env: process.env,
+          stdio: 'inherit',
+          cwd: path.resolve(__dirname, '..'),
+        });
+
+        child.on('close', (code) => {
+          if (code === 0) resolve();
+          else reject(new Error(`Pipeline exited with code ${code}`));
+        });
+        child.on('error', reject);
       });
-      
-      if (stdout) console.log(stdout);
-      if (stderr) console.error(stderr);
-      
       process.exit(0);
     } catch (error: any) {
-      console.error('Pipeline failed:', error.message);
-      if (error.stdout) console.log('STDOUT:', error.stdout);
-      if (error.stderr) console.error('STDERR:', error.stderr);
+      console.error('Pipeline failed:', error?.message ?? error);
       process.exit(1);
     }
   } else {

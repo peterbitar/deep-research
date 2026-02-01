@@ -19,7 +19,7 @@ import { pool } from '../src/db/client';
 async function main() {
   const runId = process.argv[2];
 
-  console.log('📝 Script 2: Generate Report from Saved Learnings\n');
+  console.log('📝 Generate Report\n');
 
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required. Use Railway Postgres or similar.');
@@ -47,20 +47,19 @@ async function main() {
     } else {
       targetRunId = result.rows[0].run_id;
     }
-    console.log(`📊 Using latest research run: ${targetRunId}\n`);
+    console.log(`Run: ${targetRunId}\n`);
   } else {
-    console.log(`📊 Using run ID: ${targetRunId}\n`);
+    console.log(`Run: ${targetRunId}\n`);
   }
 
-  // Load learnings from DB
-  console.log('1️⃣  Loading learnings from database...');
+  console.log('Loading learnings...');
   const learningsData = await getLearnings(targetRunId);
   if (!learningsData) {
     throw new Error(`No learnings found for run ID: ${targetRunId}`);
   }
 
   const { learnings, urls } = learningsData;
-  console.log(`   ✅ Loaded ${learnings.length} learnings, ${urls.length} URLs\n`);
+  console.log(`Loaded: ${learnings.length} learnings, ${urls.length} URLs\n`);
 
   // Get holdings info from research run query
   const runResult = await pool.query(
@@ -79,7 +78,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
   if (holdingsMatch) {
     // Holdings are explicitly stored in query
     uniqueHoldings = holdingsMatch[1].split(',').map(s => s.toUpperCase().trim()).filter(s => s.length > 0);
-    console.log(`   📊 Extracted ${uniqueHoldings.length} holdings from query: ${uniqueHoldings.join(', ')}\n`);
+    console.log(`Holdings: ${uniqueHoldings.join(', ')}\n`);
   } else {
     // Fallback: Try to extract from query patterns like "Research BB (Stock)"
     const holdingsFromQuery: string[] = [];
@@ -114,12 +113,11 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
     
     uniqueHoldings = [...new Set(holdingsFromQuery)].sort();
     if (uniqueHoldings.length > 0) {
-      console.log(`   📊 Extracted ${uniqueHoldings.length} holdings from query patterns: ${uniqueHoldings.join(', ')}\n`);
+      console.log(`Holdings: ${uniqueHoldings.join(', ')}\n`);
     }
   }
 
-  // Generate report (WITHOUT rewriting first)
-  console.log('2️⃣  Generating report (this may take 1-3 minutes)...');
+  console.log('Generating report (1-3 min)...');
   const reportStartTime = Date.now();
   const { reportMarkdown, cardMetadata } = await writeFinalReport({
     prompt: portfolioQuery,
@@ -130,10 +128,9 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
   });
 
   const reportDuration = ((Date.now() - reportStartTime) / 1000).toFixed(1);
-  console.log(`   ✅ Report generated in ${reportDuration}s\n`);
+  console.log(`Report: ${reportDuration}s\n`);
 
-  // Save report to DB (with pipeline-tagged ticker/macro per card)
-  console.log('3️⃣  Saving report to database...');
+  console.log('Saving to DB...');
   const uniqueUrls = [...new Set(urls)];
   await saveReport({
     runId: targetRunId,
@@ -145,9 +142,7 @@ Focus on factual updates from the last 7 days that could impact portfolio perfor
     cardMetadata,
   });
 
-  console.log(`✅ Report saved! Run ID: ${targetRunId}`);
-  console.log(`   Cards and sources are in DB.`);
-  console.log(`\n   Next step: Run "npm run rewrite-report ${targetRunId}" to rewrite the report.\n`);
+  console.log(`✅ Done. Run ID: ${targetRunId} → npm run rewrite-report ${targetRunId}\n`);
 }
 
 main().catch((e) => {

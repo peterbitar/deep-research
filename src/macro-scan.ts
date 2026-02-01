@@ -53,20 +53,15 @@ export interface MacroResult {
  * Scan macro and liquidity conditions
  */
 export async function scanMacro(breadth = 2, depth = 1, dataSaver?: any, categoryFilter?: string, dbRunId?: string): Promise<MacroResult> {
-  console.log('\n🌍 Scanning macro & liquidity conditions...\n');
-  
   const allLearnings: string[] = [];
   const allUrls: string[] = [];
   const categories: MacroResult['categories'] = {};
   
-  // Filter categories if specified
   const categoriesToScan = categoryFilter 
     ? MACRO_QUERIES.filter(c => c.category === categoryFilter)
     : MACRO_QUERIES;
   
-  // Research each macro category
   for (const categoryGroup of categoriesToScan) {
-    console.log(`  Scanning ${categoryGroup.category}...`);
     
     // Combine queries for this category
     const combinedQuery = `Macro ${categoryGroup.category}: ${categoryGroup.queries.join(', ')}`;

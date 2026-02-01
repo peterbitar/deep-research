@@ -18,6 +18,7 @@ import { fetchUserHoldings } from '../src/fetch-holdings';
 import { scanMacro } from '../src/macro-scan';
 import { saveLearnings } from '../src/db/reports';
 import { pool } from '../src/db/client';
+import { logLine, logWarn, logError } from '../src/logger';
 import pLimit from 'p-limit';
 
 const DEFAULT_HOLDINGS_API =
@@ -69,7 +70,7 @@ function buildHoldingQuery(
 }
 
 async function main() {
-  console.log('🔬 Script 1: Research Only — fetch → research → save learnings to DB\n');
+  console.log('🔬 Research — fetch → research → save\n');
 
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required. Use Railway Postgres or similar.');
@@ -90,17 +91,16 @@ async function main() {
       if (predefined) {
         holdings.push(predefined);
       } else {
-        console.warn(`   ⚠️  Unknown symbol "${sym}" (known: ${Object.keys(PREDEFINED_HOLDINGS).join(', ')})`);
+        logWarn(`Unknown symbol "${sym}"`);
       }
     }
-    console.log(`📌 RESEARCH_SYMBOLS set: researching only ${holdings.map((h) => h.symbol).join(', ')}\n`);
+    logLine(`Symbols: ${holdings.map((h) => h.symbol).join(', ')}`);
   } else {
     // Fetch from holdings API
     const baseURL = getHoldingsBaseUrl();
-    console.log(`📡 Holdings API: ${baseURL}\n`);
 
     // --- 1. Fetch users ---
-    console.log('1️⃣  Fetching users...');
+    logLine('Fetching users...');
     const usersRes = await fetch(`${baseURL}/api/users`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -112,10 +112,10 @@ async function main() {
     if (!Array.isArray(users) || users.length === 0) {
       throw new Error('No users returned from holdings API.');
     }
-    console.log(`   ✅ ${users.length} user(s)\n`);
+    logLine(`Users: ${users.length}`);
 
     // --- 2. Fetch holdings per user, deduplicate ---
-    console.log('2️⃣  Fetching holdings per user...');
+    logLine('Fetching holdings...');
     const allHoldings: Array<{ symbol: string; type: string; name: string }> = [];
     for (const u of users) {
       const uid = u.user_id ?? u.userId;
@@ -126,10 +126,9 @@ async function main() {
           baseURL,
           healthCheck: false,
         });
-        console.log(`   📦 ${uid}: ${list.length} holdings`);
         allHoldings.push(...list);
       } catch (e) {
-        console.warn(`   ⚠️  ${uid}: ${e instanceof Error ? e.message : String(e)}`);
+        logWarn(`${uid}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
@@ -151,23 +150,18 @@ async function main() {
 
   // --- 3. Research each holding (if any) ---
   if (holdings.length === 0) {
-    console.log(`   ⚠️  No holdings found - skipping holdings research\n`);
+    logLine('No holdings — skipping research');
   } else {
-    console.log(`   ✅ ${holdings.length} unique holdings\n`);
-    console.log('3️⃣  Researching holdings...');
-    
-    // Parallelize holdings research with concurrency limit
-    // Default: 8 for Firecrawl Standard (50 concurrent requests)
-    // Each holding uses FIRECRAWL_CONCURRENCY (default 2) internally
-    // So 8 holdings * 2 = 16 concurrent Firecrawl calls (well under 50 limit)
+    logLine(`Holdings: ${holdings.length} (${holdings.map(h => h.symbol).join(', ')})`);
+    logLine('Researching...');
+
     const holdingsConcurrency = Number(process.env.HOLDINGS_CONCURRENCY) || 8;
     const holdingsLimit = pLimit(holdingsConcurrency);
-    console.log(`   🔄 Researching ${holdings.length} holdings with concurrency ${holdingsConcurrency}...\n`);
-    
+    let doneCount = 0;
+
     const researchPromises = holdings.map((h) =>
       holdingsLimit(async () => {
         const q = buildHoldingQuery(h);
-        console.log(`   📊 ${h.symbol} (${h.type})...`);
         try {
           const { learnings, visitedUrls } = await deepResearch({
             query: q,
@@ -180,10 +174,12 @@ async function main() {
             researchLabel: h.symbol,
             dbRunId: runId,
           });
-          console.log(`      ✅ ${h.symbol}: ${learnings.length} learnings, ${visitedUrls.length} URLs`);
+          doneCount++;
+          logLine(`  [${doneCount}/${holdings.length}] ${h.symbol}: ${learnings.length} learnings`);
           return { symbol: h.symbol, learnings, visitedUrls, error: null };
         } catch (e) {
-          console.error(`      ❌ ${h.symbol}:`, e instanceof Error ? e.message : String(e));
+          doneCount++;
+          logError(`${h.symbol}:`, e instanceof Error ? e.message : String(e));
           return { symbol: h.symbol, learnings: [], visitedUrls: [], error: e };
         }
       })
@@ -199,13 +195,13 @@ async function main() {
         allLearnings.push(...learnings);
         allUrls.push(...visitedUrls);
       } else {
-        console.error(`   ❌ Holding research failed:`, result.reason);
+        logError('Holding failed:', result.reason);
       }
     }
 
     // Save holdings learnings immediately (before macro scan)
     if (allLearnings.length > 0) {
-      console.log('\n💾 Saving holdings learnings to database (before macro scan)...');
+      logLine('Saving holdings learnings...');
       const holdingsSymbols = holdings.map(h => h.symbol.toUpperCase());
       await saveLearnings(runId, allLearnings, allUrls, holdingsSymbols);
       const uniqueUrls = [...new Set(allUrls)];
@@ -217,27 +213,24 @@ async function main() {
           [runId, uniqueUrls[i], i]
         );
       }
-      console.log(`   ✅ Holdings learnings saved! Run ID: ${runId}`);
-      console.log(`   - ${allLearnings.length} learnings, ${uniqueUrls.length} URLs\n`);
+      logLine(`Holdings saved: ${allLearnings.length} learnings, ${uniqueUrls.length} URLs`);
     }
   }
 
   // --- 4. Macro scan (always runs) ---
-  console.log('4️⃣  Macro scan (Central Bank, Economic Data, Currency, Geopolitical)...');
+  logLine('Macro scan...');
   const macroLearnings: string[] = [];
   const macroUrls: string[] = [];
   try {
     const macro = await scanMacro(2, 1, undefined, undefined, runId);
     macroLearnings.push(...macro.learnings);
     macroUrls.push(...macro.visitedUrls);
-    console.log(`   ✅ ${macro.learnings.length} learnings, ${macro.visitedUrls.length} URLs`);
-    
-    // Append macro learnings to existing ones
+    logLine(`Macro: ${macro.learnings.length} learnings, ${macro.visitedUrls.length} URLs`);
+
     allLearnings.push(...macroLearnings);
     allUrls.push(...macroUrls);
-    
-    // Save all learnings (holdings + macro) to DB
-    console.log('\n💾 Saving all learnings to database...');
+
+    logLine('Saving all learnings...');
     const holdingsSymbols = holdings.length > 0 ? holdings.map(h => h.symbol.toUpperCase()) : undefined;
     await saveLearnings(runId, allLearnings, allUrls, holdingsSymbols);
     const allUniqueUrls = [...new Set(allUrls)];
@@ -249,31 +242,27 @@ async function main() {
         [runId, allUniqueUrls[i], i]
       );
     }
-    console.log(`   ✅ All learnings saved!`);
+    logLine('All learnings saved');
   } catch (e) {
-    console.error('   ❌ Macro scan failed:', e);
+    logError('Macro failed:', e);
     if (allLearnings.length > 0) {
-      console.log(`\n   ⚠️  Holdings learnings are still saved (Run ID: ${runId})`);
-      console.log(`   You can proceed with "npm run generate-report ${runId}"\n`);
+      logLine(`Holdings saved (Run ${runId}) — run generate-report to continue`);
     } else {
-      console.log(`\n   ❌ No learnings saved - research failed completely\n`);
+      logError('No learnings saved');
     }
     process.exit(0); // Exit gracefully
   }
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
-  console.log(`\n   ⏱️  Research done in ${elapsed}s. Total: ${allLearnings.length} learnings, ${allUrls.length} URLs\n`);
+  const uniqueUrls = [...new Set(allUrls)].length;
 
-  // Update status to completed
   await pool.query(
     `UPDATE research_runs SET status = 'completed' WHERE run_id = $1`,
     [runId]
   );
 
-  console.log(`✅ All learnings saved! Run ID: ${runId}`);
-  console.log(`   - ${allLearnings.length} total learnings (${holdings.length > 0 ? 'holdings + ' : ''}macro)`);
-  console.log(`   - ${[...new Set(allUrls)].length} unique URLs`);
-  console.log(`\n   Next step: Run "npm run generate-report ${runId}" to generate the report.\n`);
+  console.log(`\n✅ Research done — ${elapsed}s | ${allLearnings.length} learnings | ${uniqueUrls} URLs`);
+  console.log(`Run ID: ${runId} → npm run generate-report ${runId}\n`);
 }
 
 main().catch((e) => {

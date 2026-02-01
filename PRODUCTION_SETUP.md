@@ -84,6 +84,41 @@ Make sure your Cron service has access to all environment variables:
 
 ---
 
+## News Brief as a Cron Job
+
+The news-brief pipeline (OpenAI web search, 3 passes per holding, conversational cards) can run on its own schedule, separate from the full research pipeline. It uses the same **Custom Start Command** (`npm start`) as the other pipeline; the env var `RAILWAY_CRON` decides which job runs.
+
+### Add a News Brief Cron
+
+1. In your Railway project, add a **Cron Schedule** to a service (or create a dedicated cron service).
+2. Keep **Custom Start Command** as `npm start` (from railway.json).
+3. Set **Cron Schedule** (e.g. Weekly on Monday `0 0 * * 1`, or Daily at 6 AM `0 6 * * *`).
+4. In that service’s **Variables**, set:
+   - **`RAILWAY_CRON`** = **`news-brief`**  
+   So when the cron runs, `npm start` runs the news-brief pipeline instead of the API.
+
+### Env vars for news-brief
+
+- `DATABASE_URL` — Postgres (Railway internal is fine for cron)
+- `OPENAI_KEY` or `OPENAI_API_KEY` — required for news-brief
+- `MAIN_BACKEND_URL` or `HOLDINGS_API_BASE_URL` — used to fetch user holdings (if you don’t set `RESEARCH_SYMBOLS`)
+
+Optional:
+
+- `RESEARCH_SYMBOLS=BTC,NVDA,VOO` — run for these symbols only (testing); if unset, holdings come from the users API
+- `NEWS_BRIEF_MODE=non-reasoning` | `agentic` | `deep-research` (default: `non-reasoning`)
+- `NEWS_BRIEF_MACRO=true` (default) — include macro pass
+
+### Run news-brief manually (Railway CLI)
+
+```bash
+railway run --service <your-service> npm run news-brief
+# With a fixed symbol list:
+railway run --service <your-service> RESEARCH_SYMBOLS=BTC,NVDA npm run news-brief
+```
+
+---
+
 ## Option 2: Railway CLI (Manual Trigger)
 
 For manual runs or testing, use Railway CLI:
@@ -122,6 +157,7 @@ railway run --service deep-research npm run full-pipeline
 railway run --service deep-research npm run research-only
 railway run --service deep-research npm run generate-report
 railway run --service deep-research npm run rewrite-report
+railway run --service deep-research npm run news-brief
 ```
 
 **Note**: Railway CLI will pull env vars from Railway, but if `DATABASE_URL` uses the internal hostname, you'll need to override it with the public one in your `.env.local`.

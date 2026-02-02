@@ -156,7 +156,9 @@ function getFunctionCalls(
       id?: string;
       call_id?: string;
       arguments?: string;
+      function?: { name?: string; arguments?: string };
     };
+    // Handle Responses API format: type === 'function_call'
     if (fc.type === 'function_call' && fc.name) {
       const callId = fc.call_id ?? fc.id;
       if (callId) {
@@ -167,6 +169,24 @@ function getFunctionCalls(
         });
       }
     }
+    // Handle Chat Completions style (sometimes mixed in): type === 'function' with .function
+    else if (fc.type === 'function' && fc.function?.name) {
+      const callId = fc.call_id ?? fc.id;
+      if (callId) {
+        calls.push({
+          id: callId,
+          name: fc.function.name,
+          arguments: fc.function.arguments ?? '{}',
+        });
+      }
+    }
+  }
+  // Log for debugging
+  if (calls.length > 0) {
+    console.log(
+      `[Chat Tools] getFunctionCalls found ${calls.length}:`,
+      calls.map((c) => `${c.name}(${c.id})`).join(', ')
+    );
   }
   return calls;
 }
@@ -174,10 +194,13 @@ function getFunctionCalls(
 /**
  * Run chat with web search + price tools.
  * Handles agentic loop for function calls.
+ * @param prompt - User message (may include knowledge base context)
+ * @param options.model - OpenAI model (default: gpt-4o-mini)
+ * @param options.systemPrompt - System instructions (optional)
  */
 export async function runChatWithTools(
   prompt: string,
-  options?: { model?: string }
+  options?: { model?: string; systemPrompt?: string }
 ): Promise<{ text: string; urls: string[] } | null> {
   const apiKey = process.env.OPENAI_KEY ?? process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
@@ -185,13 +208,26 @@ export async function runChatWithTools(
   const client = new OpenAI({ apiKey });
   const model = options?.model ?? 'gpt-4o-mini';
 
+  // System instructions for tool usage
+  const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant with access to real-time price tools.
+
+IMPORTANT TOOL USAGE:
+- When the user asks for a current/real-time price of ANY stock, crypto, commodity, or forex, ALWAYS call the appropriate price tool FIRST.
+- getCryptoPrice: For BTC, ETH, SOL, DOGE, XRP
+- getStockPrice: For stocks like AAPL, MSFT, NVDA, TSLA, SPY, etc.
+- getCommodityForexPrice: For GOLD, SILVER, OIL, USD/JPY, EUR/USD
+- Do NOT answer price questions from memory or the knowledge base - use the tools to get live data.
+- After getting the price, provide helpful context.`;
+
   const initialInput: OpenAI.Responses.ResponseInputItem[] = [
     { type: 'message', role: 'user', content: prompt },
   ];
 
   let fullInput: OpenAI.Responses.ResponseInputItem[] = [...initialInput];
+  console.log(`[Chat Tools] Starting with instructions: ${systemInstructions.slice(0, 100)}...`);
   let response: OpenAI.Responses.Response = await client.responses.create({
     model,
+    instructions: systemInstructions,
     input: fullInput,
     tools: CHAT_TOOLS,
   });
@@ -199,11 +235,23 @@ export async function runChatWithTools(
 
   const MAX_STEPS = 5;
   for (let step = 0; step < MAX_STEPS; step++) {
+    // Debug: log all output item types
+    if (Array.isArray(response.output)) {
+      const types = response.output.map((item) => {
+        const i = item as { type?: string; name?: string; id?: string; call_id?: string };
+        return `${i.type ?? 'unknown'}${i.name ? ':' + i.name : ''}${i.call_id ?? i.id ? '(' + (i.call_id ?? i.id) + ')' : ''}`;
+      });
+      console.log(`[Chat Tools] Step ${step + 1} output items:`, types.join(', '));
+    }
+
     const calls = getFunctionCalls(response);
     if (calls.length === 0) break;
 
+    console.log(`[Chat Tools] Step ${step + 1}: Found ${calls.length} function call(s)`);
+
     const outputs: OpenAI.Responses.ResponseInputItem.FunctionCallOutput[] = [];
     for (const call of calls) {
+      console.log(`[Chat Tools] Executing ${call.name} with call_id ${call.id}`);
       let args: Record<string, unknown> = {};
       try {
         args = JSON.parse(call.arguments || '{}');
@@ -211,6 +259,7 @@ export async function runChatWithTools(
         args = {};
       }
       const result = await executeTool(call.name, args);
+      console.log(`[Chat Tools] Result: ${result.slice(0, 100)}...`);
       outputs.push({
         type: 'function_call_output',
         call_id: call.id,
@@ -218,9 +267,13 @@ export async function runChatWithTools(
       });
     }
 
+    console.log(
+      `[Chat Tools] Continuing with ${fullInput.length} input items + ${response.output.length} output items + ${outputs.length} function outputs`
+    );
     fullInput = [...fullInput, ...response.output, ...outputs];
     response = await client.responses.create({
       model,
+      instructions: systemInstructions,
       input: fullInput,
       tools: CHAT_TOOLS,
     });

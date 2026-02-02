@@ -14,79 +14,133 @@ export type PriceData = {
 };
 
 /**
- * Map our symbol to Yahoo Finance symbol (crypto uses -USD suffix).
+ * Map our symbol to Yahoo Finance symbol.
+ * Crypto uses -USD suffix; commodities/forex use Yahoo conventions.
  */
 export function getYahooSymbol(symbol: string): string {
   const s = symbol.toUpperCase().trim();
   const mapping: Record<string, string> = {
+    // Crypto
     BTC: 'BTC-USD',
     ETH: 'ETH-USD',
     SOL: 'SOL-USD',
-    DXY: 'DX-Y.NYB', // US Dollar Index
+    DOGE: 'DOGE-USD',
+    XRP: 'XRP-USD',
+    // Forex / dollar index
+    DXY: 'DX-Y.NYB',
+    USDJPY: 'USDJPY=X',
+    'USD/JPY': 'USDJPY=X',
+    EURUSD: 'EURUSD=X',
+    'EUR/USD': 'EURUSD=X',
+    GBPUSD: 'GBPUSD=X',
+    'GBP/USD': 'GBPUSD=X',
+    // Commodities
+    GOLD: 'GC=F',
+    XAU: 'GC=F',
+    SILVER: 'SI=F',
+    XAG: 'SI=F',
+    OIL: 'CL=F',
+    CRUDE: 'CL=F',
+    WTI: 'CL=F',
+    BRENT: 'BZ=F',
+    NG: 'NG=F',
+    NATGAS: 'NG=F',
+    // Indices
+    SPX: '^GSPC',
+    'S&P500': '^GSPC',
+    SP500: '^GSPC',
+    NDX: '^NDX',
+    DJI: '^DJI',
   };
   return mapping[s] ?? s;
 }
 
+const YAHOO_FETCH_TIMEOUT_MS = 20_000; // 20s for slow/proxy environments (e.g. Railway)
+
+function isRetryableError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  const cause = error instanceof Error && 'cause' != null ? String((error as { cause?: unknown }).cause) : '';
+  return (
+    msg.includes('abort') ||
+    msg.includes('ETIMEDOUT') ||
+    msg.includes('fetch failed') ||
+    cause.includes('ETIMEDOUT')
+  );
+}
+
 /**
- * Get price data for a holding using Yahoo Finance API
- * For MVP: Uses yahoo-finance2 package (free, no API key needed)
+ * Single attempt to fetch price for a symbol (used internally with optional retry).
+ */
+async function fetchPriceOnce(symbol: string): Promise<PriceData | null> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=7d`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), YAHOO_FETCH_TIMEOUT_MS);
+  const response = await fetch(url, { signal: controller.signal });
+  clearTimeout(timeoutId);
+  if (!response.ok) {
+    console.warn(`Failed to fetch price data for ${symbol}: ${response.statusText}`);
+    return null;
+  }
+
+  const data = await response.json();
+  const result = data.chart?.result?.[0];
+
+  if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
+    console.warn(`Invalid price data format for ${symbol}`);
+    return null;
+  }
+
+  const quotes = result.indicators.quote[0];
+  const closes = quotes.close;
+
+  const validPrices = closes.filter((p: number | null) => p !== null && p !== undefined);
+  if (validPrices.length < 2) {
+    console.warn(`Insufficient price data for ${symbol}`);
+    return null;
+  }
+
+  const price7DaysAgo = validPrices[0];
+  const currentPrice = validPrices[validPrices.length - 1];
+  const changeAbsolute = currentPrice - price7DaysAgo;
+  const changePercent = (changeAbsolute / price7DaysAgo) * 100;
+
+  const price1DayAgo =
+    validPrices.length >= 2 ? validPrices[validPrices.length - 2] : undefined;
+  const changePercent1d =
+    price1DayAgo != null && price1DayAgo !== 0
+      ? ((currentPrice - price1DayAgo) / price1DayAgo) * 100
+      : undefined;
+
+  return {
+    symbol,
+    currentPrice,
+    price7DaysAgo,
+    changePercent,
+    changeAbsolute,
+    ...(price1DayAgo != null && { price1DayAgo }),
+    ...(changePercent1d != null && { changePercent1d }),
+  };
+}
+
+/**
+ * Get price data for a holding using Yahoo Finance API.
+ * Retries once on timeout/network; 20s timeout per attempt for containers/proxies.
  */
 export async function getPriceData(symbol: string): Promise<PriceData | null> {
   try {
-    // For MVP, we'll use a simple fetch approach with Yahoo Finance's free API
-    // In production, consider using yahoo-finance2 npm package
-    
-    // Yahoo Finance free API endpoint (unofficial but stable)
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=7d`;
-    
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.warn(`Failed to fetch price data for ${symbol}: ${response.statusText}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    const result = data.chart?.result?.[0];
-    
-    if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
-      console.warn(`Invalid price data format for ${symbol}`);
-      return null;
-    }
-    
-    const timestamps = result.timestamp;
-    const quotes = result.indicators.quote[0];
-    const closes = quotes.close;
-    
-    // Get first and last valid prices
-    const validPrices = closes.filter((p: number | null) => p !== null && p !== undefined);
-    if (validPrices.length < 2) {
-      console.warn(`Insufficient price data for ${symbol}`);
-      return null;
-    }
-    
-    const price7DaysAgo = validPrices[0];
-    const currentPrice = validPrices[validPrices.length - 1];
-    const changeAbsolute = currentPrice - price7DaysAgo;
-    const changePercent = (changeAbsolute / price7DaysAgo) * 100;
-
-    const price1DayAgo =
-      validPrices.length >= 2 ? validPrices[validPrices.length - 2] : undefined;
-    const changePercent1d =
-      price1DayAgo != null && price1DayAgo !== 0
-        ? ((currentPrice - price1DayAgo) / price1DayAgo) * 100
-        : undefined;
-
-    return {
-      symbol,
-      currentPrice,
-      price7DaysAgo,
-      changePercent,
-      changeAbsolute,
-      ...(price1DayAgo != null && { price1DayAgo }),
-      ...(changePercent1d != null && { changePercent1d }),
-    };
+    return await fetchPriceOnce(symbol);
   } catch (error) {
-    console.warn(`Error fetching price data for ${symbol}:`, error);
+    if (isRetryableError(error)) {
+      await new Promise((r) => setTimeout(r, 2_000)); // 2s backoff before retry
+      try {
+        return await fetchPriceOnce(symbol);
+      } catch (retryError) {
+        console.warn(`Price fetch ${symbol}: timeout or network (after retry)`);
+        return null;
+      }
+    }
+    const msg = error instanceof Error ? error.message : String(error);
+    console.warn(`Price fetch ${symbol}:`, msg);
     return null;
   }
 }
@@ -125,20 +179,23 @@ export async function getPriceDataForHolding(
   return { ...data, symbol: ourSymbol.toUpperCase() };
 }
 
+const BATCH_CONCURRENCY = 3; // Limit parallel Yahoo fetches to avoid connection limits in containers
+
 /**
  * Get price data for all holdings; returns Map keyed by original symbol (e.g. NVDA, BTC).
- * Use at the start of a pipeline so prompts can inject "reference prices" from Yahoo.
+ * Fetches in small batches to avoid ETIMEDOUT in production (e.g. Railway).
  */
 export async function getPriceDataBatchForHoldings(holdings: {
   symbol: string;
 }[]): Promise<Map<string, PriceData>> {
   const symbols = [...new Set(holdings.map((h) => h.symbol.toUpperCase()))];
   const map = new Map<string, PriceData>();
-  const results = await Promise.all(
-    symbols.map((sym) => getPriceDataForHolding(sym))
-  );
-  for (const data of results) {
-    if (data) map.set(data.symbol, data);
+  for (let i = 0; i < symbols.length; i += BATCH_CONCURRENCY) {
+    const chunk = symbols.slice(i, i + BATCH_CONCURRENCY);
+    const results = await Promise.all(chunk.map((sym) => getPriceDataForHolding(sym)));
+    for (const data of results) {
+      if (data) map.set(data.symbol, data);
+    }
   }
   return map;
 }

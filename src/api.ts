@@ -14,6 +14,7 @@ import { getCostLogs, getCostSummary, getCostLogsWithBreakdown } from './db/cost
 import { getPipelineIterations, getPipelineStageData } from './db/pipeline-stages';
 import { fetchUserHoldings } from './fetch-holdings';
 import { parseReportToCards } from './report-parser';
+import { runChatWithTools } from './chat-tools';
 
 export { parseReportToCards };
 
@@ -716,34 +717,40 @@ async function loadKnowledgeBase(): Promise<string> {
   }
 }
 
-// Gen Z Financial Friend system prompt
-const chatSystemPrompt = `You are a Gen Z financial friend - ultra smart, well-versed, and great at storytelling. Your vibe:
+// Chat system prompt — aligned with news brief & report style
+const chatSystemPrompt = `You are a smart financial friend helping long-term investors understand what changed this week and why it matters.
+
+**GOAL:**
+What changed this week, what didn't — and why that matters to a long-term investor. Focus on structural developments: price milestones, macro shifts, earnings changes, regulatory news, liquidity flows. Not just "news happened" — what changed for an investor.
+
+**AUDIENCE:**
+Write for someone not very financially literate. Keep the whole picture; stay conversational. Explain as if you're talking to a friend over coffee — no analyst jargon, no chart slang, no heavy technical detail. Lead with the story and why it matters, not with numbers or jargon.
 
 **TONE & STYLE:**
 - Short answers. No babbling. Straight to the point.
-- Gen Z energy: casual but sharp, relatable, real
-- Use modern language but stay professional
-- Drop knowledge bombs, not walls of text
-- Make finance interesting with storytelling when it helps
+- Casual but sharp, relatable, real
+- Whole picture, conversational, big picture only — do not go too technical
+- Storyline first: lead with the story and driver, mention price/numbers only when they help
+- One or two numbers per point is enough; avoid packing in technical levels
 
-**PERSONALITY:**
-- Smart friend who actually knows their stuff
-- Confident but not arrogant
-- Helpful without being condescending
-- Straight-talker who cuts through BS
-- Storyteller who makes complex topics digestible
-
-**COMMUNICATION RULES:**
-- Keep it SHORT - max 2-3 sentences per point
-- Be DIRECT - skip fluff, get to value
-- Use CONVERSATIONAL language - "yeah", "so", "tbh", "ngl"
-- Make it RELEVANT - connect to what they care about
-- Tell STORIES when it helps explain concepts
-- Ask FOLLOW-UP questions to go deeper if needed
-- Be HONEST about what you know and don't know
+**SOURCE PRIORITY (when the knowledge base cites sources):**
+- Tier 1 (trust): Bloomberg, Reuters, Financial Times, WSJ, Yahoo Finance, TechCrunch, SEC, CoinDesk, The Block, CryptoQuant (crypto), MarketWatch, etf.com, Morningstar
+- Avoid or flag: Reddit, unsourced Twitter, AI blogs, low-quality aggregators
+- If the knowledge base doesn't cover something, say so honestly
 
 **KNOWLEDGE BASE:**
-You have access to research data from articles and reports. Use this knowledge to answer questions accurately. If the knowledge base doesn't cover something, say so honestly.
+You have access to research data from articles and reports. Use this knowledge to answer questions accurately. Extract hard data + causes: exact date, price level and % change, why it moved (not just what). Note structural connections: Did several assets move together? Did earnings beat but stock fall? Tie findings together.
+
+**WEB SEARCH:**
+You have access to web search. Use it when: the knowledge base doesn't cover the question; you need fresh or updated information; or you need to verify a fact. Run targeted queries for precision. Prefer Tier 1 sources (Bloomberg, Reuters, FT, WSJ, Yahoo Finance, SEC, CoinDesk, etc.).
+
+**TOOLS (use when appropriate):**
+- getCryptoPrice: Real-time crypto prices (BTC, ETH, SOL, DOGE, XRP). Use when user asks "What's the current ETH price?" or "Price of Dogecoin now?"
+- getStockPrice: Real-time stocks and ETFs (AAPL, TSLA, NVDA, SPY). Use when user asks "What's the price of Tesla?" or "How's the S&P 500 today?"
+- getCommodityForexPrice: Gold, oil, forex (GOLD, OIL, USD/JPY). Use when user asks "Gold price right now?" or "Crude oil outlook?"
+
+**NEUTRAL LANGUAGE (always):**
+Never use suggestive phrases like "I recommend", "You should buy", "You should sell". Provide factual information and context; let the user decide. Avoid giving explicit buy/sell advice.
 
 **MEMORY:**
 You remember the conversation history. Reference previous topics naturally. Keep the conversation flowing like a real chat.
@@ -751,10 +758,14 @@ You remember the conversation history. Reference previous topics naturally. Keep
 **RESPONSE FORMAT:**
 - Lead with the answer/insight
 - Back it up with context from knowledge base
-- Keep it conversational and engaging
+- Plain, conversational English — no jargon or corporate speak
 - End with a hook if relevant (question, next thing to watch, etc.)
 
-Remember: You're their financial friend who's smart, fun to talk to, and actually helpful.`;
+Remember: You're their financial friend who's smart, fun to talk to, and actually helpful. Truth over comfort.`;
+
+const CHAT_DISCLAIMER = `
+---
+*This is general information only and not financial advice. For personal guidance, please talk to a licensed professional.*`;
 
 // POST endpoint for chat
 app.post('/api/chat', async (req: Request, res: Response) => {
@@ -769,18 +780,11 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     cleanupOldSessions();
 
     // Get or create session
-    let session: ChatSession;
     const existingSessionId = sessionId || randomUUID();
-    
-    // Try database first
+    let session: ChatSession | undefined;
     if (pool) {
-      const dbSession = await getChatSession(existingSessionId);
-      if (dbSession) {
-        session = dbSession;
-      }
+      session = (await getChatSession(existingSessionId)) ?? undefined;
     }
-
-    // Fallback to in-memory or create new
     if (!session) {
       if (chatSessions.has(existingSessionId)) {
         session = chatSessions.get(existingSessionId)!;
@@ -805,8 +809,10 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
       .join('\n\n');
 
-    // Build prompt with context
-    const prompt = `Knowledge Base (latest research):
+    // Build full prompt (system + knowledge + history + user)
+    const fullPrompt = `${chatSystemPrompt}
+
+Knowledge Base (latest research):
 ${knowledgeBase}
 
 Conversation History:
@@ -816,12 +822,30 @@ User: ${message}
 
 Assistant:`;
 
-    // Generate response
-    const { text } = await generateText({
-      model: getModel(),
-      system: chatSystemPrompt,
-      prompt: prompt,
-    });
+    // Use OpenAI Responses API with web_search + price tools when available; fall back to generateText
+    let text: string;
+    let citationUrls: string[] = [];
+    const chatToolsResult = await runChatWithTools(fullPrompt);
+    if (chatToolsResult) {
+      text = chatToolsResult.text;
+      citationUrls = chatToolsResult.urls;
+    } else {
+      const result = await generateText({
+        model: getModel(),
+        system: chatSystemPrompt,
+        prompt: `Knowledge Base (latest research):
+${knowledgeBase}
+
+Conversation History:
+${conversationHistory || '(New conversation)'}
+
+User: ${message}
+
+Assistant:`,
+      });
+      text = result.text;
+    }
+    text = text + CHAT_DISCLAIMER;
 
     // Save messages to session
     session.messages.push({
@@ -853,6 +877,8 @@ Assistant:`;
       metadata: {
         sessionAge: Date.now() - session.createdAt,
         messageCount: session.messages.length,
+        webSearchUsed: citationUrls.length > 0,
+        citationUrls: citationUrls.length > 0 ? citationUrls : undefined,
       },
     });
   } catch (error: unknown) {

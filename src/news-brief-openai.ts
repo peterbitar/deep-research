@@ -277,6 +277,33 @@ export async function runOpenAIWebSearch(
   return { text, urls };
 }
 
+/**
+ * Run OpenAI Responses API with web_search_preview for chat.
+ * Use when OPENAI_KEY is available; falls back to null when not configured.
+ */
+export async function runChatWithWebSearch(
+  prompt: string,
+  options?: { model?: string }
+): Promise<{ text: string; urls: string[] } | null> {
+  const apiKey = process.env.OPENAI_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  const client = new OpenAI({ apiKey });
+  const model = options?.model ?? 'gpt-4o-mini';
+
+  const params: OpenAI.Responses.ResponseCreateParamsNonStreaming = {
+    model,
+    input: prompt,
+    tools: [WEB_SEARCH_TOOL],
+  };
+
+  const response: OpenAI.Responses.Response = await client.responses.create(params);
+  const text = extractOutputText(response);
+  const urls = extractUrlsFromResponse(response);
+
+  return { text, urls };
+}
+
 function extractOutputText(response: OpenAI.Responses.Response): string {
   if (typeof response.output_text === 'string' && response.output_text.trim()) {
     return response.output_text.trim();

@@ -171,6 +171,8 @@ async function main() {
       })
       .join(', ');
     console.log(`Reference prices (Yahoo): ${lines}\n`);
+  } else {
+    console.log('Reference prices: none (Yahoo timeout or network). Continuing without.\n');
   }
 
   const runId = `news-openai-${mode}-${Date.now()}`;

@@ -1,5 +1,7 @@
 // Price move detection for trigger system
-// Detects unexplained price moves using Yahoo Finance API (free tier)
+// Stocks: Finnhub (when FINNHUB_KEY set) else Yahoo. Crypto: FreeCryptoAPI (when FREECRYPTOAPI_KEY set) else Yahoo.
+
+const CRYPTO_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'DOGE', 'XRP']);
 
 export type PriceData = {
   symbol: string;
@@ -56,6 +58,135 @@ export function getYahooSymbol(symbol: string): string {
 }
 
 const YAHOO_FETCH_TIMEOUT_MS = 25_000; // 25s for slow egress / datacenter (e.g. Railway)
+
+const FINNHUB_FETCH_TIMEOUT_MS = 15_000;
+
+function getFinnhubApiKey(): string | undefined {
+  const raw = process.env.FINNHUB_KEY ?? process.env.FINNHUB_API_KEY;
+  if (typeof raw !== 'string') return undefined;
+  const key = raw.replace(/^["']|["']$/g, '').trim();
+  return key || undefined;
+}
+
+/**
+ * Fetch US stock price from Finnhub (official API). Used when FINNHUB_KEY is set.
+ * Only supports symbols that Finnhub stock/candle accepts (US stocks).
+ */
+async function fetchPriceFromFinnhub(symbol: string): Promise<PriceData | null> {
+  const apiKey = getFinnhubApiKey();
+  if (!apiKey) return null;
+
+  const to = Math.floor(Date.now() / 1000);
+  const from = to - 7 * 24 * 60 * 60; // 7 days ago
+  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=D&from=${from}&to=${to}&token=${encodeURIComponent(apiKey)}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FINNHUB_FETCH_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!response.ok) {
+    console.warn(`Finnhub fetch ${symbol}: ${response.status} ${response.statusText}`);
+    return null;
+  }
+
+  const data = (await response.json()) as {
+    s?: string;
+    t?: number[];
+    c?: number[];
+    o?: number[];
+    h?: number[];
+    l?: number[];
+  };
+  const closes = data.c;
+  if (!closes || !Array.isArray(closes) || closes.length < 2) {
+    return null;
+  }
+
+  const price7DaysAgo = closes[0];
+  const currentPrice = closes[closes.length - 1];
+  const changeAbsolute = currentPrice - price7DaysAgo;
+  const changePercent = price7DaysAgo !== 0 ? (changeAbsolute / price7DaysAgo) * 100 : 0;
+  const price1DayAgo = closes.length >= 2 ? closes[closes.length - 2] : undefined;
+  const changePercent1d =
+    price1DayAgo != null && price1DayAgo !== 0
+      ? ((currentPrice - price1DayAgo) / price1DayAgo) * 100
+      : undefined;
+
+  return {
+    symbol,
+    currentPrice,
+    price7DaysAgo,
+    changePercent,
+    changeAbsolute,
+    ...(price1DayAgo != null && { price1DayAgo }),
+    ...(changePercent1d != null && { changePercent1d }),
+  };
+}
+
+const FREECRYPTOAPI_FETCH_TIMEOUT_MS = 15_000;
+
+function getFreeCryptoApiKey(): string | undefined {
+  const raw =
+    process.env.FREECRYPTOAPI_KEY ??
+    process.env.FREECRYPTOAPI_TOKEN ??
+    process.env.FREECRYPTOAPI_API_KEY;
+  if (typeof raw !== 'string') return undefined;
+  const key = raw.replace(/^["']|["']$/g, '').trim();
+  return key || undefined;
+}
+
+/**
+ * Fetch crypto price from FreeCryptoAPI. Used when FREECRYPTOAPI_KEY is set.
+ * Returns current price and 24h change; 7d is set to current (no 7d from API).
+ */
+async function fetchPriceFromFreeCryptoAPI(symbol: string): Promise<PriceData | null> {
+  const apiKey = getFreeCryptoApiKey();
+  if (!apiKey) return null;
+
+  const url = `https://api.freecryptoapi.com/v1/getData?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(apiKey)}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FREECRYPTOAPI_FETCH_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!response.ok) {
+    console.warn(`FreeCryptoAPI fetch ${symbol}: ${response.status} ${response.statusText}`);
+    return null;
+  }
+
+  const data = (await response.json()) as {
+    symbol?: string;
+    price?: number;
+    change_24h?: number;
+    data?: Array<{ symbol?: string; price?: number; change_24h?: number }>;
+  };
+
+  // API may return single object or { data: [...] }
+  const item = data.data?.[0] ?? data;
+  const price = typeof item?.price === 'number' ? item.price : null;
+  if (price == null || price <= 0) return null;
+
+  const change24h = typeof item?.change_24h === 'number' ? item.change_24h : 0;
+  const price1DayAgo = change24h !== 0 ? price / (1 + change24h / 100) : price;
+
+  return {
+    symbol: (item?.symbol ?? symbol).toUpperCase(),
+    currentPrice: price,
+    price7DaysAgo: price, // API doesn't provide 7d; use current so 0% 7d
+    changePercent: 0,
+    changeAbsolute: 0,
+    price1DayAgo,
+    changePercent1d: change24h,
+  };
+}
 
 function isRetryableError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
@@ -179,15 +310,31 @@ export async function getPriceDataBatch(
 
 /**
  * Get price data for one holding (maps symbol to Yahoo symbol, e.g. BTC -> BTC-USD).
+ * Crypto: FreeCryptoAPI when FREECRYPTOAPI_KEY set, else Yahoo.
+ * Stocks: Finnhub when FINNHUB_KEY set and US ticker, else Yahoo.
  * Returns PriceData keyed by the original symbol.
  */
 export async function getPriceDataForHolding(
   ourSymbol: string
 ): Promise<PriceData | null> {
+  const normalized = ourSymbol.toUpperCase().trim();
   const yahooSymbol = getYahooSymbol(ourSymbol);
+
+  // Crypto: try FreeCryptoAPI first when key is set
+  if (CRYPTO_SYMBOLS.has(normalized) && getFreeCryptoApiKey()) {
+    const cryptoData = await fetchPriceFromFreeCryptoAPI(normalized);
+    if (cryptoData) return cryptoData;
+  }
+
+  // US stocks: try Finnhub first when key is set
+  if (getFinnhubApiKey() && yahooSymbol === normalized) {
+    const finnhubData = await fetchPriceFromFinnhub(normalized);
+    if (finnhubData) return finnhubData;
+  }
+
   const data = await getPriceData(yahooSymbol);
   if (!data) return null;
-  return { ...data, symbol: ourSymbol.toUpperCase() };
+  return { ...data, symbol: normalized };
 }
 
 const BATCH_CONCURRENCY = 3; // Limit parallel Yahoo fetches to avoid connection limits in containers

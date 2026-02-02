@@ -1,5 +1,7 @@
 # Environment Variables Required for Deployment
 
+**Chat and report cards read config from `process.env` only** — no `.env.local` is read at runtime. In Railway, set all variables in **Project → Service → Variables**. Locally, use `.env.local` (or `--env-file=.env.local`) so your runner injects them into `process.env` before the app starts.
+
 ## 🔴 REQUIRED Variables
 
 ### AI Model (Choose ONE - Required)
@@ -69,6 +71,45 @@ FIRECRAWL_CONCURRENCY=2  # Optional, defaults to 2
 - Number of concurrent Firecrawl requests
 - Increase if you have higher rate limits
 
+### Report cards: holdings personalization (optional)
+
+```
+MAIN_BACKEND_URL=https://wealthyrabbitios-production-03a4.up.railway.app
+```
+- Used for: `GET /api/report/cards?userId=xxx` — fetches user holdings from main backend to personalize card order
+- Set in Railway Variables so report cards use your main backend; omit to use the default URL
+
+---
+
+### Chat: live prices (optional but recommended)
+
+Set these **in Railway Variables** (and in `.env.local` for local dev) so the chat can return live stock and crypto prices. Without them, chat falls back to Yahoo Finance only (which may timeout from Railway).
+
+**Stocks (Finnhub)** – set in Railway + `.env.local`:
+```
+FINNHUB_KEY=your-finnhub-api-key
+```
+- Get from: https://finnhub.io/register
+- Used for: US stock prices in chat (MSFT, NVDA, AAPL, etc.)
+- Also accepted: `FINNHUB_API_KEY`
+
+**Crypto (FreeCryptoAPI)** – set in Railway + `.env.local`:
+```
+FREECRYPTOAPI_KEY=your-freecryptoapi-token
+```
+- Get from: https://freecryptoapi.com/
+- Used for: Crypto prices in chat (BTC, ETH, SOL, DOGE, XRP)
+- Also accepted: `FREECRYPTOAPI_TOKEN`, `FREECRYPTOAPI_API_KEY`
+
+**Chat (web search + tools)** – set in Railway + `.env.local`:
+```
+OPENAI_KEY=sk-...
+```
+- Required for: Chat with web search and price tools on production
+- Without it, chat uses a fallback model with no tools (e.g. “I can’t fetch price”)
+
+---
+
 ### Cost tracking (optional)
 
 Firecrawl is credit-based; cost is derived from your plan and credits used per run.
@@ -115,6 +156,13 @@ CONTEXT_SIZE=128000
 FIRECRAWL_CONCURRENCY=2
 ```
 
+### Chat + live prices (set in Railway and in .env.local):
+```
+OPENAI_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FINNHUB_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FREECRYPTOAPI_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
 ---
 
 ## 🔑 Where to Get Keys
@@ -136,12 +184,14 @@ Before deploying, make sure you have:
 - [ ] At least ONE AI model key (OPENAI_KEY OR FIREWORKS_KEY)
 - [ ] FIRECRAWL_KEY (required for research functionality)
 - [ ] All keys are valid and have credits/quota
+- [ ] **Railway**: Same vars as `.env.local` (e.g. OPENAI_KEY, FINNHUB_KEY, FREECRYPTOAPI_KEY) so chat and live prices work in production
 
 ---
 
 ## 🚨 Important Notes
 
 - **Never commit these keys to git** - they're in `.gitignore`
-- **Set them in your deployment platform** (Railway, Render, etc.)
-- **Test locally first** with `.env.local` file
+- **Set them in your deployment platform** (Railway, Render, etc.) – e.g. Railway → Project → Service → **Variables**. The app reads **only** `process.env`; Railway injects these at runtime.
+- **Set the same keys in `.env.local`** for local testing; your runner (e.g. `tsx --env-file=.env.local`) loads them into `process.env` before the app starts.
 - **Firecrawl is REQUIRED** - the research endpoints won't work without it
+- **Chat and cards**: For production, set OPENAI_KEY, FINNHUB_KEY, FREECRYPTOAPI_KEY, MAIN_BACKEND_URL (and DATABASE_URL) in **Railway Variables** — the code does not read `.env.local` at runtime.

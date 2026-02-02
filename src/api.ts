@@ -18,6 +18,9 @@ import { runChatWithTools } from './chat-tools';
 
 export { parseReportToCards };
 
+// Config is read from process.env only (Railway sets these; locally use .env.local via your runner).
+// Chat: OPENAI_KEY, FINNHUB_KEY, FREECRYPTOAPI_KEY. Report cards / holdings: MAIN_BACKEND_URL, DATABASE_URL.
+
 const app = express();
 const port = process.env.PORT || 3051;
 
@@ -401,7 +404,7 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
     let userHoldings: Array<{ symbol: string }> = [];
     if (userId) {
       try {
-        const mainBackendURL = process.env.MAIN_BACKEND_URL || 'https://wealthyrabbitios-production-03a4.up.railway.app';
+        const mainBackendURL = process.env.MAIN_BACKEND_URL ?? 'https://wealthyrabbitios-production-03a4.up.railway.app';
         log(`📡 Fetching holdings for user: ${userId} from ${mainBackendURL}`);
         
         const fetchedHoldings = await fetchUserHoldings({

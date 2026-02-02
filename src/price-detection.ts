@@ -70,15 +70,14 @@ function getFinnhubApiKey(): string | undefined {
 
 /**
  * Fetch US stock price from Finnhub (official API). Used when FINNHUB_KEY is set.
- * Only supports symbols that Finnhub stock/candle accepts (US stocks).
+ * Uses the /quote endpoint (free tier) instead of /candle (paid).
+ * Returns current price and 1-day change; 7-day change is set to 0 (not available on free tier).
  */
 async function fetchPriceFromFinnhub(symbol: string): Promise<PriceData | null> {
   const apiKey = getFinnhubApiKey();
   if (!apiKey) return null;
 
-  const to = Math.floor(Date.now() / 1000);
-  const from = to - 7 * 24 * 60 * 60; // 7 days ago
-  const url = `https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=D&from=${from}&to=${to}&token=${encodeURIComponent(apiKey)}`;
+  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(apiKey)}`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FINNHUB_FETCH_TIMEOUT_MS);
@@ -94,27 +93,33 @@ async function fetchPriceFromFinnhub(symbol: string): Promise<PriceData | null> 
   }
 
   const data = (await response.json()) as {
-    s?: string;
-    t?: number[];
-    c?: number[];
-    o?: number[];
-    h?: number[];
-    l?: number[];
+    c?: number; // current price
+    d?: number; // change (absolute)
+    dp?: number; // change percent
+    h?: number; // high
+    l?: number; // low
+    o?: number; // open
+    pc?: number; // previous close
+    t?: number; // timestamp
+    error?: string;
   };
-  const closes = data.c;
-  if (!closes || !Array.isArray(closes) || closes.length < 2) {
+
+  // Check for error or missing data
+  if (data.error || typeof data.c !== 'number' || data.c === 0) {
+    console.warn(`Finnhub quote ${symbol}: invalid data`, data.error || 'no price');
     return null;
   }
 
-  const price7DaysAgo = closes[0];
-  const currentPrice = closes[closes.length - 1];
-  const changeAbsolute = currentPrice - price7DaysAgo;
-  const changePercent = price7DaysAgo !== 0 ? (changeAbsolute / price7DaysAgo) * 100 : 0;
-  const price1DayAgo = closes.length >= 2 ? closes[closes.length - 2] : undefined;
-  const changePercent1d =
-    price1DayAgo != null && price1DayAgo !== 0
-      ? ((currentPrice - price1DayAgo) / price1DayAgo) * 100
-      : undefined;
+  const currentPrice = data.c;
+  const previousClose = data.pc ?? currentPrice;
+  // Quote endpoint doesn't have 7-day data; use previous close as approximation
+  const price7DaysAgo = previousClose;
+  const changeAbsolute = data.d ?? (currentPrice - previousClose);
+  // For 7-day change, we don't have data so set to 0 (or use 1-day as fallback)
+  const changePercent = 0; // No 7-day data on free tier
+  const changePercent1d = data.dp ?? (previousClose !== 0 ? ((currentPrice - previousClose) / previousClose) * 100 : 0);
+
+  console.log(`Finnhub quote ${symbol}: $${currentPrice.toFixed(2)}, 1d: ${changePercent1d?.toFixed(2)}%`);
 
   return {
     symbol,
@@ -122,8 +127,8 @@ async function fetchPriceFromFinnhub(symbol: string): Promise<PriceData | null> 
     price7DaysAgo,
     changePercent,
     changeAbsolute,
-    ...(price1DayAgo != null && { price1DayAgo }),
-    ...(changePercent1d != null && { changePercent1d }),
+    price1DayAgo: previousClose,
+    changePercent1d,
   };
 }
 

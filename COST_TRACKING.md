@@ -55,4 +55,5 @@ Optional env vars (see [ENV_VARIABLES.md](ENV_VARIABLES.md) for full list):
 
 - **Output caps:** `OPENAI_MAX_OUTPUT_TOKENS` (Vercel AI SDK), `OPENAI_MAX_COMPLETION_TOKENS` (Responses API). When set, responses are truncated at that many tokens; set high or leave unset to preserve quality.
 - **Chat:** `CHAT_MODEL` (default `gpt-4o-mini`), `CHAT_MAX_STEPS` (default 5).
+- **News brief:** `NEWS_BRIEF_MODEL` (default `gpt-4o-mini`) — used only for card and opening generation in the news-brief pipeline, so you can keep `DEFAULT_MODEL` (e.g. o3-mini) for research without using it for briefs.
 - **Daily budget:** `OPENAI_DAILY_BUDGET_USD`. When set, before inserting each OpenAI or Fireworks cost, the app queries today’s sum (server date) for `service IN ('openai', 'fireworks')`. If adding this call would exceed the budget, it throws `OpenAI daily budget exceeded` and does not insert the row. Callers can catch and return a user-facing message.

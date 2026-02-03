@@ -275,7 +275,7 @@ export async function runOpenAIWebSearch(
     model: config.model,
     input: prompt,
     tools: [WEB_SEARCH_TOOL],
-    ...(maxCompletionTokens != null && { max_completion_tokens: maxCompletionTokens }),
+    ...(maxCompletionTokens != null && { max_output_tokens: maxCompletionTokens }),
   };
   if (config.background) params.background = true;
 
@@ -322,7 +322,7 @@ export async function runChatWithWebSearch(
     model,
     input: prompt,
     tools: [WEB_SEARCH_TOOL],
-    ...(maxCompletionTokens != null && { max_completion_tokens: maxCompletionTokens }),
+    ...(maxCompletionTokens != null && { max_output_tokens: maxCompletionTokens }),
   };
 
   const response: OpenAI.Responses.Response = await client.responses.create(params);

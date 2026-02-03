@@ -33,6 +33,7 @@ import {
   generateOneCardFromLearnings,
   generateOpeningForReport,
 } from '../src/deep-research';
+import { getModelForNewsBrief } from '../src/ai/providers';
 import { pool } from '../src/db/client';
 import {
   newsBriefOpenAI,
@@ -203,7 +204,11 @@ async function main() {
     if (learnings.length > 0) {
       console.log(`  Generating card for ${sym}...`);
       const cardStart = Date.now();
-      const card = await generateOneCardFromLearnings(learnings, sym);
+      const card = await generateOneCardFromLearnings(
+        learnings,
+        sym,
+        getModelForNewsBrief()
+      );
       const cardElapsed = ((Date.now() - cardStart) / 1000).toFixed(1);
       if (card) {
         generatedCards.push({ ...card, ticker: sym });
@@ -234,7 +239,10 @@ async function main() {
 
   console.log('Generating opening and assembling report...');
   const reportStart = Date.now();
-  const opening = await generateOpeningForReport(merged.learnings);
+  const opening = await generateOpeningForReport(
+    merged.learnings,
+    getModelForNewsBrief()
+  );
   const cardSections = generatedCards.map(
     (c) => `## ${c.emoji} ${c.title}\n\n${c.content}`
   );

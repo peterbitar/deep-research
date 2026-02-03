@@ -1,4 +1,5 @@
 import FirecrawlApp, { SearchResponse } from '@mendable/firecrawl-js';
+import type { LanguageModelV1 } from 'ai';
 import { generateObject } from './ai/generate-with-cost-log';
 import { compact } from 'lodash-es';
 import pLimit from 'p-limit';
@@ -930,16 +931,19 @@ export type OneCardResult = {
 
 /**
  * Generate one card from learnings for a single holding. Used for sequential per-holding card generation.
+ * Pass optional model to override DEFAULT_MODEL (e.g. gpt-4o-mini for news-brief cost control).
  */
 export async function generateOneCardFromLearnings(
   learnings: string[],
-  ticker: string
+  ticker: string,
+  modelOverride?: LanguageModelV1
 ): Promise<OneCardResult | null> {
   if (learnings.length === 0) return null;
+  const model = modelOverride ?? getModel();
   const learningsString = learnings.map(l => `<learning>\n${l}\n</learning>`).join('\n');
 
   const cardRes = await generateObject({
-    model: getModel(),
+    model,
     system: reportStylePrompt(),
     prompt: trimPrompt(
       `Create exactly ONE card that summarizes these learnings for ${ticker}.
@@ -962,7 +966,7 @@ ${learningsString}
   if (!card?.title) return null;
 
   const titleRes = await generateObject({
-    model: getModel(),
+    model,
     system: reportStylePrompt(),
     prompt: trimPrompt(
       `Generate a card title and emoji for this story.
@@ -987,7 +991,7 @@ Actionable Value: ${card.actionableValue}`
   const titleObj = titleRes.object as { emoji: string; title: string };
 
   const contentRes = await generateObject({
-    model: getModel(),
+    model,
     system: reportStylePrompt(),
     prompt: trimPrompt(
       `Write the deep dive content for this card. 4–6 paragraphs. Each paragraph: bold mini-headline then " - " then content. Use \\n\\n between paragraphs. No bullet points.
@@ -1015,12 +1019,16 @@ Related Learnings: ${learnings.slice(0, 10).join(' ')}`
 
 /**
  * Generate opening paragraph(s) for a report from all learnings.
+ * Pass optional model to override DEFAULT_MODEL (e.g. gpt-4o-mini for news-brief cost control).
  */
-export async function generateOpeningForReport(learnings: string[]): Promise<string> {
+export async function generateOpeningForReport(
+  learnings: string[],
+  modelOverride?: LanguageModelV1
+): Promise<string> {
   if (learnings.length === 0) return '';
   const learningsString = learnings.map(l => `<learning>\n${l}\n</learning>`).join('\n');
   const openingRes = await generateObject({
-    model: getModel(),
+    model: modelOverride ?? getModel(),
     system: reportStylePrompt(),
     prompt: trimPrompt(
       `Write a warm, engaging opening paragraph (1-2 paragraphs) for a financial report, written like you're catching up with a friend. Set the stage for what's coming. Connect the overall theme naturally.

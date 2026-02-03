@@ -222,6 +222,7 @@ Set these in **Railway → Project → Service → Variables** (no `.env` file i
 | `OPENAI_MAX_COMPLETION_TOKENS`| Cap for chat and news-brief. |
 | `CHAT_MODEL`                  | Chat model (default `gpt-4o-mini`). |
 | `CHAT_MAX_STEPS`              | Max tool steps for chat (default `5`). |
+| `NEWS_BRIEF_MODEL`            | Model for news-brief card/opening generation (default `gpt-4o-mini`). Overrides `DEFAULT_MODEL` for that path only. |
 | `OPENAI_INPUT_USD_PER_1M`     | Override input $/1M tokens for cost tracking only. |
 | `OPENAI_OUTPUT_USD_PER_1M`    | Override output $/1M tokens for cost tracking only. |
 
@@ -233,6 +234,7 @@ OPENAI_MAX_OUTPUT_TOKENS=       # e.g. 8192
 OPENAI_MAX_COMPLETION_TOKENS=   # e.g. 4096
 CHAT_MODEL=                     # default gpt-4o-mini
 CHAT_MAX_STEPS=                 # default 5
+NEWS_BRIEF_MODEL=               # default gpt-4o-mini (card/opening only)
 OPENAI_INPUT_USD_PER_1M=        # optional, for cost tracking display
 OPENAI_OUTPUT_USD_PER_1M=       # optional, for cost tracking display
 ```

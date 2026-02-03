@@ -218,7 +218,7 @@ export async function runChatWithTools(
   })();
 
   // System instructions for tool usage
-  const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant with access to real-time price tools.
+  const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant with access to real-time price tools. Keep replies SHORT: 1-3 sentences. No filler, no long intros.
 
 IMPORTANT TOOL USAGE:
 - When the user asks for a current/real-time price of ANY stock, crypto, commodity, or forex, ALWAYS call the appropriate price tool FIRST.
@@ -226,7 +226,7 @@ IMPORTANT TOOL USAGE:
 - getStockPrice: For stocks like AAPL, MSFT, NVDA, TSLA, SPY, etc.
 - getCommodityForexPrice: For GOLD, SILVER, OIL, USD/JPY, EUR/USD
 - Do NOT answer price questions from memory or the knowledge base - use the tools to get live data.
-- After getting the price, provide helpful context.`;
+- After getting the price, give the number and one short sentence of context.`;
 
   const initialInput: OpenAI.Responses.ResponseInputItem[] = [
     { type: 'message', role: 'user', content: prompt },
@@ -239,7 +239,7 @@ IMPORTANT TOOL USAGE:
     instructions: systemInstructions,
     input: fullInput,
     tools: CHAT_TOOLS,
-    ...(maxCompletionTokens != null && { max_completion_tokens: maxCompletionTokens }),
+    ...(maxCompletionTokens != null && { max_output_tokens: maxCompletionTokens }),
   });
   const usage = response.usage;
   const inputTokens = usage?.input_tokens ?? 0;
@@ -299,7 +299,7 @@ IMPORTANT TOOL USAGE:
       instructions: systemInstructions,
       input: fullInput,
       tools: CHAT_TOOLS,
-      ...(maxCompletionTokens != null && { max_completion_tokens: maxCompletionTokens }),
+      ...(maxCompletionTokens != null && { max_output_tokens: maxCompletionTokens }),
     });
     const stepUsage = response.usage;
     const stepInput = stepUsage?.input_tokens ?? 0;

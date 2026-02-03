@@ -64,6 +64,22 @@ export function getModel(): LanguageModelV1 {
   return model as LanguageModelV1;
 }
 
+/** Get a model by id (e.g. 'gpt-4o-mini', 'o3-mini'). Used for overrides like news-brief. */
+export function getModelById(id: string): LanguageModelV1 {
+  const name = id?.trim().toLowerCase() || 'gpt-4o-mini';
+  if (name === 'o3-mini') return (o3MiniModel ?? getModel()) as LanguageModelV1;
+  if (name === 'gpt-4o-mini') return (gpt4oMiniModel ?? getModel()) as LanguageModelV1;
+  const custom = openai?.(id.trim(), { structuredOutputs: true });
+  if (custom) return custom as LanguageModelV1;
+  return getModel();
+}
+
+/** Model for news-brief card/opening generation. Default gpt-4o-mini for cost; set NEWS_BRIEF_MODEL to override. */
+export function getModelForNewsBrief(): LanguageModelV1 {
+  const raw = process.env.NEWS_BRIEF_MODEL?.trim() || 'gpt-4o-mini';
+  return getModelById(raw);
+}
+
 const MinChunkSize = 140;
 const encoder = getEncoding('o200k_base');
 

@@ -122,17 +122,18 @@ export function normalizeAssetType(symbol: string, type?: string): AssetType {
   return 'stock';
 }
 
-const SYSTEM_PROMPT = `You are a friendly investing buddy. The user tapped a button to get a quick checkup on a holding. Your job is to search the web for CURRENT, SPECIFIC information and write a short checkup based on REAL data you find.
+const SYSTEM_PROMPT = `You are a critical, fact-based market analyst. The user tapped a button to get an honest checkup on a holding. Your job is to search TIER 1 sources for CURRENT news and write a checkup that reflects market reality—including negative developments that others might miss.
 
-CRITICAL: You MUST do multiple web searches (at least 3-4 different queries per section) to fill each emoji section with REAL, RECENT facts. Do not write generic statements or guesses.
+CRITICAL: You MUST do multiple web searches (at least 3-4 different queries per section). Find and report BOTH positive AND negative developments. Do not miss negative news or downplay it. Do not write generic statements or guesses.
 
 What you must do:
 1. **SEARCH STRATEGY** (This is the core of what makes a good checkup):
-   - Do NOT just search once. Run 3-4 targeted searches per asset type.
-   - Each search query MUST include current month/year or "latest" or "this week"
-   - Search from multiple angles: recent price action, fundamental news, technical moves, sentiment
-   - Example for crypto: "BTC network activity February 2026", "Bitcoin developer commits latest", "BTC price news this week", "Ethereum vs Bitcoin February 2026"
-   - Do NOT cite generic market knowledge; only cite facts from your search results
+   - Run the EXACT search queries provided. They are optimized for tier 1 sources.
+   - Only cite Reuters, Bloomberg, CNBC, WSJ, SEC filings, or official earnings/regulatory documents.
+   - REJECT any information from secondary sources, blogs, YouTube, or unverified crypto sites.
+   - If a search result is NOT from a tier 1 source, do NOT use it.
+   - Search for BOTH positive and negative news. If you find more negative news, report more negatives.
+   - Example: If you find BTC regulatory threats from Bloomberg/Reuters, it MUST appear in Recent Developments and sentiment
 
 2. **Output format (CRITICAL)**: NO EMOJIS. Use clear section headers with proper newlines:
    - Start EACH section on a new line with **bold title**, e.g.: "\n\n**Earnings, Growth, Margin**\n"
@@ -147,28 +148,35 @@ What you must do:
 
 4. **Citations**: After every factual claim, cite the source (e.g., "(CoinGecko)", "(TheBlock)"). If you found it in web search, cite it.
 
-5. **NO GENERIC FILLER**: Never write:
+5. **ACTIVELY SEARCH FOR NEGATIVE NEWS** (CRITICAL):
+   - Do NOT just report what you find. ACTIVELY search for downsides, risks, and criticism.
+   - Search for: "regulatory crackdown," "underperformance," "competition threat," "warning," "downgrade," "crash," "breach"
+   - If you find negative news, REPORT IT clearly. Do not downplay it or bury it in text.
+   - Example: If BTC faces regulatory threats, it should appear in Recent Developments and affect General Sentiment.
+
+6. **NO GENERIC FILLER**: Never write:
    - "Bitcoin's price fluctuations are influenced by various factors..."
    - "Recent data indicates..."
    - "No significant changes..." (if you can't find info, say "Limited recent reporting on...")
    Do only state REAL facts from your searches. If a section has no real data, say "Limited current reporting" and move on.
 
-8. **Citation format**: Place links inline like: "text ([Source Name](https://url))" in markdown format. Make citations clickable for the user.
+7. **Accuracy & Citations**: Only state facts you actually found in TIER 1 sources. Do not guess or invent data.
+   Place links inline like: "text ([Source Name](https://url))" in markdown format.
 
-6. **Accuracy**: Only state facts you actually found in web search results. Do not guess or invent data.
-
-7. **Recent Developments** (CRITICAL):
-   - Search for news from THIS WEEK or THIS MONTH only
+8. **Recent Developments** (CRITICAL):
+   - Search for news from THIS WEEK, THIS MONTH, and FEBRUARY 2026 only
    - List 2-3 POSITIVE recent developments (e.g., earnings beat, partnership, upgrade, good news)
-   - List 2-3 NEGATIVE recent developments (e.g., earnings miss, downgrade, regulatory issue, bad news)
-   - Format: "Positive: [dev 1], [dev 2], [dev 3]. Negative: [dev 1], [dev 2], [dev 3]."
+   - List 2-3 NEGATIVE recent developments (e.g., earnings miss, downgrade, regulatory issue, security breach, bad news)
+   - If there are MORE negative developments than positive, list MORE negatives. Do NOT fake positive news to balance it.
+   - Format: "Positive: [dev 1], [dev 2]. Negative: [dev 1], [dev 2], [dev 3]." (adapt based on what you find)
 
-8. **General Sentiment** (CRITICAL):
+9. **General Sentiment** (CRITICAL):
    - After all facts, decide: Is the overall market sentiment BULLISH, BEARISH, or NEUTRAL right now?
-   - Write ONE sentence explaining the sentiment (e.g., "Bullish: Strong earnings and analyst upgrades offset valuation concerns.")
-   - Base this on the facts you found, not generic statements
+   - Write ONE sentence explaining the sentiment based on REAL facts from what you found.
+   - If negative developments outweigh positive, sentiment should reflect that (e.g., "Bearish: Regulatory threats and hacks overshadow network growth.")
+   - Do NOT default to optimism. Let the facts dictate the sentiment.
 
-9. **Tone**: Warm and conversational. Focus on REAL recent news, not generic statements.`;
+10. **Tone**: Direct, factual, and honest. Focus on REAL recent news, not generic statements.`;
 
 /** Remove raw search snippets that the model sometimes pastes (e.g. "Stock market information", "X is a crypto in the CRYPTO market"). */
 function sanitizeCheckupOutput(text: string): string {
@@ -369,43 +377,48 @@ export async function generateHoldingCheckup(
   const searchQueries =
     assetType === 'stock'
       ? [
-          `${symbol} ${label} earnings report Q4 2025 Q1 2026`,
-          `${label} stock price action news this week ${currentMonth}`,
-          `${symbol} earnings guidance analyst expectations 2026`,
-          `${label} valuation P/E ratio analyst rating latest`,
+          `"${symbol}" "${label}" earnings Q1 2026 site:reuters.com OR site:bloomberg.com OR site:cnbc.com`,
+          `"${symbol}" stock downgrade warning site:reuters.com OR site:bloomberg.com OR site:wsj.com`,
+          `"${label}" valuation risk February 2026 site:cnbc.com OR site:marketwatch.com`,
+          `"${symbol}" negative outlook 2026 site:reuters.com OR site:bloomberg.com`,
         ]
       : assetType === 'crypto'
         ? [
-            `${symbol} ${label} price movement news this week ${currentYear}`,
-            `${label} network metrics on-chain activity latest`,
-            `${symbol} whale transactions investor sentiment ${currentMonth}`,
-            `${label} development roadmap updates 2026`,
+            `"${symbol}" "${label}" regulatory February 2026 site:reuters.com OR site:bloomberg.com OR site:cnbc.com`,
+            `"${symbol}" security breach exploit 2026 site:reuters.com OR site:cnbc.com`,
+            `"${label}" bearish risk February 2026 site:bloomberg.com OR site:cnbc.com`,
+            `"${symbol}" competition threat 2026 site:reuters.com OR site:cnbc.com`,
+            `"${symbol}" crash decline February 2026 site:reuters.com OR site:bloomberg.com`,
           ]
         : assetType === 'etf'
           ? [
-              `${symbol} ETF top holdings allocation ${currentMonth} ${currentYear}`,
-              `${label} ETF inflows outflows ${currentMonth}`,
-              `${symbol} vs benchmark performance YTD 2026`,
-              `${label} ETF expense ratio fund flow trends latest`,
+              `"${symbol}" ETF outflows ${currentMonth} 2026 site:bloomberg.com OR site:reuters.com OR site:cnbc.com`,
+              `"${label}" ETF performance vs benchmark 2026 site:morningstar.com OR site:bloomberg.com`,
+              `"${symbol}" expense ratio fees 2026 site:bloomberg.com OR site:sec.gov`,
+              `"${symbol}" underperformance ${currentMonth} 2026 site:cnbc.com OR site:reuters.com`,
             ]
           : [
-              `${label} commodity price ${currentMonth} ${currentYear}`,
-              `${label} supply demand outlook this week`,
-              `${label} geopolitical demand factors ${currentMonth} 2026`,
+              `"${label}" commodity price February 2026 site:reuters.com OR site:bloomberg.com OR site:cnbc.com`,
+              `"${label}" supply demand February 2026 site:cnbc.com OR site:reuters.com`,
+              `"${label}" inventory levels bearish 2026 site:bloomberg.com OR site:reuters.com`,
+              `"${label}" geopolitical risk ${currentMonth} 2026 site:reuters.com OR site:cnbc.com`,
             ];
 
   const searchHints = `DO THIS NOW: Run these specific web searches (not suggestions, these are your task):
 ${searchQueries.map((q, i) => `${i + 1}. "${q}"`).join('\n')}
 
-Use these sources: ${
+TIER 1 SOURCES ONLY (reject everything else):
+${
     assetType === 'stock'
-      ? 'Yahoo Finance, MarketWatch, Reuters, SEC filings, Bloomberg'
+      ? 'Reuters (reuters.com), Bloomberg (bloomberg.com), CNBC (cnbc.com), Wall Street Journal (wsj.com), SEC EDGAR (sec.gov), MarketWatch (marketwatch.com)'
       : assetType === 'crypto'
-        ? 'CoinGecko, Messari, The Block, CryptoSlate, Glassnode'
+        ? 'Reuters (reuters.com), Bloomberg (bloomberg.com), CNBC (cnbc.com), SEC (sec.gov), FinCEN, regulatory agency warnings ONLY. NO crypto blogs, no unverified sources.'
         : assetType === 'etf'
-          ? 'ETF.com, Morningstar, Yahoo Finance'
-          : 'Investing.com, Trading Economics, Reuters, OilPrice'
+          ? 'Bloomberg (bloomberg.com), Reuters (reuters.com), SEC filings (sec.gov), Morningstar (morningstar.com), CNBC (cnbc.com)'
+          : 'Reuters (reuters.com), Bloomberg (bloomberg.com), CNBC (cnbc.com), U.S. EIA (eia.gov), USDA (usda.gov), Federal Reserve statements'
   }
+
+DO NOT USE: etf.com, investing.com, stockanalysis.com, CoinGecko, Messari, crypto forums, YouTube, blogs, or unverified sources.
 
 After each search, cite what you find. Fill each emoji section with facts from YOUR searches, not generic knowledge.`;
 

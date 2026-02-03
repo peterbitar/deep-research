@@ -830,10 +830,6 @@ Lead with the answer. One or two sentences of context if needed. Plain English. 
 
 Truth over comfort. Brevity over completeness.`;
 
-const CHAT_DISCLAIMER = `
----
-*This is general information only and not financial advice. For personal guidance, please talk to a licensed professional.*`;
-
 // POST endpoint for chat
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
@@ -913,8 +909,6 @@ Assistant:`,
       });
       text = result.text;
     }
-    text = text + CHAT_DISCLAIMER;
-
     // Save messages to session
     session.messages.push({
       role: 'user',

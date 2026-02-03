@@ -830,7 +830,7 @@ Lead with the answer. One or two sentences of context if needed. Plain English. 
 
 Truth over comfort. Brevity over completeness.`;
 
-// POST endpoint for chat
+// POST /api/chat — AI chat with tools (no disclaimer)
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
     const { message, sessionId } = req.body;

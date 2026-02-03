@@ -128,12 +128,12 @@ CRITICAL: You MUST do multiple web searches (at least 3-4 different queries per 
 
 What you must do:
 1. **SEARCH STRATEGY** (This is the core of what makes a good checkup):
-   - Run the EXACT search queries provided. They are optimized for tier 1 sources.
-   - Only cite Reuters, Bloomberg, CNBC, WSJ, SEC filings, or official earnings/regulatory documents.
-   - REJECT any information from secondary sources, blogs, YouTube, or unverified crypto sites.
-   - If a search result is NOT from a tier 1 source, do NOT use it.
+   - Run the search queries provided. They are optimized to find recent, relevant news.
+   - PREFER tier 1 sources: Reuters, Bloomberg, CNBC, WSJ, SEC filings, official company/regulatory documents.
+   - REJECT: obvious secondary sources like blogs, YouTube, crypto Twitter accounts, unverified forums.
+   - If you find credible news from reputable financial sources, use it (prefer tier 1, but OK if credible).
    - Search for BOTH positive and negative news. If you find more negative news, report more negatives.
-   - Example: If you find BTC regulatory threats from Bloomberg/Reuters, it MUST appear in Recent Developments and sentiment
+   - Example: If you find BTC regulatory threats from Reuters or Bloomberg, it MUST appear in Recent Developments
 
 2. **Output format (CRITICAL)**: NO EMOJIS. Use clear section headers with proper newlines:
    - Start EACH section on a new line with **bold title**, e.g.: "\n\n**Earnings, Growth, Margin**\n"
@@ -377,31 +377,31 @@ export async function generateHoldingCheckup(
   const searchQueries =
     assetType === 'stock'
       ? [
-          `"${symbol}" "${label}" earnings Q1 2026 site:reuters.com OR site:bloomberg.com OR site:cnbc.com`,
-          `"${symbol}" stock downgrade warning site:reuters.com OR site:bloomberg.com OR site:wsj.com`,
-          `"${label}" valuation risk February 2026 site:cnbc.com OR site:marketwatch.com`,
-          `"${symbol}" negative outlook 2026 site:reuters.com OR site:bloomberg.com`,
+          `${symbol} ${label} earnings Q1 2026 Bloomberg Reuters CNBC`,
+          `${symbol} stock downgrade warning analyst 2026`,
+          `${label} valuation P/E risk February 2026`,
+          `${symbol} negative outlook earnings miss 2026`,
         ]
       : assetType === 'crypto'
         ? [
-            `"${symbol}" "${label}" regulatory February 2026 site:reuters.com OR site:bloomberg.com OR site:cnbc.com`,
-            `"${symbol}" security breach exploit 2026 site:reuters.com OR site:cnbc.com`,
-            `"${label}" bearish risk February 2026 site:bloomberg.com OR site:cnbc.com`,
-            `"${symbol}" competition threat 2026 site:reuters.com OR site:cnbc.com`,
-            `"${symbol}" crash decline February 2026 site:reuters.com OR site:bloomberg.com`,
+            `${symbol} ${label} regulatory news February 2026 Reuters Bloomberg`,
+            `${symbol} security threat hack exploit 2026`,
+            `${label} bearish news risks competition 2026`,
+            `${symbol} price decline crash news this week`,
+            `${label} developer activity updates February 2026`,
           ]
         : assetType === 'etf'
           ? [
-              `"${symbol}" ETF outflows ${currentMonth} 2026 site:bloomberg.com OR site:reuters.com OR site:cnbc.com`,
-              `"${label}" ETF performance vs benchmark 2026 site:morningstar.com OR site:bloomberg.com`,
-              `"${symbol}" expense ratio fees 2026 site:bloomberg.com OR site:sec.gov`,
-              `"${symbol}" underperformance ${currentMonth} 2026 site:cnbc.com OR site:reuters.com`,
+              `${symbol} ETF outflows redemptions ${currentMonth} 2026`,
+              `${label} ETF performance vs benchmark tracking error`,
+              `${symbol} expense ratio costs 2026`,
+              `${symbol} underperformance losses ${currentMonth} 2026`,
             ]
           : [
-              `"${label}" commodity price February 2026 site:reuters.com OR site:bloomberg.com OR site:cnbc.com`,
-              `"${label}" supply demand February 2026 site:cnbc.com OR site:reuters.com`,
-              `"${label}" inventory levels bearish 2026 site:bloomberg.com OR site:reuters.com`,
-              `"${label}" geopolitical risk ${currentMonth} 2026 site:reuters.com OR site:cnbc.com`,
+              `${label} commodity price news February 2026 Reuters`,
+              `${label} supply demand outlook this week 2026`,
+              `${label} inventory levels production reports 2026`,
+              `${label} geopolitical risk crisis ${currentMonth} 2026`,
             ];
 
   const searchHints = `DO THIS NOW: Run these specific web searches (not suggestions, these are your task):

@@ -214,3 +214,16 @@ export async function getCostSummary(options?: {
     costByOperation: byOperation,
   };
 }
+
+/**
+ * Sum of total_cost for today (server date) for OpenAI and Fireworks.
+ * Used when OPENAI_DAILY_BUDGET_USD is set to enforce a daily budget.
+ */
+export async function getTodaysOpenAIAndFireworksCost(): Promise<number> {
+  if (!pool) return 0;
+  const result = await pool.query<{ sum: string }>(
+    `SELECT COALESCE(SUM(total_cost), 0)::text as sum FROM cost_logs
+     WHERE service IN ('openai', 'fireworks') AND created_at >= current_date`
+  );
+  return parseFloat(result.rows[0]?.sum ?? '0');
+}

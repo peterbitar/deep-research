@@ -4,6 +4,8 @@
  */
 
 import OpenAI from 'openai';
+
+import { logLLMCostAsync } from './cost-logger';
 import { getPriceDataForHolding } from './price-detection';
 
 const WEB_SEARCH_TOOL = { type: 'web_search_preview' as const };
@@ -206,7 +208,14 @@ export async function runChatWithTools(
   if (!apiKey) return null;
 
   const client = new OpenAI({ apiKey });
-  const model = options?.model ?? 'gpt-4o-mini';
+  const model = options?.model ?? process.env.CHAT_MODEL ?? 'gpt-4o-mini';
+
+  const maxCompletionTokens = (() => {
+    const raw = process.env.OPENAI_MAX_COMPLETION_TOKENS?.trim();
+    if (!raw) return undefined;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 1 ? n : undefined;
+  })();
 
   // System instructions for tool usage
   const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant with access to real-time price tools.
@@ -230,10 +239,24 @@ IMPORTANT TOOL USAGE:
     instructions: systemInstructions,
     input: fullInput,
     tools: CHAT_TOOLS,
+    ...(maxCompletionTokens != null && { max_completion_tokens: maxCompletionTokens }),
+  });
+  const usage = response.usage;
+  const inputTokens = usage?.input_tokens ?? 0;
+  const outputTokens = usage?.output_tokens ?? 0;
+  if (!usage || (inputTokens === 0 && outputTokens === 0)) {
+    console.warn('[Chat Tools] Response missing usage; logging with 0 tokens. Check API response shape.');
+  }
+  logLLMCostAsync({
+    modelId: model,
+    inputTokens,
+    outputTokens,
+    operation: 'chat',
   });
   const allUrls: string[] = [...extractUrlsFromResponse(response)];
 
-  const MAX_STEPS = 5;
+  const maxStepsRaw = process.env.CHAT_MAX_STEPS?.trim();
+  const MAX_STEPS = maxStepsRaw ? Math.max(1, parseInt(maxStepsRaw, 10) || 5) : 5;
   for (let step = 0; step < MAX_STEPS; step++) {
     // Debug: log all output item types
     if (Array.isArray(response.output)) {
@@ -276,6 +299,19 @@ IMPORTANT TOOL USAGE:
       instructions: systemInstructions,
       input: fullInput,
       tools: CHAT_TOOLS,
+      ...(maxCompletionTokens != null && { max_completion_tokens: maxCompletionTokens }),
+    });
+    const stepUsage = response.usage;
+    const stepInput = stepUsage?.input_tokens ?? 0;
+    const stepOutput = stepUsage?.output_tokens ?? 0;
+    if (!stepUsage || (stepInput === 0 && stepOutput === 0)) {
+      console.warn('[Chat Tools] Step response missing usage; logging with 0 tokens.');
+    }
+    logLLMCostAsync({
+      modelId: model,
+      inputTokens: stepInput,
+      outputTokens: stepOutput,
+      operation: 'chat',
     });
     allUrls.push(...extractUrlsFromResponse(response));
   }

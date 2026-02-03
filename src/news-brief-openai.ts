@@ -5,6 +5,8 @@
  */
 
 import OpenAI from 'openai';
+
+import { logLLMCostAsync } from './cost-logger';
 import { generateAllQueries } from './news-brief-queries';
 import type { PriceData } from './price-detection';
 
@@ -262,14 +264,32 @@ export async function runOpenAIWebSearch(
   if (config.timeout) clientOptions.timeout = config.timeout;
   const client = new OpenAI(clientOptions);
 
+  const maxCompletionTokens = (() => {
+    const raw = process.env.OPENAI_MAX_COMPLETION_TOKENS?.trim();
+    if (!raw) return undefined;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 1 ? n : undefined;
+  })();
+
   const params: OpenAI.Responses.ResponseCreateParamsNonStreaming = {
     model: config.model,
     input: prompt,
     tools: [WEB_SEARCH_TOOL],
+    ...(maxCompletionTokens != null && { max_completion_tokens: maxCompletionTokens }),
   };
   if (config.background) params.background = true;
 
   const response: OpenAI.Responses.Response = await client.responses.create(params);
+
+  const usage = response.usage;
+  if (usage && (usage.input_tokens > 0 || usage.output_tokens > 0)) {
+    logLLMCostAsync({
+      modelId: config.model,
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      operation: 'newsBrief',
+    });
+  }
 
   const text = extractOutputText(response);
   const urls = extractUrlsFromResponse(response);
@@ -291,13 +311,32 @@ export async function runChatWithWebSearch(
   const client = new OpenAI({ apiKey });
   const model = options?.model ?? 'gpt-4o-mini';
 
+  const maxCompletionTokens = (() => {
+    const raw = process.env.OPENAI_MAX_COMPLETION_TOKENS?.trim();
+    if (!raw) return undefined;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 1 ? n : undefined;
+  })();
+
   const params: OpenAI.Responses.ResponseCreateParamsNonStreaming = {
     model,
     input: prompt,
     tools: [WEB_SEARCH_TOOL],
+    ...(maxCompletionTokens != null && { max_completion_tokens: maxCompletionTokens }),
   };
 
   const response: OpenAI.Responses.Response = await client.responses.create(params);
+
+  const usage = response.usage;
+  if (usage && (usage.input_tokens > 0 || usage.output_tokens > 0)) {
+    logLLMCostAsync({
+      modelId: model,
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      operation: 'chatWebSearch',
+    });
+  }
+
   const text = extractOutputText(response);
   const urls = extractUrlsFromResponse(response);
 

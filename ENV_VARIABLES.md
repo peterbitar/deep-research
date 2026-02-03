@@ -1,6 +1,8 @@
 # Environment Variables Required for Deployment
 
-**Chat and report cards read config from `process.env` only** — no `.env.local` is read at runtime. In Railway, set all variables in **Project → Service → Variables**. Locally, use `.env.local` (or `--env-file=.env.local`) so your runner injects them into `process.env` before the app starts.
+**Local:** The API loads `.env.local` (or `.env`) automatically when `DATABASE_URL` is not already set, so you can run `npm run start:api` or `tsx src/api.ts` and get DB + cost logging without `--env-file`. You can still use `npm run api` (or `tsx --env-file=.env.local src/api.ts`) to load `.env.local` explicitly.
+
+**Railway:** Set all variables in **Project → Service → Variables**. The app does not load any env file in production; it uses `process.env` from the platform. Cost logging and chat work when `DATABASE_URL` and `OPENAI_KEY` (or `FIREWORKS_KEY`) are set in the Railway dashboard.
 
 ## 🔴 REQUIRED Variables
 
@@ -9,9 +11,11 @@
 **Option 1: OpenAI**
 ```
 OPENAI_KEY=sk-...
+DEFAULT_MODEL=gpt-4o-mini  # Optional, defaults to gpt-4o-mini. Set to o3-mini or any model to override.
 ```
 - Get from: https://platform.openai.com/api-keys
-- Used for: o3-mini model (default if no other model set)
+- Used for: gpt-4o-mini (default) or model from DEFAULT_MODEL
+- Set `DEFAULT_MODEL=o3-mini` for reasoning; `DEFAULT_MODEL=gpt-4o-mini` for lower cost (default)
 
 **Option 2: Fireworks (Recommended - DeepSeek R1)**
 ```
@@ -20,13 +24,13 @@ FIREWORKS_KEY=...
 - Get from: https://fireworks.ai/
 - Used for: DeepSeek R1 model (better reasoning)
 
-**Option 3: Custom OpenAI Model**
+**Option 3: Custom OpenAI Model (full override)**
 ```
 CUSTOM_MODEL=your-model-name
 OPENAI_KEY=sk-...
 OPENAI_ENDPOINT=https://api.openai.com/v1  # Optional, defaults to OpenAI
 ```
-- Used for: Custom OpenAI-compatible models
+- Used for: Custom OpenAI-compatible models; takes precedence over DEFAULT_MODEL
 
 ---
 
@@ -128,6 +132,16 @@ OPENAI_INPUT_USD_PER_1M=0.15   # Optional, defaults to 0.15
 OPENAI_OUTPUT_USD_PER_1M=0.6   # Optional, defaults to 0.6
 ```
 
+**Cost control (optional):**
+
+- `OPENAI_MAX_OUTPUT_TOKENS` – Cap output tokens for Vercel AI SDK calls (generateText/generateObject). Leave unset for no cap. Set to a generous value (e.g. 8192) to limit runaway cost without truncating normal responses.
+- `OPENAI_MAX_COMPLETION_TOKENS` – Cap completion tokens for OpenAI Responses API (chat, news brief). Leave unset for no cap.
+- `CHAT_MODEL` – Model for chat (default `gpt-4o-mini`). Override to use a different model (e.g. `gpt-4o`).
+- `CHAT_MAX_STEPS` – Max tool-call steps for chat (default 5). Lower values reduce cost but may cut off multi-step tool use.
+- `OPENAI_DAILY_BUDGET_USD` – When set, reject new OpenAI/Fireworks LLM calls if today’s logged cost plus the current call would exceed this amount (USD). Throws so callers can return a “budget exceeded” response.
+
+For cost-conscious defaults: keep `DEFAULT_MODEL=gpt-4o-mini` and use the optional caps above.
+
 ---
 
 ## 📋 Complete Example (Railway/Render)
@@ -178,13 +192,69 @@ FREECRYPTOAPI_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
+## 🚂 Variables to add on Railway
+
+Set these in **Railway → Project → Service → Variables** (no `.env` file is read in production).
+
+**Required (minimum):**
+
+| Variable       | Purpose |
+|----------------|---------|
+| `DATABASE_URL` | Postgres connection string (Railway Postgres provides this if you add the plugin). Needed for cost logs, reports, chat sessions. |
+| `OPENAI_KEY` or `FIREWORKS_KEY` | At least one AI provider for research, chat, news-brief. |
+| `FIRECRAWL_KEY` | Web scraping; required for research and news-brief. |
+
+**Recommended (chat + report cards + live prices):**
+
+| Variable            | Purpose |
+|---------------------|---------|
+| `OPENAI_KEY`        | Chat with web search and price tools (Responses API). |
+| `FINNHUB_KEY`       | Live stock prices in chat (e.g. AAPL, NVDA). |
+| `FREECRYPTOAPI_KEY` | Live crypto prices in chat (e.g. BTC, ETH). |
+| `MAIN_BACKEND_URL`  | URL of your main app for report cards and user holdings (e.g. `https://your-app.up.railway.app`). |
+
+**Optional (cost control):**
+
+| Variable                      | Purpose |
+|-------------------------------|---------|
+| `OPENAI_DAILY_BUDGET_USD`     | Hard daily cap (USD); reject new LLM calls when today’s cost would exceed it. |
+| `OPENAI_MAX_OUTPUT_TOKENS`    | Cap for research/report output (e.g. `8192`). |
+| `OPENAI_MAX_COMPLETION_TOKENS`| Cap for chat and news-brief. |
+| `CHAT_MODEL`                  | Chat model (default `gpt-4o-mini`). |
+| `CHAT_MAX_STEPS`              | Max tool steps for chat (default `5`). |
+| `OPENAI_INPUT_USD_PER_1M`     | Override input $/1M tokens for cost tracking only. |
+| `OPENAI_OUTPUT_USD_PER_1M`    | Override output $/1M tokens for cost tracking only. |
+
+Copy-paste for Railway (add in Variables, set your values):
+
+```
+OPENAI_DAILY_BUDGET_USD=        # e.g. 10 = reject when today > $10
+OPENAI_MAX_OUTPUT_TOKENS=       # e.g. 8192
+OPENAI_MAX_COMPLETION_TOKENS=   # e.g. 4096
+CHAT_MODEL=                     # default gpt-4o-mini
+CHAT_MAX_STEPS=                 # default 5
+OPENAI_INPUT_USD_PER_1M=        # optional, for cost tracking display
+OPENAI_OUTPUT_USD_PER_1M=       # optional, for cost tracking display
+```
+
+**Optional (other):**
+
+| Variable                 | Purpose |
+|--------------------------|---------|
+| `PORT`                   | Railway usually sets this. Default `3051`. |
+| `DEFAULT_MODEL`          | Default LLM for research (e.g. `gpt-4o-mini`, `o3-mini`). |
+| `CONTEXT_SIZE`           | Max context tokens (default `128000`). |
+| `FIRECRAWL_PLAN_PRICE_USD` / `FIRECRAWL_MONTHLY_CREDITS` | For Firecrawl cost tracking. |
+
+---
+
 ## ✅ Quick Checklist
 
 Before deploying, make sure you have:
 - [ ] At least ONE AI model key (OPENAI_KEY OR FIREWORKS_KEY)
 - [ ] FIRECRAWL_KEY (required for research functionality)
-- [ ] All keys are valid and have credits/quota
-- [ ] **Railway**: Same vars as `.env.local` (e.g. OPENAI_KEY, FINNHUB_KEY, FREECRYPTOAPI_KEY) so chat and live prices work in production
+- [ ] DATABASE_URL (for cost logs, reports, chat sessions)
+- [ ] **Railway**: OPENAI_KEY, FINNHUB_KEY, FREECRYPTOAPI_KEY, MAIN_BACKEND_URL so chat and live prices work in production
 
 ---
 

@@ -22,6 +22,10 @@ const defaultConfig: CostConfig = {
   openaiInputUsdPer1M: 0.15,
   openaiOutputUsdPer1M: 0.6,
   openaiModelOverrides: {
+    // More specific first (getOpenAIRates uses substring match)
+    'gpt-4o-mini': { inputPer1M: 0.15, outputPer1M: 0.6 },
+    'gpt-4o': { inputPer1M: 2.5, outputPer1M: 10.0 },
+    'o4-mini': { inputPer1M: 2.5, outputPer1M: 10.0 },
     'gpt-4': { inputPer1M: 2.5, outputPer1M: 10.0 },
     'o1': { inputPer1M: 2.5, outputPer1M: 10.0 },
     'r1': { inputPer1M: 0.2, outputPer1M: 0.8 },

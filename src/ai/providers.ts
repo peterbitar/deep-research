@@ -29,7 +29,10 @@ const customModel = process.env.CUSTOM_MODEL
     })
   : undefined;
 
-// Models
+// Models — default is gpt-4o-mini; set DEFAULT_MODEL or CUSTOM_MODEL to override
+const gpt4oMiniModel = openai?.('gpt-4o-mini', {
+  structuredOutputs: true,
+});
 
 const o3MiniModel = openai?.('o3-mini', {
   reasoningEffort: 'medium',
@@ -45,16 +48,19 @@ const deepSeekR1Model = fireworks
     })
   : undefined;
 
+/** Resolve default OpenAI model from DEFAULT_MODEL env (default: gpt-4o-mini). */
+function getDefaultOpenAIModel(): LanguageModelV1 | undefined {
+  const raw = process.env.DEFAULT_MODEL?.trim() || 'gpt-4o-mini';
+  const name = raw.toLowerCase();
+  if (name === 'o3-mini') return o3MiniModel;
+  if (name === 'gpt-4o-mini') return gpt4oMiniModel;
+  return openai?.(raw, { structuredOutputs: true });
+}
+
 export function getModel(): LanguageModelV1 {
-  if (customModel) {
-    return customModel;
-  }
-
-  const model = deepSeekR1Model ?? o3MiniModel;
-  if (!model) {
-    throw new Error('No model found');
-  }
-
+  if (customModel) return customModel;
+  const model = deepSeekR1Model ?? getDefaultOpenAIModel() ?? gpt4oMiniModel ?? o3MiniModel;
+  if (!model) throw new Error('No model found');
   return model as LanguageModelV1;
 }
 

@@ -1,3 +1,4 @@
+import './load-env';
 import cors from 'cors';
 import express, { Request, Response } from 'express';
 import * as fs from 'fs/promises';
@@ -828,7 +829,8 @@ Assistant:`;
     // Use OpenAI Responses API with web_search + price tools when available; fall back to generateText
     let text: string;
     let citationUrls: string[] = [];
-    const chatToolsResult = await runChatWithTools(fullPrompt);
+    const chatModel = process.env.CHAT_MODEL?.trim();
+    const chatToolsResult = await runChatWithTools(fullPrompt, chatModel ? { model: chatModel } : undefined);
     if (chatToolsResult) {
       text = chatToolsResult.text;
       citationUrls = chatToolsResult.urls;

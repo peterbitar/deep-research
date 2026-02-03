@@ -26,13 +26,15 @@ export interface NewsBriefContext {
   publishedDate?: string;
 }
 
-const STOCKS_GUIDE = `📈 STOCKS — What I do
+const STOCKS_GUIDE = `STOCKS — What I do
 
 Your sections for stocks:
-✅ **Earnings, Growth, Margin** — Latest earnings (EPS, revenue, margins). YoY growth rates. Profitability trends.
-🔮 **Guidance + Confidence** — Management guidance for next quarter/year. Analyst consensus. Confidence in outlook (raised/lowered guidance?).
-⚠️ **Risks (Valuation, Sentiment)** — P/E ratio, price-to-book, PEG. Analyst ratings (upside/downside). Market sentiment. Any red flags (debt, dilution, competition)?
-📉 **Market Reaction** — Stock price change on earnings. Analyst upgrades/downgrades. Institutional buying/selling.
+**Earnings, Growth, Margin** — Latest earnings (EPS, revenue, margins). YoY growth rates. Profitability trends.
+**Guidance + Confidence** — Management guidance for next quarter/year. Analyst consensus. Confidence in outlook (raised/lowered guidance?).
+**Valuation & Risk** — P/E ratio, price-to-book, PEG. Analyst ratings (upside/downside). Market sentiment. Any red flags (debt, dilution, competition)?
+**Market Reaction** — Stock price change on earnings. Analyst upgrades/downgrades. Institutional buying/selling.
+**Recent Developments** — List 2-3 positive developments and 2-3 negative developments from the past week/month. Separate with "Positive:" and "Negative:" labels.
+**General Sentiment** — One sentence: Is the market feeling Bullish, Bearish, or Neutral about this stock right now? Why?
 
 Data sources:
 - Yahoo Finance – earnings reports, financial metrics, analyst ratings
@@ -42,13 +44,15 @@ Data sources:
 
 CRITICAL: ALWAYS cite specific numbers (EPS, revenue growth %, margins). NO generic statements like "The company showed strong growth." State actual metrics with sources.`;
 
-const CRYPTO_GUIDE = `🔗 CRYPTO — What I do
+const CRYPTO_GUIDE = `CRYPTO — What I do
 
 Your sections for crypto:
-🧠 **Activity + Developer Signals** — Network activity (daily transactions, active addresses). GitHub commits and developer updates. Upcoming upgrades or partnerships.
-🧱 **Network Health & Narrative** — Transaction fees, block times, validator count. Is the network still relevant? Any security concerns or forks?
-🪙 **Supply + Market Metrics** — Circulating vs max supply. Unlock schedules (if any). Price momentum, volume, institutional flows.
-📉 **Risks + Adoption** — Regulatory threats, competition from other projects. Real usage metrics vs hype. Whale movements.
+**Activity + Developer Signals** — Network activity (daily transactions, active addresses). GitHub commits and developer updates. Upcoming upgrades or partnerships.
+**Network Health & Narrative** — Transaction fees, block times, validator count. Is the network still relevant? Any security concerns or forks?
+**Supply + Market Metrics** — Circulating vs max supply. Unlock schedules (if any). Price momentum, volume, institutional flows.
+**Risks + Adoption** — Regulatory threats, competition from other projects. Real usage metrics vs hype. Whale movements.
+**Recent Developments** — List 2-3 positive developments and 2-3 negative developments from the past week/month. Separate with "Positive:" and "Negative:" labels.
+**General Sentiment** — One sentence: Is the market feeling Bullish, Bearish, or Neutral about this crypto right now? Why?
 
 Data sources:
 - CoinGecko / Messari – live prices, market data, fund flows
@@ -59,13 +63,15 @@ Data sources:
 
 CRITICAL: Include REAL on-chain data (daily transactions, active addresses, whale wallets). NO vague statements like "Bitcoin is decentralized." Always cite actual metrics with sources.`;
 
-const ETF_GUIDE = `📊 ETFs — What I do
+const ETF_GUIDE = `ETFs — What I do
 
 Your sections for ETFs:
-✅ **Holdings & Theme** — What does this ETF actually own right now? Top 5 holdings + sector allocation. Has the composition changed?
-🔮 **Performance & Benchmark** — How is it performing vs its benchmark/peers? Is it lagging or leading?
-⚠️ **Costs & Flows** — Expense ratio, management fees, investor inflows/outflows. Are costs rising?
-📉 **Market & Risks** — Current price, YTD performance, fund-specific risks (theme decay, concentration).
+**Holdings & Theme** — What does this ETF actually own right now? Top 5 holdings + sector allocation. Has the composition changed?
+**Performance & Benchmark** — How is it performing vs its benchmark/peers? Is it lagging or leading?
+**Costs & Flows** — Expense ratio, management fees, investor inflows/outflows. Are costs rising?
+**Market & Risks** — Current price, YTD performance, fund-specific risks (theme decay, concentration).
+**Recent Developments** — List 2-3 positive developments and 2-3 negative developments from the past week/month. Separate with "Positive:" and "Negative:" labels.
+**General Sentiment** — One sentence: Is the market feeling Bullish, Bearish, or Neutral about this ETF right now? Why?
 
 Data sources:
 - ETF.com – detailed holdings and drift tracking
@@ -75,13 +81,15 @@ Data sources:
 
 CRITICAL: Do NOT use generic statements like "ETFs provide diversified exposure." Instead, cite ACTUAL holdings, REAL percentages, and CURRENT performance numbers.`;
 
-const COMMODITIES_GUIDE = `⛏️ COMMODITIES — What I do
+const COMMODITIES_GUIDE = `COMMODITIES — What I do
 
 Your sections for commodities:
-✅ **Supply News** — Mining production, output changes, new discoveries or shutdowns. OPEC decisions (for oil). Agricultural harvest reports (for crops).
-🔮 **Demand Outlook** — Growth in key markets (China, EM). Industrial demand trends. Seasonal demand patterns.
-⚠️ **Inventory & Macro** — Storage levels, strategic reserves, USD strength, real interest rates. Are inventories rising (bearish) or falling (bullish)?
-📉 **Price + Momentum** — Recent price moves, technical levels, institutional positioning. Geopolitical risks?
+**Supply News** — Mining production, output changes, new discoveries or shutdowns. OPEC decisions (for oil). Agricultural harvest reports (for crops).
+**Demand Outlook** — Growth in key markets (China, EM). Industrial demand trends. Seasonal demand patterns.
+**Inventory & Macro** — Storage levels, strategic reserves, USD strength, real interest rates. Are inventories rising (bearish) or falling (bullish)?
+**Price + Momentum** — Recent price moves, technical levels, institutional positioning. Geopolitical risks?
+**Recent Developments** — List 2-3 positive developments and 2-3 negative developments from the past week/month. Separate with "Positive:" and "Negative:" labels.
+**General Sentiment** — One sentence: Is the market feeling Bullish, Bearish, or Neutral about this commodity right now? Why?
 
 Data sources:
 - US EIA (Energy Info Admin) – oil, gas production and inventory
@@ -126,13 +134,14 @@ What you must do:
    - Example for crypto: "BTC network activity February 2026", "Bitcoin developer commits latest", "BTC price news this week", "Ethereum vs Bitcoin February 2026"
    - Do NOT cite generic market knowledge; only cite facts from your search results
 
-2. **Output format (CRITICAL)**: One short intro line, then EXACTLY these emoji section headers with proper newlines:
-   - Start EACH section on a new line with emoji + bold title, e.g.: "\n\n✅ **Earnings, Growth, Margin**\n"
+2. **Output format (CRITICAL)**: NO EMOJIS. Use clear section headers with proper newlines:
+   - Start EACH section on a new line with **bold title**, e.g.: "\n\n**Earnings, Growth, Margin**\n"
    - Under each header, write 1–2 sentences of REAL facts with citations.
-   - ALWAYS put emoji, space, **bold title** on separate line from content.
-   - ALWAYS use these exact emoji for stocks: ✅ 🔮 ⚠️ 📉
-   - ALWAYS use these exact emoji for crypto: 🧠 🧱 🪙 📉
-   - NEVER run section headers together with content text.
+   - ALWAYS put section header on its own line, separated from content.
+   - ALWAYS include these sections:
+     - **Recent Developments** (Latest positive and negative news/changes, bullet points)
+     - **General Sentiment** (Bullish, Bearish, or Neutral - with 1 sentence explaining why)
+   - NEVER use emojis. NEVER run section headers together with content text.
 
 3. **Price handling**: When "Reference price" is given, use ONLY that for price/%. Do not use prices from web search. The reference price is your source of truth for numbers.
 
@@ -148,7 +157,18 @@ What you must do:
 
 6. **Accuracy**: Only state facts you actually found in web search results. Do not guess or invent data.
 
-7. **Tone**: Warm and conversational. End with one sentence: is this a healthy sign or a warning?`;
+7. **Recent Developments** (CRITICAL):
+   - Search for news from THIS WEEK or THIS MONTH only
+   - List 2-3 POSITIVE recent developments (e.g., earnings beat, partnership, upgrade, good news)
+   - List 2-3 NEGATIVE recent developments (e.g., earnings miss, downgrade, regulatory issue, bad news)
+   - Format: "Positive: [dev 1], [dev 2], [dev 3]. Negative: [dev 1], [dev 2], [dev 3]."
+
+8. **General Sentiment** (CRITICAL):
+   - After all facts, decide: Is the overall market sentiment BULLISH, BEARISH, or NEUTRAL right now?
+   - Write ONE sentence explaining the sentiment (e.g., "Bullish: Strong earnings and analyst upgrades offset valuation concerns.")
+   - Base this on the facts you found, not generic statements
+
+9. **Tone**: Warm and conversational. Focus on REAL recent news, not generic statements.`;
 
 /** Remove raw search snippets that the model sometimes pastes (e.g. "Stock market information", "X is a crypto in the CRYPTO market"). */
 function sanitizeCheckupOutput(text: string): string {

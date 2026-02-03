@@ -219,30 +219,48 @@ async function fetchPriceOnce(symbol: string): Promise<PriceData | null> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=7d`;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), YAHOO_FETCH_TIMEOUT_MS);
-  const response = await fetch(url, {
-    signal: controller.signal,
-    headers: YAHOO_FETCH_HEADERS,
-  });
-  clearTimeout(timeoutId);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      signal: controller.signal,
+      headers: YAHOO_FETCH_HEADERS,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!response.ok) {
-    console.warn(`Failed to fetch price data for ${symbol}: ${response.statusText}`);
+    console.warn(
+      `Yahoo price fetch ${symbol}: ${response.status} ${response.statusText}` +
+        (response.status === 403 ? ' (blocked — try FINNHUB_KEY for stocks, FREECRYPTOAPI_KEY for crypto)' : '') +
+        (response.status === 429 ? ' (rate limited — reduce concurrency or use API keys)' : '')
+    );
     return null;
   }
 
-  const data = await response.json();
-  const result = data.chart?.result?.[0];
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch (e) {
+    console.warn(`Yahoo price fetch ${symbol}: invalid JSON`, e instanceof Error ? e.message : e);
+    return null;
+  }
+  interface YahooChartResult {
+    timestamp?: unknown;
+    indicators?: { quote?: Array<{ close?: (number | null)[] }> };
+  }
+  const result = (data as { chart?: { result?: YahooChartResult[] } })?.chart?.result?.[0];
 
-  if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
-    console.warn(`Invalid price data format for ${symbol}`);
+  if (!result?.timestamp || !result.indicators?.quote?.[0]) {
+    console.warn(`Yahoo price fetch ${symbol}: invalid or changed response format`);
     return null;
   }
 
   const quotes = result.indicators.quote[0];
-  const closes = quotes.close;
+  const closes = quotes.close ?? [];
 
   const validPrices = closes.filter((p: number | null) => p !== null && p !== undefined);
   if (validPrices.length < 2) {
-    console.warn(`Insufficient price data for ${symbol}`);
+    console.warn(`Yahoo price fetch ${symbol}: insufficient data (need at least 2 close prices)`);
     return null;
   }
 
@@ -314,9 +332,16 @@ export async function getPriceDataBatch(
 }
 
 /**
+ * True when the symbol is a US-style ticker (no Yahoo mapping), so Finnhub quote API applies.
+ */
+function isUnmappedUsTicker(yahooSymbol: string, normalized: string): boolean {
+  return yahooSymbol === normalized;
+}
+
+/**
  * Get price data for one holding (maps symbol to Yahoo symbol, e.g. BTC -> BTC-USD).
  * Crypto: FreeCryptoAPI when FREECRYPTOAPI_KEY set, else Yahoo.
- * Stocks: Finnhub when FINNHUB_KEY set and US ticker, else Yahoo.
+ * Stocks/ETFs: Yahoo first; if Yahoo fails and FINNHUB_KEY set, fall back to Finnhub.
  * Returns PriceData keyed by the original symbol.
  */
 export async function getPriceDataForHolding(
@@ -331,15 +356,16 @@ export async function getPriceDataForHolding(
     if (cryptoData) return cryptoData;
   }
 
-  // US stocks: try Finnhub first when key is set
-  if (getFinnhubApiKey() && yahooSymbol === normalized) {
+  const data = await getPriceData(yahooSymbol);
+  if (data) return { ...data, symbol: normalized };
+
+  // For US stocks/ETFs, fall back to Finnhub when Yahoo fails (e.g. 403, timeout)
+  if (getFinnhubApiKey() && isUnmappedUsTicker(yahooSymbol, normalized)) {
     const finnhubData = await fetchPriceFromFinnhub(normalized);
     if (finnhubData) return finnhubData;
   }
 
-  const data = await getPriceData(yahooSymbol);
-  if (!data) return null;
-  return { ...data, symbol: normalized };
+  return null;
 }
 
 const BATCH_CONCURRENCY = 3; // Limit parallel Yahoo fetches to avoid connection limits in containers
@@ -347,6 +373,7 @@ const BATCH_CONCURRENCY = 3; // Limit parallel Yahoo fetches to avoid connection
 /**
  * Get price data for all holdings; returns Map keyed by original symbol (e.g. NVDA, BTC).
  * Fetches in small batches to avoid ETIMEDOUT in production (e.g. Railway).
+ * Logs which symbols succeeded and which failed when not all succeed.
  */
 export async function getPriceDataBatchForHoldings(holdings: {
   symbol: string;
@@ -359,6 +386,14 @@ export async function getPriceDataBatchForHoldings(holdings: {
     for (const data of results) {
       if (data) map.set(data.symbol, data);
     }
+  }
+  const succeeded = symbols.filter((s) => map.has(s));
+  const failed = symbols.filter((s) => !map.has(s));
+  if (succeeded.length > 0) {
+    console.log(`Price fetch: ${succeeded.length}/${symbols.length} symbols (${succeeded.join(', ')})`);
+  }
+  if (failed.length > 0) {
+    console.warn(`Price fetch failed for: ${failed.join(', ')}. Check logs above for 403/429/timeout.`);
   }
   return map;
 }

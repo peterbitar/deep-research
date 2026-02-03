@@ -173,7 +173,11 @@ async function main() {
       .join(', ');
     console.log(`Reference prices (Yahoo): ${lines}\n`);
   } else {
-    console.log('Reference prices: none (Yahoo timeout or network). Continuing without.\n');
+    console.warn(
+      'Reference prices: none fetched. News brief will run without reference prices.\n' +
+        '  Common causes: Yahoo 403/429 (blocked/rate limit), timeout in container, or network.\n' +
+        '  Options: set FINNHUB_KEY for stocks and/or FREECRYPTOAPI_KEY for crypto; or run with RESEARCH_SYMBOLS=SPY to test.\n'
+    );
   }
 
   const runId = `news-openai-${mode}-${Date.now()}`;

@@ -136,10 +136,10 @@ What you must do:
    - Example: If you find BTC regulatory threats from Reuters or Bloomberg, it MUST appear in Recent Developments
 
 2. **Output format (CRITICAL)**: NO EMOJIS. Format headers like this:
-   - ONE blank line BEFORE each header, ONE blank line AFTER, then content.
-   - Format: "\n\n**Header Name**\n\nContent text here..."
-   - NO extra spacing - just one blank line before and one after the header.
-   - Keep headers on own line, content immediately after the blank line.
+   - TWO blank lines BEFORE each header, ONE blank line AFTER, then content.
+   - Format: "\n\n\n**Header Name**\n\nContent text here..."
+   - Spacing: GENEROUS space before header (visual separation), minimal space after (content starts soon).
+   - Keep headers on own line, content immediately after single blank line.
    - ALWAYS include these sections:
      - **Recent Developments** (Latest positive and negative news/changes)
      - **General Sentiment** (Bullish, Bearish, or Neutral - with 1 sentence explaining why)
@@ -169,8 +169,9 @@ What you must do:
    - Place links inline like: "text ([Source Name](https://url))" in markdown format.
 
 8. **Recent Developments** (CRITICAL):
-   - Search for news from THIS WEEK, THIS MONTH, and FEBRUARY 2026 only
-   - List 2-3 POSITIVE recent developments (e.g., earnings beat, partnership, upgrade, good news)
+   - Search for news from THIS WEEK, THIS MONTH, and FEBRUARY 2026 ONLY. NO old data.
+   - For price/record highs: Find the MOST RECENT record high, not the oldest one. Example: If silver hit $105 in February 2026, report that, NOT a $75 December high.
+   - List 2-3 POSITIVE recent developments (e.g., earnings beat, partnership, upgrade, good news, new records)
    - List 2-3 NEGATIVE recent developments (e.g., earnings miss, downgrade, regulatory issue, security breach, bad news)
    - If there are MORE negative developments than positive, list MORE negatives. Do NOT fake positive news to balance it.
    - Format: "Positive: [dev 1], [dev 2]. Negative: [dev 1], [dev 2], [dev 3]." (adapt based on what you find)
@@ -202,13 +203,16 @@ function formatReferencePrice(p: PriceData): string {
     p.currentPrice >= 1
       ? p.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : p.currentPrice.toFixed(4);
-  const dir7 = p.changePercent >= 0 ? 'up' : 'down';
   const pct7 = Math.abs(p.changePercent).toFixed(1);
-  const sevenDay = `${dir7} ${pct7}% (7d)`;
-  const oneDay =
-    p.changePercent1d != null
-      ? `, ${p.changePercent1d >= 0 ? 'up' : 'down'} ${Math.abs(p.changePercent1d).toFixed(1)}% (1d)`
-      : '';
+  const dir7 = pct7 === '0.0' ? 'flat' : (p.changePercent >= 0 ? 'up' : 'down');
+  const sevenDay = `${dir7} ${pct7 === '0.0' ? '' : pct7 + '% '}(7d)`.replace('  ', ' ');
+
+  let oneDay = '';
+  if (p.changePercent1d != null) {
+    const pct1d = Math.abs(p.changePercent1d).toFixed(1);
+    const dir1d = pct1d === '0.0' ? 'flat' : (p.changePercent1d >= 0 ? 'up' : 'down');
+    oneDay = `, ${dir1d} ${pct1d === '0.0' ? '' : pct1d + '% '}(1d)`.replace('  ', ' ');
+  }
   return `${p.symbol}: $${priceStr}, ${sevenDay}${oneDay}`;
 }
 
@@ -218,14 +222,17 @@ function marketSentenceFromPrice(p: PriceData): string {
     p.currentPrice >= 1
       ? p.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : p.currentPrice.toFixed(4);
-  const dir7 = p.changePercent >= 0 ? 'up' : 'down';
   const pct7 = Math.abs(p.changePercent).toFixed(1);
-  const oneDay =
-    p.changePercent1d != null
-      ? `${p.changePercent1d >= 0 ? 'up' : 'down'} ${Math.abs(p.changePercent1d).toFixed(1)}% in the last 24 hours`
-      : null;
-  const weekPart = `${dir7} ${pct7}% over the past week`;
-  return `Trading at $${priceStr}, ${weekPart}${oneDay ? ` and ${oneDay}` : ''}.`;
+  const dir7 = pct7 === '0.0' ? 'flat' : (p.changePercent >= 0 ? 'up' : 'down');
+  const weekPart = pct7 === '0.0' ? 'flat over the past week' : `${dir7} ${pct7}% over the past week`;
+
+  let oneDay = '';
+  if (p.changePercent1d != null) {
+    const pct1d = Math.abs(p.changePercent1d).toFixed(1);
+    const dir1d = pct1d === '0.0' ? 'flat' : (p.changePercent1d >= 0 ? 'up' : 'down');
+    oneDay = pct1d === '0.0' ? ` and flat in the last 24 hours` : ` and ${dir1d} ${pct1d}% in the last 24 hours`;
+  }
+  return `Trading at $${priceStr}, ${weekPart}${oneDay}.`;
 }
 
 const WEB_SEARCH_TOOL = { type: 'web_search_preview' as const, search_context_size: 'high' as const };
@@ -397,16 +404,16 @@ export async function generateHoldingCheckup(
           ]
         : assetType === 'etf'
           ? [
-              `${symbol} ETF outflows redemptions ${currentMonth} 2026`,
-              `${label} ETF performance vs benchmark tracking error`,
-              `${symbol} expense ratio costs 2026`,
-              `${symbol} underperformance losses ${currentMonth} 2026`,
+              `${symbol} ${label} price record high February 2026 this week`,
+              `${symbol} ETF latest news ${currentMonth} 2026`,
+              `${label} recent developments January February 2026`,
+              `${symbol} performance vs benchmark 2026`,
             ]
           : [
-              `${label} commodity price news February 2026 Reuters`,
-              `${label} supply demand outlook this week 2026`,
-              `${label} inventory levels production reports 2026`,
-              `${label} geopolitical risk crisis ${currentMonth} 2026`,
+              `${label} price record high all time 2026 January February`,
+              `${label} commodity latest news this week 2026`,
+              `${label} recent price action February 2026 trading`,
+              `${label} supply demand news ${currentMonth} 2026`,
             ];
 
   const searchHints = `DO THIS NOW: Run these specific web searches (not suggestions, these are your task):
@@ -428,6 +435,8 @@ DO NOT USE: etf.com, investing.com, stockanalysis.com, CoinGecko, Messari, crypt
 After each search, cite what you find. Fill each emoji section with facts from YOUR searches, not generic knowledge.`;
 
   let prompt = `Today: ${dateLabel} (${currentMonth} ${currentYear}). Give a short checkup for **${label}** (${symbol}) using the guide below.
+
+IMPORTANT — Do NOT add intro text like "As of Feb 3, SLV is trading at $XX". Jump straight to the first section header. The price will be added separately at the end.
 
 IMPORTANT — Recency: Search for news from ${currentMonth} ${currentYear} or "this week". Your search queries must include "${currentMonth} ${currentYear}" or "this week" or "latest" so you get recent articles, not old ones. Prefer the newest results for each section. If you only find older data (e.g. 2025), label it (e.g. "From 2025 data:" or "As of late 2025:") so the user knows it's not current.
 

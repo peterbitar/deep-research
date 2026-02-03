@@ -147,7 +147,7 @@ What you must do:
 
 3. **Price handling**: When "Reference price" is given, use ONLY that for price/%. Do not use prices from web search. The reference price is your source of truth for numbers.
 
-4. **Citations**: After every factual claim, cite the source (e.g., "(CoinGecko)", "(TheBlock)"). If you found it in web search, cite it.
+4. **NO SOURCES IN OUTPUT**: Do NOT include source names, parenthetical citations (e.g. "(Reuters)"), inline links, or "Sources:" sections in the checkup text. Write the facts only; the reader will not see citations.
 
 5. **ACTIVELY SEARCH FOR NEGATIVE NEWS** (CRITICAL):
    - Do NOT just report what you find. ACTIVELY search for downsides, risks, and criticism.
@@ -163,14 +163,11 @@ What you must do:
    - "No significant changes..." (if you can't find info, say "Limited recent reporting on...")
    Do only state REAL facts from your searches. If a section has no real data, say "Limited current reporting" and move on.
 
-7. **Accuracy & Citations**: Only state facts you actually found. Prioritize citing TIER 1 sources (Reuters, Bloomberg, CNBC, WSJ, MarketWatch, SEC, official company sources).
-   - When citing a fact, use the BEST source available (tier 1 preferred, credible financial sources acceptable).
-   - If you found the same fact in both a tier 1 source and a secondary source, cite the tier 1 source.
-   - Place links inline like: "text ([Source Name](https://url))" in markdown format.
+7. **Accuracy**: Only state facts you actually found. Prioritize TIER 1 sources in your research (Reuters, Bloomberg, CNBC, WSJ, MarketWatch, SEC). Do not output source names or links in the checkup text.
 
 8. **Recent Developments** (CRITICAL):
-   - Search for news from THIS WEEK, THIS MONTH, and FEBRUARY 2026 ONLY. NO old data.
-   - For price/record highs: Find the MOST RECENT record high, not the oldest one. Example: If silver hit $105 in February 2026, report that, NOT a $75 December high.
+   - Search for news from THIS WEEK, THIS MONTH, and current year ONLY. NO old data.
+   - **Record highs / all-time highs (CRITICAL)**: Report ONLY the MOST RECENT record high. Search for the latest ATH (e.g. "silver all-time high 2026" or "SLV record high February"). If silver hit a new high in February 2026 (e.g. $105), you MUST report that number and date—never report an older record (e.g. December's $75) as if it is the all-time high. Outdated ATH numbers mislead the reader. When in doubt, search " [asset] all-time high [current month] [current year]" and use that result.
    - List 2-3 POSITIVE recent developments (e.g., earnings beat, partnership, upgrade, good news, new records)
    - List 2-3 NEGATIVE recent developments (e.g., earnings miss, downgrade, regulatory issue, security breach, bad news)
    - If there are MORE negative developments than positive, list MORE negatives. Do NOT fake positive news to balance it.
@@ -184,7 +181,7 @@ What you must do:
 
 10. **Tone**: Direct, factual, and honest. Focus on REAL recent news, not generic statements.`;
 
-/** Remove raw search snippets that the model sometimes pastes (e.g. "Stock market information", "X is a crypto in the CRYPTO market"). */
+/** Remove raw search snippets and source citations from checkup text. */
 function sanitizeCheckupOutput(text: string): string {
   let out = text;
   // Remove "## Stock market information for ..." and everything until we hit an emoji section (🧠 ✅ etc.) or **
@@ -194,6 +191,10 @@ function sanitizeCheckupOutput(text: string): string {
   out = out.replace(/\n[^\n]*\s+is\s+a\s+(?:crypto|equity)\s+in\s+the\s+[A-Z]+\s+market[^\n]*/gi, '');
   // Remove bullet lines that are clearly raw search (price, intraday, latest open/trade)
   out = out.replace(/\n\s*-\s*(?:The price is|The intraday|The latest (?:open|trade))[^\n]*/gi, '');
+  // Strip source citations: markdown links [Text](url) -> Text, parenthetical (SourceName), trailing · source.com
+  out = out.replace(/\[([^\]]+)\]\(https?:\/\/[^)]+\)/g, '$1');
+  out = out.replace(/\s*\([^)]*(?:\.com|\.net|\.org|Reuters|Bloomberg|CNBC|WSJ|MarketWatch|CoinGecko|TheBlock|Benzinga|Red94)[^)]*\)/gi, '');
+  out = out.replace(/\s*[·•]\s*[a-z0-9.-]+\.[a-z]{2,}\s*/gi, ' ');
   out = out.replace(/\n{3,}/g, '\n\n').trim();
   return out;
 }

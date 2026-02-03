@@ -26,86 +26,71 @@ export interface NewsBriefContext {
   publishedDate?: string;
 }
 
-const STOCKS_GUIDE = `🩺 STOCKS — What I do
+const STOCKS_GUIDE = `📈 STOCKS — What I do
 
-Step-by-step:
-Search ticker + "earnings," "guidance," "valuation," "recent news."
-Example: PLTR earnings Q4 2025 or Palantir stock valuation
+Your sections for stocks:
+✅ **Earnings, Growth, Margin** — Latest earnings (EPS, revenue, margins). YoY growth rates. Profitability trends.
+🔮 **Guidance + Confidence** — Management guidance for next quarter/year. Analyst consensus. Confidence in outlook (raised/lowered guidance?).
+⚠️ **Risks (Valuation, Sentiment)** — P/E ratio, price-to-book, PEG. Analyst ratings (upside/downside). Market sentiment. Any red flags (debt, dilution, competition)?
+📉 **Market Reaction** — Stock price change on earnings. Analyst upgrades/downgrades. Institutional buying/selling.
 
-Check key data from trusted sources:
-- Yahoo Finance – revenue, earnings, profit margins, balance sheet
-- MarketWatch / Reuters / BusinessWire – latest earnings calls + management tone
-- Investor's Business Daily (IBD) or SimplyWall.st – valuation, analyst views
+Data sources:
+- Yahoo Finance – earnings reports, financial metrics, analyst ratings
+- SEC EDGAR – 10-Q/10-K filings for detailed financials
+- MarketWatch / Reuters – earnings analysis and management commentary
+- Bloomberg / FactSet – institutional flows and analyst consensus
 
-Look for red flags: debt levels, share dilution, adjusted vs GAAP earnings tricks
-Gauge market reaction: price moves vs expectations; analyst upgrades/downgrades
+CRITICAL: ALWAYS cite specific numbers (EPS, revenue growth %, margins). NO generic statements like "The company showed strong growth." State actual metrics with sources.`;
 
-Summarize using your checkup format:
-✅ Earnings, growth, margin
-🔮 Guidance + confidence
-⚠️ Risks (valuation, sentiment)
-📉 Market reaction`;
+const CRYPTO_GUIDE = `🔗 CRYPTO — What I do
 
-const CRYPTO_GUIDE = `🪙 CRYPTO — What I do
+Your sections for crypto:
+🧠 **Activity + Developer Signals** — Network activity (daily transactions, active addresses). GitHub commits and developer updates. Upcoming upgrades or partnerships.
+🧱 **Network Health & Narrative** — Transaction fees, block times, validator count. Is the network still relevant? Any security concerns or forks?
+🪙 **Supply + Market Metrics** — Circulating vs max supply. Unlock schedules (if any). Price momentum, volume, institutional flows.
+📉 **Risks + Adoption** — Regulatory threats, competition from other projects. Real usage metrics vs hype. Whale movements.
 
-Step-by-step:
-Search coin + "on-chain metrics," "developer activity," "narrative," "volume."
-Example: BTC active addresses Jan 2026 or Bitcoin developer activity
+Data sources:
+- CoinGecko / Messari – live prices, market data, fund flows
+- Glassnode – on-chain metrics (daily transactions, active addresses, whale wallets)
+- The Block – industry research and flows
+- GitHub – actual developer commits and activity
+- CryptoSlate – project updates and news
 
-Pull from trusted crypto sources:
-- CoinMarketCap / CoinGecko – price, volume, emissions, supply
-- Binance Research / CryptoSlate / Messari – dev trends, cycle narratives
-- BeInCrypto / Glassnode summaries – on-chain metrics
-
-Track ecosystem health:
-Are people using it? Building on it? Still talking about it?
-Is liquidity stable or drying up?
-
-Summarize with your checkup template:
-🧠 Activity + developer signals
-🧱 Network narrative + relevance
-🪙 Supply / unlocks
-📉 Market + liquidity`;
+CRITICAL: Include REAL on-chain data (daily transactions, active addresses, whale wallets). NO vague statements like "Bitcoin is decentralized." Always cite actual metrics with sources.`;
 
 const ETF_GUIDE = `📊 ETFs — What I do
 
-Step-by-step:
-Search ETF name or ticker + "holdings," "expense ratio," "performance."
-Example: ARKK holdings drift, QQQ expense ratio 2026
+Your sections for ETFs:
+✅ **Holdings & Theme** — What does this ETF actually own right now? Top 5 holdings + sector allocation. Has the composition changed?
+🔮 **Performance & Benchmark** — How is it performing vs its benchmark/peers? Is it lagging or leading?
+⚠️ **Costs & Flows** — Expense ratio, management fees, investor inflows/outflows. Are costs rising?
+📉 **Market & Risks** — Current price, YTD performance, fund-specific risks (theme decay, concentration).
 
-Use these key sources:
-- ETF.com – holdings breakdown, sector shifts
-- Morningstar – performance vs peers
-- Yahoo Finance – price history + top holdings
+Data sources:
+- ETF.com – detailed holdings and drift tracking
+- Morningstar – performance vs peers and category averages
+- Yahoo Finance – top holdings and sector breakdown
+- SEC filings – updated quarterly holdings
 
-Check for drift or theme decay:
-Has the ETF changed what it owns?
-Is the theme still valid (e.g. tech, AI, clean energy)?
+CRITICAL: Do NOT use generic statements like "ETFs provide diversified exposure." Instead, cite ACTUAL holdings, REAL percentages, and CURRENT performance numbers.`;
 
-Summarize with your ETF checkup format:
-🎯 Exposure still on track?
-💸 Costs creeping up?
-📉 Consistent underperformance?`;
+const COMMODITIES_GUIDE = `⛏️ COMMODITIES — What I do
 
-const COMMODITIES_GUIDE = `🪙 COMMODITIES — What I do
+Your sections for commodities:
+✅ **Supply News** — Mining production, output changes, new discoveries or shutdowns. OPEC decisions (for oil). Agricultural harvest reports (for crops).
+🔮 **Demand Outlook** — Growth in key markets (China, EM). Industrial demand trends. Seasonal demand patterns.
+⚠️ **Inventory & Macro** — Storage levels, strategic reserves, USD strength, real interest rates. Are inventories rising (bearish) or falling (bullish)?
+📉 **Price + Momentum** — Recent price moves, technical levels, institutional positioning. Geopolitical risks?
 
-Step-by-step:
-Search commodity name + "supply," "demand," "inventory," "macro."
-Example: Gold demand China 2026, Crude oil OPEC cuts Jan
+Data sources:
+- US EIA (Energy Info Admin) – oil, gas production and inventory
+- USDA – commodity supply/demand reports
+- Trading Economics / Investing.com – macro data (rates, USD, yields)
+- Reuters / Bloomberg – supply disruption news, OPEC announcements
+- LME / COMEX – inventory data and technical levels
 
-Get data from sources like:
-- Investing.com / Trading Economics – inventory levels, rates, inflation
-- Reuters / Bloomberg / OilPrice.com – supply disruptions, OPEC news
-- US EIA / World Bank reports – production trends, economic drivers
-
-Watch macro impact:
-Real rates? USD strength? Recession odds?
-
-Summarize with commodity checklist:
-🔄 Supply (new mines, production quotas)
-⚙️ Demand (China, EMs, industry health)
-📦 Inventories (bullish or bearish)
-📈 Macro pressure (inflation, rates)`;
+CRITICAL: Include REAL supply/demand data (production figures, inventory levels, seasonal trends). NO vague statements like "Demand is strong." Always cite actual numbers with sources.`;
 
 const ASSET_GUIDES: Record<AssetType, string> = {
   stock: STOCKS_GUIDE,
@@ -364,28 +349,29 @@ export async function generateHoldingCheckup(
   const searchQueries =
     assetType === 'stock'
       ? [
-          `${symbol} ${label} earnings ${currentMonth} ${currentYear}`,
-          `${label} stock price news ${currentMonth} ${currentYear}`,
-          `${symbol} guidance outlook latest`,
-          `${label} analyst rating valuation ${currentMonth}`,
+          `${symbol} ${label} earnings report Q4 2025 Q1 2026`,
+          `${label} stock price action news this week ${currentMonth}`,
+          `${symbol} earnings guidance analyst expectations 2026`,
+          `${label} valuation P/E ratio analyst rating latest`,
         ]
       : assetType === 'crypto'
         ? [
-            `${symbol} ${label} price news February 2026`,
-            `${label} blockchain activity metrics latest`,
-            `${symbol} developer activity commits ${currentMonth}`,
-            `${label} supply unlocks February 2026`,
+            `${symbol} ${label} price movement news this week ${currentYear}`,
+            `${label} network metrics on-chain activity latest`,
+            `${symbol} whale transactions investor sentiment ${currentMonth}`,
+            `${label} development roadmap updates 2026`,
           ]
         : assetType === 'etf'
           ? [
-              `${symbol} ETF holdings drift ${currentMonth} ${currentYear}`,
-              `${symbol} performance vs benchmark latest`,
-              `${symbol} expense ratio changes 2026`,
+              `${symbol} ETF top holdings allocation ${currentMonth} ${currentYear}`,
+              `${label} ETF inflows outflows ${currentMonth}`,
+              `${symbol} vs benchmark performance YTD 2026`,
+              `${label} ETF expense ratio fund flow trends latest`,
             ]
           : [
-              `${label} price ${currentMonth} ${currentYear}`,
-              `${label} supply demand fundamentals latest`,
-              `${label} inventory levels 2026`,
+              `${label} commodity price ${currentMonth} ${currentYear}`,
+              `${label} supply demand outlook this week`,
+              `${label} geopolitical demand factors ${currentMonth} 2026`,
             ];
 
   const searchHints = `DO THIS NOW: Run these specific web searches (not suggestions, these are your task):

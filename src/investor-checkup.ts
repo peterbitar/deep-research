@@ -135,12 +135,13 @@ What you must do:
    - Search for BOTH positive and negative news. If you find more negative news, report more negatives.
    - Example: If you find BTC regulatory threats from Reuters or Bloomberg, it MUST appear in Recent Developments
 
-2. **Output format (CRITICAL)**: NO EMOJIS. Use clear section headers with proper newlines:
-   - Start EACH section on a new line with **bold title**, e.g.: "\n\n**Earnings, Growth, Margin**\n"
-   - Under each header, write 1–2 sentences of REAL facts with citations.
-   - ALWAYS put section header on its own line, separated from content.
+2. **Output format (CRITICAL)**: NO EMOJIS. Format headers like this:
+   - ONE blank line BEFORE each header, ONE blank line AFTER, then content.
+   - Format: "\n\n**Header Name**\n\nContent text here..."
+   - NO extra spacing - just one blank line before and one after the header.
+   - Keep headers on own line, content immediately after the blank line.
    - ALWAYS include these sections:
-     - **Recent Developments** (Latest positive and negative news/changes, bullet points)
+     - **Recent Developments** (Latest positive and negative news/changes)
      - **General Sentiment** (Bullish, Bearish, or Neutral - with 1 sentence explaining why)
    - NEVER use emojis. NEVER run section headers together with content text.
 

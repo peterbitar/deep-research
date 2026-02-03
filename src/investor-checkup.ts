@@ -151,8 +151,10 @@ What you must do:
 5. **ACTIVELY SEARCH FOR NEGATIVE NEWS** (CRITICAL):
    - Do NOT just report what you find. ACTIVELY search for downsides, risks, and criticism.
    - Search for: "regulatory crackdown," "underperformance," "competition threat," "warning," "downgrade," "crash," "breach"
-   - If you find negative news, REPORT IT clearly. Do not downplay it or bury it in text.
-   - Example: If BTC faces regulatory threats, it should appear in Recent Developments and affect General Sentiment.
+   - Prioritize Reuters, Bloomberg, CNBC, WSJ, MarketWatch, SEC filings in your searches.
+   - If you find negative news from credible financial sources, REPORT IT clearly. Do not downplay it or bury it in text.
+   - Example: If BTC faces regulatory threats from Reuters/Bloomberg, it MUST appear in Recent Developments and affect sentiment.
+   - Do NOT use CryptoNews, blogs, or unverified sources as primary facts. Use them only for context if corroborated by tier 1 sources.
 
 6. **NO GENERIC FILLER**: Never write:
    - "Bitcoin's price fluctuations are influenced by various factors..."
@@ -160,8 +162,10 @@ What you must do:
    - "No significant changes..." (if you can't find info, say "Limited recent reporting on...")
    Do only state REAL facts from your searches. If a section has no real data, say "Limited current reporting" and move on.
 
-7. **Accuracy & Citations**: Only state facts you actually found in TIER 1 sources. Do not guess or invent data.
-   Place links inline like: "text ([Source Name](https://url))" in markdown format.
+7. **Accuracy & Citations**: Only state facts you actually found. Prioritize citing TIER 1 sources (Reuters, Bloomberg, CNBC, WSJ, MarketWatch, SEC, official company sources).
+   - When citing a fact, use the BEST source available (tier 1 preferred, credible financial sources acceptable).
+   - If you found the same fact in both a tier 1 source and a secondary source, cite the tier 1 source.
+   - Place links inline like: "text ([Source Name](https://url))" in markdown format.
 
 8. **Recent Developments** (CRITICAL):
    - Search for news from THIS WEEK, THIS MONTH, and FEBRUARY 2026 only

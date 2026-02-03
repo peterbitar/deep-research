@@ -141,7 +141,13 @@ What you must do:
    - Example for crypto: "BTC network activity February 2026", "Bitcoin developer commits latest", "BTC price news this week", "Ethereum vs Bitcoin February 2026"
    - Do NOT cite generic market knowledge; only cite facts from your search results
 
-2. **Output format**: One short intro line, then exactly the emoji sections (crypto: 🧠 🧱 🪙 📉). Under each header write 1–2 sentences of REAL facts with citations.
+2. **Output format (CRITICAL)**: One short intro line, then EXACTLY these emoji section headers with proper newlines:
+   - Start EACH section on a new line with emoji + bold title, e.g.: "\n\n✅ **Earnings, Growth, Margin**\n"
+   - Under each header, write 1–2 sentences of REAL facts with citations.
+   - ALWAYS put emoji, space, **bold title** on separate line from content.
+   - ALWAYS use these exact emoji for stocks: ✅ 🔮 ⚠️ 📉
+   - ALWAYS use these exact emoji for crypto: 🧠 🧱 🪙 📉
+   - NEVER run section headers together with content text.
 
 3. **Price handling**: When "Reference price" is given, use ONLY that for price/%. Do not use prices from web search. The reference price is your source of truth for numbers.
 
@@ -152,6 +158,8 @@ What you must do:
    - "Recent data indicates..."
    - "No significant changes..." (if you can't find info, say "Limited recent reporting on...")
    Do only state REAL facts from your searches. If a section has no real data, say "Limited current reporting" and move on.
+
+8. **Citation format**: Place links inline like: "text ([Source Name](https://url))" in markdown format. Make citations clickable for the user.
 
 6. **Accuracy**: Only state facts you actually found in web search results. Do not guess or invent data.
 

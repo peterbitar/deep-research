@@ -16,6 +16,7 @@ import { getPipelineIterations, getPipelineStageData } from './db/pipeline-stage
 import { fetchUserHoldings } from './fetch-holdings';
 import { parseReportToCards } from './report-parser';
 import { runChatWithTools } from './chat-tools';
+import { generateHoldingCheckup } from './investor-checkup';
 
 export { parseReportToCards };
 
@@ -552,6 +553,69 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
     console.error('Error retrieving report cards:', error);
     return res.status(500).json({
       error: 'An error occurred while retrieving the report cards',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// POST /api/holding-checkup — friendly conversational investor checkup for a holding (stock, crypto, ETF, commodity). Uses news brief when available.
+app.post('/api/holding-checkup', async (req: Request, res: Response) => {
+  try {
+    const { symbol, type, name } = req.body;
+    const sym = symbol != null ? String(symbol).trim() : '';
+
+    if (!sym) {
+      return res.status(400).json({ error: 'symbol is required (string)' });
+    }
+
+    let newsBriefContext: { opening: string; cards: Array<{ title: string; content: string }>; publishedDate?: string } | undefined;
+    if (pool) {
+      try {
+        const dbData = await getReportCards();
+        if (dbData) {
+          const symUpper = sym.toUpperCase();
+          const matchingCards = dbData.cards.filter((card) => {
+            const ticker = card.ticker?.toUpperCase().trim();
+            if (ticker === symUpper) return true;
+            const title = (card.title ?? '').toUpperCase();
+            const content = (card.content ?? '').toUpperCase();
+            return title.includes(symUpper) || content.includes(symUpper);
+          });
+          if (matchingCards.length > 0 || dbData.opening) {
+            newsBriefContext = {
+              opening: dbData.opening,
+              cards: matchingCards.map((c) => ({ title: c.title, content: c.content })),
+              publishedDate: dbData.publishedDate,
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('Holding checkup: could not load news brief context', e);
+      }
+    }
+
+    const { checkup, assetType, citationUrls, webSearchUsed } = await generateHoldingCheckup(
+      {
+        symbol: sym,
+        type: type != null ? String(type) : undefined,
+        name: name != null ? String(name) : undefined,
+      },
+      { newsBriefContext }
+    );
+
+    return res.json({
+      success: true,
+      checkup,
+      assetType,
+      symbol: sym,
+      ...(newsBriefContext && { newsBriefUsed: true }),
+      ...(webSearchUsed !== undefined && { webSearchUsed }),
+      ...(citationUrls && citationUrls.length > 0 && { citationUrls }),
+    });
+  } catch (error: unknown) {
+    console.error('Error in holding-checkup API:', error);
+    return res.status(500).json({
+      error: 'An error occurred generating the checkup',
       message: error instanceof Error ? error.message : String(error),
     });
   }
@@ -1223,7 +1287,7 @@ app.get('/api/cost-logs/summary', async (req: Request, res: Response) => {
 
 // Start the server
 app.listen(port, () => {
-  console.log(`Deep Research API running on port ${port}`);
+  console.log(`🚀 Deep Research API running on port ${port}`);
 });
 
 export default app;

@@ -107,6 +107,15 @@ const ASSET_GUIDES: Record<AssetType, string> = {
   commodity: COMMODITIES_GUIDE,
 };
 
+/** Commodity-backed ETFs: use commodities news (silver, gold, oil, etc.) not generic ETF news. */
+const COMMODITY_BACKED_ETFS = new Set([
+  'SLV', 'GLD', 'GLDM', 'IAUM', 'SLVP',  // silver, gold
+  'USO', 'UNG', 'BNO', 'USL',             // oil, natural gas
+  'PALL', 'PPLT', 'CPER', 'DBA', 'DBC',  // palladium, platinum, copper, ag, broad commodities
+  'WEAT', 'CORN', 'SOYB', 'CANE', 'JO',  // grains/softs
+  'PDBC', 'COMT', 'GSG', 'USCI',         // broad commodity ETFs
+]);
+
 /** Map user-provided type (or symbol hints) to AssetType. */
 export function normalizeAssetType(symbol: string, type?: string): AssetType {
   const t = (type || '').toLowerCase().trim();
@@ -115,10 +124,11 @@ export function normalizeAssetType(symbol: string, type?: string): AssetType {
   if (t.includes('crypto') || t === 'cryptocurrency' || /^(BTC|ETH|SOL|AVAX|DOGE|XRP|ADA|DOT|MATIC|LINK|UNI|ATOM|LTC|BCH|NEAR|ARB|OP|SUI|APT|INJ|TIA|SEI|PEPE|WIF|BONK|SHIB)$/i.test(sym)) {
     return 'crypto';
   }
-  if (t.includes('etf') || t === 'etf') return 'etf';
   if (t.includes('commodity') || t.includes('commodities') || /^(GC|SI|CL|NG|HG|PL|PA|ZC|ZW|COPPER|GOLD|SILVER|OIL|GAS)$/i.test(sym)) {
     return 'commodity';
   }
+  if (COMMODITY_BACKED_ETFS.has(sym)) return 'commodity';
+  if (t.includes('etf') || t === 'etf') return 'etf';
   return 'stock';
 }
 
@@ -165,21 +175,20 @@ What you must do:
 
 7. **Accuracy**: Only state facts you actually found. Prioritize TIER 1 sources in your research (Reuters, Bloomberg, CNBC, WSJ, MarketWatch, SEC). Do not output source names or links in the checkup text.
 
-8. **Recent Developments** (CRITICAL):
-   - Search for news from THIS WEEK, THIS MONTH, and current year ONLY. NO old data.
-   - **Record highs / all-time highs (CRITICAL)**: Report ONLY the MOST RECENT record high. Search for the latest ATH (e.g. "silver all-time high 2026" or "SLV record high February"). If silver hit a new high in February 2026 (e.g. $105), you MUST report that number and date—never report an older record (e.g. December's $75) as if it is the all-time high. Outdated ATH numbers mislead the reader. When in doubt, search " [asset] all-time high [current month] [current year]" and use that result.
+8. **Recent Developments** (CRITICAL) — NO OUTDATED NEWS:
+   - Search ONLY for THIS WEEK, THIS MONTH, and current year. Do NOT surface old news as if it is current.
+   - **All-time high / record high (CRITICAL)**: You MUST run a search for the LATEST record high (e.g. "[asset] all-time high [current month] [current year]"). Report ONLY that most recent ATH and its date. NEVER report a past month's high (e.g. December 2025) as the all-time high when the current date is later—readers will assume it's current. If the latest ATH you find is from an earlier month, either say "As of [that date], the record was $X; check live data for any newer high" or find a newer figure. Do not default to December or any old month.
    - List 2-3 POSITIVE recent developments (e.g., earnings beat, partnership, upgrade, good news, new records)
    - List 2-3 NEGATIVE recent developments (e.g., earnings miss, downgrade, regulatory issue, security breach, bad news)
    - If there are MORE negative developments than positive, list MORE negatives. Do NOT fake positive news to balance it.
    - Format: "Positive: [dev 1], [dev 2]. Negative: [dev 1], [dev 2], [dev 3]." (adapt based on what you find)
 
-9. **General Sentiment** (CRITICAL):
-   - After all facts, decide: Is the overall market sentiment BULLISH, BEARISH, or NEUTRAL right now?
-   - Write ONE sentence explaining the sentiment based on REAL facts from what you found.
-   - If negative developments outweigh positive, sentiment should reflect that (e.g., "Bearish: Regulatory threats and hacks overshadow network growth.")
-   - Do NOT default to optimism. Let the facts dictate the sentiment.
+9. **General Sentiment** (CRITICAL) — Explain the feeling, do not compare to stocks:
+   - State clearly what the feeling is about this asset right now: BULLISH, BEARISH, or NEUTRAL, and why in one sentence.
+   - Do NOT write "commodities are not the same as stocks" or "silver/ gold/ X is different from equities." Just explain the current sentiment (e.g. "Cautious: volatility and Goldman's warning dominate." or "Bullish: record highs and strong demand.").
+   - If negative developments outweigh positive, sentiment should reflect that. Do NOT default to optimism. Let the facts dictate the sentiment.
 
-10. **Tone**: Direct, factual, and honest. Focus on REAL recent news, not generic statements.`;
+10. **Tone**: Direct, factual, and honest. Focus on REAL recent news, not generic statements. No outdated news; no "same as stocks" disclaimers.`;
 
 /** Remove raw search snippets and source citations from checkup text. */
 function sanitizeCheckupOutput(text: string): string {
@@ -204,17 +213,13 @@ function formatReferencePrice(p: PriceData): string {
     p.currentPrice >= 1
       ? p.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : p.currentPrice.toFixed(4);
-  const pct7 = Math.abs(p.changePercent).toFixed(1);
-  const dir7 = pct7 === '0.0' ? 'flat' : (p.changePercent >= 0 ? 'up' : 'down');
-  const sevenDay = `${dir7} ${pct7 === '0.0' ? '' : pct7 + '% '}(7d)`.replace('  ', ' ');
-
   let oneDay = '';
   if (p.changePercent1d != null) {
     const pct1d = Math.abs(p.changePercent1d).toFixed(1);
     const dir1d = pct1d === '0.0' ? 'flat' : (p.changePercent1d >= 0 ? 'up' : 'down');
     oneDay = `, ${dir1d} ${pct1d === '0.0' ? '' : pct1d + '% '}(1d)`.replace('  ', ' ');
   }
-  return `${p.symbol}: $${priceStr}, ${sevenDay}${oneDay}`;
+  return `${p.symbol}: $${priceStr}${oneDay}`;
 }
 
 /** Build a single correct sentence for the Market section from reference price (so we never show wrong numbers). */
@@ -223,17 +228,13 @@ function marketSentenceFromPrice(p: PriceData): string {
     p.currentPrice >= 1
       ? p.currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : p.currentPrice.toFixed(4);
-  const pct7 = Math.abs(p.changePercent).toFixed(1);
-  const dir7 = pct7 === '0.0' ? 'flat' : (p.changePercent >= 0 ? 'up' : 'down');
-  const weekPart = pct7 === '0.0' ? 'flat over the past week' : `${dir7} ${pct7}% over the past week`;
-
   let oneDay = '';
   if (p.changePercent1d != null) {
     const pct1d = Math.abs(p.changePercent1d).toFixed(1);
     const dir1d = pct1d === '0.0' ? 'flat' : (p.changePercent1d >= 0 ? 'up' : 'down');
-    oneDay = pct1d === '0.0' ? ` and flat in the last 24 hours` : ` and ${dir1d} ${pct1d}% in the last 24 hours`;
+    oneDay = pct1d === '0.0' ? ' and flat in the last 24 hours' : ` and ${dir1d} ${pct1d}% in the last 24 hours`;
   }
-  return `Trading at $${priceStr}, ${weekPart}${oneDay}.`;
+  return `Trading at $${priceStr}${oneDay}.`;
 }
 
 const WEB_SEARCH_TOOL = { type: 'web_search_preview' as const, search_context_size: 'high' as const };
@@ -411,10 +412,11 @@ export async function generateHoldingCheckup(
               `${symbol} performance vs benchmark 2026`,
             ]
           : [
-              `${label} price record high all time 2026 January February`,
-              `${label} commodity latest news this week 2026`,
-              `${label} recent price action February 2026 trading`,
-              `${label} supply demand news ${currentMonth} 2026`,
+              `${label} all-time high record high ${currentMonth} ${currentYear}`,
+              `${label} price record high ${currentMonth} ${currentYear} latest`,
+              `${label} commodity latest news this week ${currentYear}`,
+              `${label} recent price action ${currentMonth} ${currentYear} trading`,
+              `${label} supply demand news ${currentMonth} ${currentYear}`,
             ];
 
   const searchHints = `DO THIS NOW: Run these specific web searches (not suggestions, these are your task):
@@ -433,15 +435,15 @@ ${
 
 DO NOT USE: etf.com, investing.com, stockanalysis.com, CoinGecko, Messari, crypto forums, YouTube, blogs, or unverified sources.
 
-After each search, cite what you find. Fill each emoji section with facts from YOUR searches, not generic knowledge.`;
+Fill each section with facts from YOUR searches, not generic knowledge. Do not include source names or citations in the output.`;
 
   let prompt = `Today: ${dateLabel} (${currentMonth} ${currentYear}). Give a short checkup for **${label}** (${symbol}) using the guide below.
 
 IMPORTANT — Do NOT add intro text like "As of Feb 3, SLV is trading at $XX". Jump straight to the first section header. The price will be added separately at the end.
 
-IMPORTANT — Recency: Search for news from ${currentMonth} ${currentYear} or "this week". Your search queries must include "${currentMonth} ${currentYear}" or "this week" or "latest" so you get recent articles, not old ones. Prefer the newest results for each section. If you only find older data (e.g. 2025), label it (e.g. "From 2025 data:" or "As of late 2025:") so the user knows it's not current.
+IMPORTANT — Recency: Search for news from ${currentMonth} ${currentYear} or "this week" only. Do NOT give outdated news: if the only ATH you find is from December 2025, do not present it as the all-time high without saying it was December 2025 and that the reader should check for a newer high. Run the "[asset] all-time high ${currentMonth} ${currentYear}" query and use the most recent result. Prefer the newest results for every section.
 
-Use web search. Fill each section with what you find; cite sources.`;
+Use web search. Fill each section with what you find. Do not output source names or citations.`;
 
   if (priceData) {
     const priceLine = formatReferencePrice(priceData);
@@ -450,7 +452,7 @@ Use web search. Fill each section with what you find; cite sources.`;
 Reference price (use this in the 📉 Market + liquidity section — write 1–2 sentences with this price and these % moves):
 ${priceLine}
 
-The 📉 section must include the price and 7d/1d % from the line above. Do not say "No recent data" for 📉 when you have this.`;
+The 📉 section must include the price (and 1d % from the line above if present). Do not say "No recent data" for 📉 when you have this.`;
   }
 
   prompt += `

@@ -218,15 +218,17 @@ export async function runChatWithTools(
   })();
 
   // System instructions for tool usage
-  const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant with access to real-time price tools. Keep replies SHORT: 1-3 sentences. No filler, no long intros.
+  const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant with access to real-time price tools.
 
 IMPORTANT TOOL USAGE:
-- When the user asks for a current/real-time price of ANY stock, crypto, commodity, or forex, ALWAYS call the appropriate price tool FIRST.
-- getCryptoPrice: For BTC, ETH, SOL, DOGE, XRP
-- getStockPrice: For stocks like AAPL, MSFT, NVDA, TSLA, SPY, etc.
-- getCommodityForexPrice: For GOLD, SILVER, OIL, USD/JPY, EUR/USD
-- Do NOT answer price questions from memory or the knowledge base - use the tools to get live data.
-- After getting the price, give the number and one short sentence of context.`;
+- Call price tools ONLY when user explicitly asks for price/status: "What is X price?", "How is X doing?", "X current price?", "$X news?", etc.
+- Do NOT call price tools for news/story requests: "What happened?", "What's the story?", "Just the story", "Latest on X?", "What is happening?"
+- getCryptoPrice: For BTC, ETH, SOL, DOGE, XRP (when price is requested)
+- getStockPrice: For stocks like AAPL, MSFT, NVDA, TSLA, SPY (when price is requested)
+- getCommodityForexPrice: For GOLD, SILVER, OIL, USD/JPY, EUR/USD (when price is requested)
+- For news/story questions: Use the knowledge base and news context provided. Do NOT force a price tool call.
+- For explicit price requests: Use the tool to get live data. Then give the number + 1-2 sentences of context.
+- For news/story responses: Focus on the narrative and why it matters. Keep price secondary unless it directly explains the story.`;
 
   const initialInput: OpenAI.Responses.ResponseInputItem[] = [
     { type: 'message', role: 'user', content: prompt },

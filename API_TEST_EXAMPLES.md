@@ -26,6 +26,24 @@ curl -X POST https://YOUR_RAILWAY_URL/api/chat \
 curl https://YOUR_RAILWAY_URL/api/report/latest | jq
 ```
 
+### 5. Test Holding Checkup (investor checkup for a holding)
+```bash
+# Stock (default if type omitted)
+curl -X POST https://YOUR_RAILWAY_URL/api/holding-checkup \
+  -H "Content-Type: application/json" \
+  -d '{"symbol": "AAPL", "name": "Apple"}' | jq
+
+# Crypto (type or symbol like BTC/ETH)
+curl -X POST https://YOUR_RAILWAY_URL/api/holding-checkup \
+  -H "Content-Type: application/json" \
+  -d '{"symbol": "BTC", "type": "crypto"}' | jq
+
+# ETF
+curl -X POST https://YOUR_RAILWAY_URL/api/holding-checkup \
+  -H "Content-Type: application/json" \
+  -d '{"symbol": "SPY", "type": "etf", "name": "SPDR S&P 500"}' | jq
+```
+
 ## Full Test with Script
 
 ```bash
@@ -63,6 +81,18 @@ chmod +x test-api.sh
     "sessionAge": 1000,
     "messageCount": 2
   }
+}
+```
+
+### Holding Checkup (POST /api/holding-checkup)
+Request body: `{ "symbol": "AAPL", "type": "stock" }` (type optional; inferred from symbol if omitted).  
+Response:
+```json
+{
+  "success": true,
+  "checkup": "Here's a quick health check for Apple...",
+  "assetType": "stock",
+  "symbol": "AAPL"
 }
 ```
 

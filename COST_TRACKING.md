@@ -18,6 +18,7 @@ All OpenAI (and Fireworks) token usage, plus Firecrawl credits, are saved in the
 - **Vercel AI SDK calls** – All `generateText` and `generateObject` calls go through [src/ai/generate-with-cost-log.ts](src/ai/generate-with-cost-log.ts), which logs after each call. Used by: deep-research, holdings-queries, feedback, content-scoring, pipeline-logger, wealthy-rabbit-report, and the API (chat fallback, podcast).
 - **OpenAI Responses API (chat)** – [src/chat-tools.ts](src/chat-tools.ts) logs usage after each `client.responses.create()` call (including each step in multi-step tool runs).
 - **OpenAI Responses API (news brief)** – [src/news-brief-openai.ts](src/news-brief-openai.ts) logs usage after each `client.responses.create()` in single-pass and full workflow.
+- **Holding checkup** – [src/investor-checkup.ts](src/investor-checkup.ts) logs as operation `holding-checkup`: (1) when using the Responses API with web search (`runCheckupWithWebSearch`), and (2) when falling back to `generateText` (via [src/ai/generate-with-cost-log.ts](src/ai/generate-with-cost-log.ts) with `operation: 'holding-checkup'`). View with `GET /api/cost-logs?operation=holding-checkup` or in the summary `byOperation`.
 
 ## How to view and export
 
@@ -46,7 +47,7 @@ Table: `cost_logs` (see [src/db/schema.sql](src/db/schema.sql)).
 
 Columns: `id`, `service`, `operation`, `model`, `input_tokens`, `output_tokens`, `count`, `cost_per_unit`, `total_cost`, `usage_credits`, `run_id`, `metadata`, `created_at`.
 
-- For LLM rows: `service` is `openai` or `fireworks`, `operation` describes the feature (e.g. `generateObject`, `chat`, `newsBriefSingle`), `input_tokens`/`output_tokens` and `total_cost` are set, `usage_credits` is null.
+- For LLM rows: `service` is `openai` or `fireworks`, `operation` describes the feature (e.g. `generateObject`, `chat`, `newsBriefSingle`, `holding-checkup`), `input_tokens`/`output_tokens` and `total_cost` are set, `usage_credits` is null.
 - For Firecrawl rows: `service` is `firecrawl`, `usage_credits` is set, token columns are null.
 
 ## Cost control

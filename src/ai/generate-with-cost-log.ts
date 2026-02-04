@@ -48,13 +48,15 @@ export async function generateObject<T extends Record<string, unknown>>(
   return result;
 }
 
-export async function generateText(params: GenerateTextParams & { runId?: string }) {
-  const { runId, ...rest } = params;
+export async function generateText(
+  params: GenerateTextParams & { runId?: string; operation?: string }
+) {
+  const { runId, operation, ...rest } = params;
   const maxTokens = rest.maxTokens ?? getMaxOutputTokens();
   const result = await aiGenerateText({ ...rest, ...(maxTokens != null && { maxTokens }) } as GenerateTextParams);
   const usage = result.usage;
   if (usage && (usage.promptTokens > 0 || usage.completionTokens > 0)) {
-    logUsage(getModelId(params), usage, 'generateText', runId);
+    logUsage(getModelId(params), usage, operation ?? 'generateText', runId);
   }
   return result;
 }

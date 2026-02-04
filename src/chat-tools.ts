@@ -228,7 +228,10 @@ TOOL USAGE:
 QUESTION TYPES:
 - "What is X price?" → Use price tool, lead with price, add 1-2 sentences context
 - "Tell me the story on X" / "Latest on X" / "What happened?" → Lead with NEWS/NARRATIVE, not price
-- "Other than this?" → Search for DIFFERENT/NEW information, not rephrased old info
+- "Other than this?" / "What else?" → Search for COMPLETELY DIFFERENT info:
+  * Different news categories (not price again)
+  * Product news, partnerships, earnings, regulatory announcements
+  * NOT same story reworded - genuinely new information
 
 CRITICAL RULES:
 - Never say "knowledge base doesn't have..." without searching first

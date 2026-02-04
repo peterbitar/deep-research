@@ -851,12 +851,14 @@ Use research data and news findings to answer accurately. For news/story questio
 
 **WEB SEARCH (IMPORTANT):**
 - If the knowledge base lacks info → DO A WEB SEARCH
-- If user asks "other than this?", "what else?", "any other news?" → Search for DIFFERENT/NEW developments, not same info
-- Search for recent news, announcements, latest updates
+- If user asks "other than this?", "what else?", "any other news?" → Search for COMPLETELY DIFFERENT information
+  - Find new announcements, product launches, partnerships, earnings, analyst notes, regulatory news
+  - NOT price movements or market sentiment (you already covered that)
+  - NOT rewordings of previous info
+- Search for recent news within last 48 hours that differs from what you already said
 - AFTER SEARCHING: Summarize findings in clean prose (no markdown, no bullet points, no links)
-- Convert raw search results into 2-3 sentences of narrative
 - Always prefer web search over admitting gaps
-- For follow-ups: Find genuinely NEW information/angles, not rephrased old info
+- CRITICAL: If your new response covers the same topic/angle as before, search again with different keywords
 
 **TOOLS (use when appropriate):**
 - getCryptoPrice / getStockPrice / getCommodityForexPrice: Only call when user explicitly asks for price or current status. Skip if discussing news/developments unless price directly explains the story.

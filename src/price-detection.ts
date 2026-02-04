@@ -100,7 +100,7 @@ export function getYahooSymbol(symbol: string): string {
   return mapping[s] ?? s;
 }
 
-const YAHOO_FETCH_TIMEOUT_MS = 25_000; // 25s for slow egress / datacenter (e.g. Railway)
+const YAHOO_FETCH_TIMEOUT_MS = 50_000; // 50s for slow egress / datacenter (e.g. Railway)
 
 /**
  * Fetch enriched stock price data from Finnhub (quote + news + metrics + filings + candles)
@@ -309,7 +309,7 @@ async function fetchPriceFromAlphaVantage(symbol: string): Promise<PriceData | n
   };
 }
 
-const FREECRYPTOAPI_FETCH_TIMEOUT_MS = 15_000;
+const FREECRYPTOAPI_FETCH_TIMEOUT_MS = 30_000; // Increased for network latency
 
 function getFreeCryptoApiKey(): string | undefined {
   const raw =
@@ -466,7 +466,7 @@ async function fetchPriceOnce(symbol: string): Promise<PriceData | null> {
 
 /**
  * Get price data for a holding using Yahoo Finance API.
- * Retries once on timeout/network; 20s timeout per attempt for containers/proxies.
+ * Retries once on timeout/network; 50s timeout per attempt for containers/proxies.
  */
 export async function getPriceData(symbol: string): Promise<PriceData | null> {
   try {

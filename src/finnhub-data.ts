@@ -6,7 +6,7 @@
 
 import { fetchSECFilingsByTicker } from './free-financial-apis';
 
-const FINNHUB_FETCH_TIMEOUT_MS = 15_000;
+const FINNHUB_FETCH_TIMEOUT_MS = 30_000; // Increased for network latency
 const BASE_URL = 'https://finnhub.io/api/v1';
 
 // ============== Interfaces ==============

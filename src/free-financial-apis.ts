@@ -3,8 +3,8 @@
  * Fallback sources for price data and SEC filings when Finnhub rate-limited
  */
 
-const ALPHA_VANTAGE_TIMEOUT_MS = 15_000;
-const SEC_EDGAR_TIMEOUT_MS = 10_000;
+const ALPHA_VANTAGE_TIMEOUT_MS = 30_000; // Increased for network latency
+const SEC_EDGAR_TIMEOUT_MS = 20_000; // Increased for network latency
 
 // ============== Interfaces ==============
 

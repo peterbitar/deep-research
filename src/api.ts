@@ -17,6 +17,7 @@ import { fetchUserHoldings } from './fetch-holdings';
 import { parseReportToCards } from './report-parser';
 import { runChatWithTools } from './chat-tools';
 import { generateHoldingCheckup } from './investor-checkup';
+import { getHybridNewsContext } from './chat-news-context';
 
 export { parseReportToCards };
 
@@ -863,8 +864,25 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       }
     }
 
-    // Load knowledge base
-    const knowledgeBase = await loadKnowledgeBase();
+    // Initialize session metadata if not exists
+    if (!session.metadata) {
+      session.metadata = {};
+    }
+
+    // Load hybrid news context
+    const { knowledgeBaseText: newsContext, updatedMetadata } =
+      await getHybridNewsContext(message, session.metadata);
+
+    // Update session metadata with fresh news cache
+    session.metadata = updatedMetadata;
+
+    // Load base knowledge base (existing reports)
+    const baseKnowledgeBase = await loadKnowledgeBase();
+
+    // Merge: base knowledge + hybrid news context
+    const knowledgeBase = newsContext
+      ? `${baseKnowledgeBase}\n\n${newsContext}`
+      : baseKnowledgeBase;
 
     // Build conversation context (last 20 messages)
     const recentMessages = session.messages.slice(-20);

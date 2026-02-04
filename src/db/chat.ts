@@ -12,6 +12,20 @@ export interface ChatSession {
   messages: ChatMessage[];
   createdAt: number;
   lastAccessed: number;
+  metadata?: {
+    // Cached news brief context
+    newsBriefContext?: {
+      runId: string;
+      loadedAt: number;
+      tickers: string[];
+    };
+    // Fresh news cache (per ticker, 1-hour TTL)
+    freshNewsCache?: Map<string, {
+      learnings: string[];
+      urls: string[];
+      fetchedAt: number;
+    }>;
+  };
 }
 
 /**

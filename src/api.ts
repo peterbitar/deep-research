@@ -743,6 +743,26 @@ function cleanupOldSessions() {
 }
 
 // Helper to load knowledge base from latest research
+/**
+ * Clean markdown formatting from text (removes links, formatting, etc.)
+ * Converts [text](url) to just text, removes **bold**, etc.
+ */
+function cleanMarkdownFormatting(text: string): string {
+  // Remove markdown links: [text](url) → text
+  text = text.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+
+  // Remove markdown bold: **text** → text
+  text = text.replace(/\*\*([^\*]+)\*\*/g, '$1');
+
+  // Remove markdown italic: *text* → text
+  text = text.replace(/\*([^\*]+)\*/g, '$1');
+
+  // Remove markdown code: `text` → text
+  text = text.replace(/`([^`]+)`/g, '$1');
+
+  return text;
+}
+
 async function loadKnowledgeBase(): Promise<string> {
   // Try database first
   if (pool) {
@@ -959,6 +979,10 @@ Assistant:`,
       });
       text = result.text;
     }
+
+    // Clean markdown formatting from response
+    text = cleanMarkdownFormatting(text);
+
     // Save messages to session
     session.messages.push({
       role: 'user',

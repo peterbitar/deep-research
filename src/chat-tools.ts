@@ -33,13 +33,13 @@ const CHAT_FUNCTION_TOOLS: OpenAI.Responses.FunctionTool[] = [
     name: 'getStockPrice',
     strict: false,
     description:
-      'Get real-time price of stocks and ETFs. Use when user asks: "What\'s the price of Tesla?", "How\'s the S&P 500 today?", "AAPL stock price?", "NVDA price?".',
+      'Get real-time price of stocks and ETFs. Use for: individual stocks (AAPL, TSLA, NVDA), and for ETFs including gold/silver/commodity ETFs: GLD, SLV, IAU, SPY, QQQ. When user asks about "gold" or "gold ETF" use symbol GLD; "silver" or "silver ETF" use SLV. Do NOT use getCommodityForexPrice for GLD or SLV.',
     parameters: {
       type: 'object',
       properties: {
         symbol: {
           type: 'string',
-          description: 'Ticker symbol, e.g. AAPL, TSLA, NVDA, SPY',
+          description: 'Ticker symbol, e.g. AAPL, TSLA, NVDA, SPY, GLD, SLV',
         },
       },
       required: ['symbol'],
@@ -50,14 +50,14 @@ const CHAT_FUNCTION_TOOLS: OpenAI.Responses.FunctionTool[] = [
     name: 'getCommodityForexPrice',
     strict: false,
     description:
-      'Get real-time price of commodities and forex. Use when user asks: "Gold price right now?", "Crude oil outlook?", "USD/JPY?", "Silver price?". Supports gold, silver, oil, natural gas, DXY, USD/JPY, EUR/USD.',
+      'Get real-time price of spot commodities and forex only. Use for: spot gold (GOLD), spot silver (SILVER), oil (OIL, WTI), natural gas (NG), DXY, USD/JPY, EUR/USD. Do NOT use for ETF tickers: GLD, SLV, IAU are ETFs — use getStockPrice for those.',
     parameters: {
       type: 'object',
       properties: {
         symbol: {
           type: 'string',
           description:
-            'Symbol: GOLD, SILVER, OIL, WTI, BRENT, NG, DXY, USD/JPY, EUR/USD',
+            'Symbol: GOLD, SILVER, OIL, WTI, BRENT, NG, DXY, USD/JPY, EUR/USD (not GLD/SLV)',
         },
       },
       required: ['symbol'],

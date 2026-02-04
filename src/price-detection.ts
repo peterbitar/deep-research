@@ -13,6 +13,11 @@ import {
 
 const CRYPTO_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'DOGE', 'XRP']);
 
+/** ETFs that Yahoo handles well; try Yahoo first to avoid Finnhub rate limits. */
+const PREFER_YAHOO_ETFS = new Set([
+  'GLD', 'SLV', 'IAU', 'SPY', 'QQQ', 'VOO', 'IWM', 'TLT', 'GLDM', 'SPXL',
+]);
+
 export type PriceData = {
   symbol: string;
   currentPrice: number;
@@ -533,13 +538,17 @@ export async function getPriceDataForHolding(
     if (cryptoData) return cryptoData;
   }
 
-  // For stocks/ETFs, try Finnhub enriched first (primary for US tickers)
+  // For well-known ETFs, try Yahoo first to avoid Finnhub rate limits (429)
+  if (PREFER_YAHOO_ETFS.has(normalized)) {
+    const yahooData = await getPriceData(yahooSymbol);
+    if (yahooData) return { ...yahooData, symbol: normalized };
+  }
+
+  // For other stocks/ETFs, try Finnhub enriched first (primary for US tickers)
   if (isUnmappedUsTicker(yahooSymbol, normalized)) {
-    // Try enriched Finnhub (has news, filings, metrics, financials)
     const enrichedData = await fetchEnrichedPriceFromFinnhub(normalized);
     if (enrichedData) return enrichedData;
 
-    // Fallback to Alpha Vantage (better 7-day pricing than Yahoo, free tier)
     const alphaVantageData = await fetchPriceFromAlphaVantage(normalized);
     if (alphaVantageData) return alphaVantageData;
   }

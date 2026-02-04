@@ -284,9 +284,9 @@ export async function fetchFinnhubCandle(
 // ============== Composite Functions ==============
 
 /**
- * Fetch all available Finnhub data for a stock in parallel
- * Falls back to SEC EDGAR for filings if Finnhub is rate-limited
- * Returns null values gracefully if endpoints fail
+ * Fetch all available Finnhub data for a stock.
+ * Fetches quote first; if rate-limited (429) or quote fails, returns null immediately
+ * to avoid hammering the API with more requests.
  */
 export async function getAllFinnhubDataForStock(symbol: string): Promise<EnrichedStockData | null> {
   const apiKey = getFinnhubApiKey();
@@ -294,13 +294,16 @@ export async function getAllFinnhubDataForStock(symbol: string): Promise<Enriche
 
   const normalizedSymbol = symbol.toUpperCase().trim();
 
-  // Calculate Unix timestamps for past 7 days
+  // Fetch quote first; on 429 or failure, bail so we don't send 5 more rate-limited requests
+  const quote = await fetchFinnhubQuote(normalizedSymbol);
+  if (!quote || typeof quote.c !== 'number' || quote.c === 0) {
+    return null;
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const sevenDaysAgo = now - 7 * 24 * 60 * 60;
 
-  // Fetch all endpoints in parallel
-  const [quote, news, metrics, finnhubFilings, financials, candles] = await Promise.all([
-    fetchFinnhubQuote(normalizedSymbol),
+  const [news, metrics, finnhubFilings, financials, candles] = await Promise.all([
     fetchFinnhubCompanyNews(normalizedSymbol),
     fetchFinnhubBasicFinancials(normalizedSymbol),
     fetchFinnhubFilings(normalizedSymbol),

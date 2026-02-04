@@ -340,9 +340,51 @@ export async function getHybridNewsContext(
   };
 }
 
+/** Company / asset names (lowercase) to ticker symbol. Used for whole-word matching in messages. */
+const COMPANY_NAME_TO_SYMBOL: Record<string, string> = {
+  apple: 'AAPL',
+  microsoft: 'MSFT',
+  tesla: 'TSLA',
+  nvidia: 'NVDA',
+  amazon: 'AMZN',
+  google: 'GOOGL',
+  meta: 'META',
+  alphabet: 'GOOGL',
+  netflix: 'NFLX',
+  bitcoin: 'BTC',
+  ethereum: 'ETH',
+  ether: 'ETH',
+  solana: 'SOL',
+  dogecoin: 'DOGE',
+  doge: 'DOGE',
+  ripple: 'XRP',
+  xrp: 'XRP',
+  gold: 'GLD',
+  silver: 'SLV',
+  spy: 'SPY',
+  qqq: 'QQQ',
+  's&p 500': 'SPY',
+  's&p500': 'SPY',
+  jpmorgan: 'JPM',
+  'jp morgan': 'JPM',
+  berkshire: 'BRK.B',
+  visa: 'V',
+  mastercard: 'MA',
+  costco: 'COST',
+  walmart: 'WMT',
+  disney: 'DIS',
+  walt disney: 'DIS',
+  intel: 'INTC',
+  amd: 'AMD',
+  qualcomm: 'QCOM',
+  oracle: 'ORCL',
+  salesforce: 'CRM',
+  adobe: 'ADBE',
+  ibm: 'IBM',
+};
+
 /**
- * Extract ticker symbols from text using simple pattern matching.
- * Matches 1-5 uppercase alphanumeric characters with word boundaries.
+ * Extract ticker symbols from text: (1) explicit tickers like AAPL, (2) company names like "Apple".
  */
 function extractTickersFromText(text: string): string[] {
   const tickerPattern = /(?:^|[\s$\(,])([A-Z0-9]{1,5})(?=[\s\)\.,;:!?]|$)/g;
@@ -355,11 +397,11 @@ function extractTickersFromText(text: string): string[] {
   ]);
 
   const matches = new Set<string>();
-  let match;
 
+  // 1) Explicit tickers (e.g. AAPL, BTC)
+  let match;
   while ((match = tickerPattern.exec(text)) !== null) {
     const symbol = match[1];
-    // Filter: length >= 2, not a common word, has at least one letter
     if (
       symbol.length >= 2 &&
       !commonWords.has(symbol) &&
@@ -367,6 +409,14 @@ function extractTickersFromText(text: string): string[] {
     ) {
       matches.add(symbol);
     }
+  }
+
+  // 2) Company/asset names as whole words (e.g. "Apple", "Bitcoin")
+  const lower = text.toLowerCase();
+  for (const [name, symbol] of Object.entries(COMPANY_NAME_TO_SYMBOL)) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+    const re = new RegExp(`\\b${escaped}\\b`, 'i');
+    if (re.test(lower)) matches.add(symbol);
   }
 
   return Array.from(matches);

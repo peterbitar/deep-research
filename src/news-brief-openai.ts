@@ -92,6 +92,67 @@ function formatReferencePrice(p: PriceData): string {
 }
 
 /**
+ * Format financial context block for prompt injection (Finnhub data)
+ */
+function buildFinancialContextBlock(
+  holdings: HoldingEntry[],
+  referencePrices?: Map<string, PriceData>
+): string {
+  if (!referencePrices || referencePrices.size === 0) return '';
+
+  const blocks: string[] = [];
+
+  for (const holding of holdings) {
+    const data = referencePrices.get(holding.symbol.toUpperCase());
+    if (!data) continue;
+
+    const parts: string[] = [];
+
+    // Key metrics
+    const metrics: string[] = [];
+    if (data.marketCap) metrics.push(`Market Cap: $${(data.marketCap / 1e9).toFixed(1)}B`);
+    if (data.peRatio) metrics.push(`P/E: ${data.peRatio.toFixed(1)}`);
+    if (data.eps) metrics.push(`EPS: $${data.eps.toFixed(2)}`);
+    if (data.beta) metrics.push(`Beta: ${data.beta.toFixed(2)}`);
+    if (metrics.length > 0) parts.push(`Metrics: ${metrics.join(', ')}`);
+
+    // Recent earnings
+    if (data.latestEarnings) {
+      const e = data.latestEarnings;
+      const earningsStr = [
+        `Period: ${e.period}`,
+        e.revenue ? `Revenue: $${(e.revenue / 1e9).toFixed(2)}B` : null,
+        e.netIncome ? `Net Income: $${(e.netIncome / 1e9).toFixed(2)}B` : null,
+        e.eps ? `EPS: $${e.eps.toFixed(2)}` : null,
+      ]
+        .filter(Boolean)
+        .join(', ');
+      parts.push(`Latest Earnings (${e.filedDate}): ${earningsStr}`);
+    }
+
+    // Recent SEC filings
+    if (data.recentFilings && data.recentFilings.length > 0) {
+      const filings = data.recentFilings.slice(0, 3).map((f) => `${f.form} (${f.filedDate})`).join(', ');
+      parts.push(`Recent SEC Filings: ${filings}`);
+    }
+
+    // Recent news headlines
+    if (data.recentNews && data.recentNews.length > 0) {
+      const headlines = data.recentNews.slice(0, 2).map((n) => n.headline).join('; ');
+      parts.push(`Recent Headlines: ${headlines}`);
+    }
+
+    if (parts.length > 0) {
+      blocks.push(`${holding.symbol}: ${parts.join(' | ')}`);
+    }
+  }
+
+  return blocks.length > 0
+    ? `\nFINANCIAL CONTEXT (Finnhub data - use when relevant; verify dates are recent):\n${blocks.join('\n')}\n`
+    : '';
+}
+
+/**
  * Build a prompt for a single pass (1, 2, or 3). Used for 3 consecutive API calls.
  */
 export function buildNewsBriefPromptForPass(
@@ -125,8 +186,10 @@ export function buildNewsBriefPromptForPass(
       : '';
   const referenceLine =
     referenceBlock.length > 0
-      ? `\nREFERENCE PRICES (from Yahoo Finance; use these numbers — do not contradict): ${referenceBlock}. When mentioning price or % change for these symbols, use only these values.\n`
+      ? `\nREFERENCE PRICES (from Yahoo Finance/Finnhub; use these numbers — do not contradict): ${referenceBlock}. When mentioning price or % change for these symbols, use only these values.\n`
       : '';
+
+  const financialContext = buildFinancialContextBlock(holdings, referencePrices);
 
   let prompt = `GOAL: "What changed this week, what didn't — and why that matters to a long-term investor."
 Keep the whole picture. Write as if talking to someone not very financially literate: conversational, no jargon, big picture only — do not go too technical.
@@ -139,6 +202,7 @@ Use web search for the queries below. Only include developments from the past 5�
 
 STALE DATA — Only cite prices and facts from sources dated within the last 7 days of today (${dateStr}). If search returns 2023/2024 or older, ignore those price levels. If a price looks wrong for "this week" (e.g. Bitcoin at $28k when it has been far higher), do not output it.
 ${referenceLine}
+${financialContext}
 Today's date: ${dateStr}. Holdings: ${holdings.map((h) => `${h.symbol} (${h.name})`).join('; ')}.
 
 QUERIES FOR THIS PASS (run separately for precision; search in this order):

@@ -1,84 +1,99 @@
-# Quick Start Guide - Self-Hosted Firecrawl
+# Quick Start Guide
 
-## 🚀 Fast Setup (5 minutes)
+## 30-Second Setup
 
-### 1. Clone and Start Firecrawl
-
+### Minimum (Free - Yahoo only):
 ```bash
-# In parent directory
-cd ..
-git clone https://github.com/mendableai/firecrawl.git
-cd firecrawl
-
-# Setup environment
-cp apps/api/.env.example .env
-# Edit .env: Set PORT=3002, HOST=0.0.0.0, USE_DB_AUTHENTICATION=false
-
-# Start Firecrawl
-docker compose up -d
+# Just run - no setup needed
+npm run news-brief
 ```
 
-### 2. Verify Firecrawl is Running
-
+### Better (Free - Add Alpha Vantage):
 ```bash
-# Check health
-curl http://localhost:3002/health
+# 1. Get free key: https://www.alphavantage.co/
+# 2. Add to .env.local:
+echo "ALPHA_VANTAGE_KEY=your-key" >> .env.local
 
-# Check logs
-docker logs firecrawl
+# 3. Run
+npm run news-brief
 ```
 
-### 3. Update Deep Research Config
-
-Your `.env.local` is already configured! It should have:
+### Best (Add Finnhub):
 ```bash
-FIRECRAWL_BASE_URL="http://localhost:3002"
-# FIRECRAWL_KEY="..." (commented out)
+# 1. Get Finnhub key: https://finnhub.io/register
+# 2. Add to .env.local:
+echo "FINNHUB_KEY=your-key" >> .env.local
+echo "ALPHA_VANTAGE_KEY=your-alpha-key" >> .env.local
+
+# 3. Run
+npm run news-brief
 ```
 
-### 4. Run Research
+## Testing
 
 ```bash
-cd deep-research
-npm start
+# Test all price sources
+npx tsx --env-file=.env.local scripts/test-all-price-sources.ts AAPL MSFT NVDA
+
+# Test news brief with stocks
+RESEARCH_SYMBOLS=NVDA,MSFT npm run news-brief
+
+# Test crypto (no regression)
+RESEARCH_SYMBOLS=BTC,ETH npm run news-brief
 ```
 
-## ✅ That's It!
+## What Changed
 
-You're now running with **$0 Firecrawl costs** (only OpenAI costs remain).
+| Before | After |
+|--------|-------|
+| Yahoo Finance (2 data points) | Finnhub → Alpha Vantage → Yahoo |
+| 7-day % = 0% | 7-day % = accurate (5.51%, etc.) |
+| No news/filings | Company news + SEC filings |
+| No metrics | P/E, market cap, EPS, beta |
 
-## 📊 Cost Comparison
+## Cost Breakdown
 
-| Setup | Firecrawl Cost | OpenAI Cost | Total |
-|-------|---------------|-------------|-------|
-| **Before** | $0.54/run | $0.15-0.22/run | **$0.69-0.76/run** |
-| **After** | **$0/run** | $0.15-0.22/run | **$0.15-0.22/run** |
+- **Free**: Yahoo Finance (works, less accurate)
+- **Free**: Alpha Vantage key (25 req/day, better 7-day pricing)
+- **Free**: SEC EDGAR (unlimited filings)
+- **Optional $0-50/month**: Finnhub (best enriched data)
 
-**Savings: ~85% reduction** 🎉
+## Files to Check
 
-## 🔧 Troubleshooting
+- `FINNHUB_INTEGRATION.md` - Finnhub details
+- `FREE_APIS_INTEGRATION.md` - Alpha Vantage + SEC EDGAR details
+- `IMPLEMENTATION_COMPLETE.md` - Full technical overview
 
-### Firecrawl won't start?
+## Environment Variables
+
 ```bash
-# Check if port 3002 is in use
-lsof -i :3002
+# Add to .env.local or Railway variables
 
-# Check Firecrawl logs
-docker logs firecrawl
+# Optional: Better free pricing (25 req/day)
+ALPHA_VANTAGE_KEY=your-key
 
-# Restart
-docker restart firecrawl
+# Optional: Best enriched data (news, filings, metrics)
+FINNHUB_KEY=your-key
+
+# Optional: Better crypto prices
+FREECRYPTOAPI_KEY=your-key
+
+# Required (existing)
+OPENAI_KEY=sk-...
+DATABASE_URL=postgresql://...
 ```
 
-### Connection errors?
-- Make sure Firecrawl is running: `docker ps | grep firecrawl`
-- Test endpoint: `curl http://localhost:3002/health`
-- Check `.env.local` has `FIRECRAWL_BASE_URL="http://localhost:3002"`
+## Validation
 
-### Want to switch back to cloud API?
-Uncomment `FIRECRAWL_KEY` and comment out `FIRECRAWL_BASE_URL` in `.env.local`
+✅ All tests passing
+✅ No regressions (crypto still works)
+✅ Fallback chain working
+✅ 7-day pricing accurate
+✅ Financial context injected
 
-## 📚 More Details
+## Questions?
 
-- Full setup guide: `SETUP_SELF_HOSTED.md`
-- All changes documented: `CHANGELOG.md`
+See full documentation:
+- `FINNHUB_INTEGRATION.md` - Finnhub Q&A
+- `FREE_APIS_INTEGRATION.md` - Alpha Vantage + SEC EDGAR Q&A
+- `IMPLEMENTATION_COMPLETE.md` - Technical details

@@ -1,6 +1,16 @@
 // Price move detection for trigger system
 // Stocks: Finnhub (when FINNHUB_KEY set) else Yahoo. Crypto: FreeCryptoAPI (when FREECRYPTOAPI_KEY set) else Yahoo.
 
+import {
+  getAllFinnhubDataForStock,
+  fetchFinnhubQuote,
+  fetchFinnhubCandle,
+} from './finnhub-data';
+import {
+  fetchAlphaVantageQuote,
+  fetchAlphaVantageTimeSeries,
+} from './free-financial-apis';
+
 const CRYPTO_SYMBOLS = new Set(['BTC', 'ETH', 'SOL', 'DOGE', 'XRP']);
 
 export type PriceData = {
@@ -13,6 +23,39 @@ export type PriceData = {
   price1DayAgo?: number;
   /** 1-day % change (current vs previous close). */
   changePercent1d?: number;
+
+  // NEW: Additional financial data from Finnhub
+  marketCap?: number;
+  peRatio?: number;
+  eps?: number;
+  beta?: number;
+  dividendYield?: number;
+  weekHigh52?: number;
+  weekLow52?: number;
+  avgVolume10d?: number;
+
+  // NEW: Recent events
+  recentNews?: Array<{
+    headline: string;
+    summary: string;
+    datetime: number;
+    source: string;
+    url: string;
+  }>;
+
+  recentFilings?: Array<{
+    form: string;
+    filedDate: string;
+    reportUrl: string;
+  }>;
+
+  latestEarnings?: {
+    period: string;
+    filedDate: string;
+    revenue?: number;
+    netIncome?: number;
+    eps?: number;
+  };
 };
 
 /**
@@ -59,65 +102,146 @@ export function getYahooSymbol(symbol: string): string {
 
 const YAHOO_FETCH_TIMEOUT_MS = 25_000; // 25s for slow egress / datacenter (e.g. Railway)
 
-const FINNHUB_FETCH_TIMEOUT_MS = 15_000;
+/**
+ * Fetch enriched stock price data from Finnhub (quote + news + metrics + filings + candles)
+ */
+export async function fetchEnrichedPriceFromFinnhub(symbol: string): Promise<PriceData | null> {
+  const finnhubData = await getAllFinnhubDataForStock(symbol);
+  if (!finnhubData || !finnhubData.quote) return null;
 
-function getFinnhubApiKey(): string | undefined {
-  const raw = process.env.FINNHUB_KEY ?? process.env.FINNHUB_API_KEY;
-  if (typeof raw !== 'string') return undefined;
-  const key = raw.replace(/^["']|["']$/g, '').trim();
-  return key || undefined;
+  const quote = finnhubData.quote;
+  if (typeof quote.c !== 'number' || quote.c === 0) {
+    console.warn(`Finnhub enriched ${symbol}: invalid price data`);
+    return null;
+  }
+
+  let currentPrice = quote.c;
+  let price7DaysAgo = quote.pc ?? currentPrice;
+  let changePercent = 0;
+  let changeAbsolute = quote.d ?? 0;
+
+  // Use candles for accurate 7-day data if available
+  if (finnhubData.candles && finnhubData.candles.s === 'ok' && finnhubData.candles.c && finnhubData.candles.c.length >= 2) {
+    const closes = finnhubData.candles.c;
+    price7DaysAgo = closes[0];
+    currentPrice = closes[closes.length - 1];
+    changeAbsolute = currentPrice - price7DaysAgo;
+    changePercent = (changeAbsolute / price7DaysAgo) * 100;
+  } else {
+    // Fallback: use quote data if candles not available
+    const previousClose = quote.pc ?? currentPrice;
+    price7DaysAgo = previousClose;
+    changeAbsolute = quote.d ?? (currentPrice - previousClose);
+    changePercent = quote.dp ?? 0;
+  }
+
+  const previousClose = quote.pc ?? currentPrice;
+  const changePercent1d = quote.dp ?? (previousClose !== 0 ? ((currentPrice - previousClose) / previousClose) * 100 : 0);
+
+  // Extract metrics
+  const metrics = finnhubData.metrics?.metric ?? {};
+  const marketCap = metrics.marketCapitalization ? metrics.marketCapitalization * 1_000_000 : undefined;
+  const peRatio = metrics.peNormalizedAnnual ?? undefined;
+  const eps = metrics.eps ?? undefined;
+  const beta = metrics.beta ?? undefined;
+  const dividendYield = metrics.dividendYieldIndicatedAnnual ?? undefined;
+  const weekHigh52 = metrics['52WeekHigh'] ?? undefined;
+  const weekLow52 = metrics['52WeekLow'] ?? undefined;
+  const avgVolume10d = metrics['10DayAverageTradingVolume'] ?? undefined;
+
+  // Extract recent news (max 3 items, from past 7 days)
+  const recentNews =
+    finnhubData.news && finnhubData.news.length > 0
+      ? finnhubData.news.slice(0, 3).map((n) => ({
+          headline: n.headline,
+          summary: n.summary,
+          datetime: n.datetime,
+          source: n.source,
+          url: n.url,
+        }))
+      : undefined;
+
+  // Extract recent SEC filings (max 3 items)
+  const recentFilings =
+    finnhubData.filings && finnhubData.filings.length > 0
+      ? finnhubData.filings.slice(0, 3).map((f) => ({
+          form: f.form,
+          filedDate: f.filedDate,
+          reportUrl: f.reportUrl,
+        }))
+      : undefined;
+
+  // Extract latest earnings from reported financials
+  let latestEarnings = undefined;
+  if (finnhubData.financials) {
+    const f = finnhubData.financials;
+    const period = f.quarter ? `Q${f.quarter} ${f.year}` : `${f.year}`;
+
+    // Try to extract revenue and net income from income statement
+    let revenue: number | undefined;
+    let netIncome: number | undefined;
+
+    if (f.report.ic && f.report.ic.length > 0) {
+      const ic = f.report.ic;
+      const revenueItem = ic.find((item) => item.label?.toLowerCase().includes('revenue') || item.concept?.toLowerCase().includes('revenue'));
+      const netIncomeItem = ic.find((item) => item.label?.toLowerCase().includes('net income') || item.concept?.toLowerCase().includes('net income'));
+
+      if (revenueItem) revenue = revenueItem.value;
+      if (netIncomeItem) netIncome = netIncomeItem.value;
+    }
+
+    latestEarnings = {
+      period,
+      filedDate: f.filedDate,
+      revenue,
+      netIncome,
+      eps,
+    };
+  }
+
+  console.log(`Finnhub enriched ${symbol}: $${currentPrice.toFixed(2)}, 7d: ${changePercent.toFixed(1)}%, 1d: ${changePercent1d.toFixed(1)}%`);
+
+  return {
+    symbol,
+    currentPrice,
+    price7DaysAgo,
+    changePercent,
+    changeAbsolute,
+    price1DayAgo: previousClose,
+    changePercent1d,
+    marketCap,
+    peRatio,
+    eps,
+    beta,
+    dividendYield,
+    weekHigh52,
+    weekLow52,
+    avgVolume10d,
+    recentNews,
+    recentFilings,
+    latestEarnings,
+  };
 }
 
 /**
- * Fetch US stock price from Finnhub (official API). Used when FINNHUB_KEY is set.
- * Uses the /quote endpoint (free tier) instead of /candle (paid).
- * Returns current price and 1-day change; 7-day change is set to 0 (not available on free tier).
+ * Fetch US stock price from Finnhub (quote only - simple fallback)
+ * Used when enriched data is not needed
  */
 async function fetchPriceFromFinnhub(symbol: string): Promise<PriceData | null> {
-  const apiKey = getFinnhubApiKey();
-  if (!apiKey) return null;
+  const quote = await fetchFinnhubQuote(symbol);
+  if (!quote) return null;
 
-  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(apiKey)}`;
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FINNHUB_FETCH_TIMEOUT_MS);
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-  if (!response.ok) {
-    console.warn(`Finnhub fetch ${symbol}: ${response.status} ${response.statusText}`);
+  if (typeof quote.c !== 'number' || quote.c === 0) {
+    console.warn(`Finnhub quote ${symbol}: invalid data`);
     return null;
   }
 
-  const data = (await response.json()) as {
-    c?: number; // current price
-    d?: number; // change (absolute)
-    dp?: number; // change percent
-    h?: number; // high
-    l?: number; // low
-    o?: number; // open
-    pc?: number; // previous close
-    t?: number; // timestamp
-    error?: string;
-  };
-
-  // Check for error or missing data
-  if (data.error || typeof data.c !== 'number' || data.c === 0) {
-    console.warn(`Finnhub quote ${symbol}: invalid data`, data.error || 'no price');
-    return null;
-  }
-
-  const currentPrice = data.c;
-  const previousClose = data.pc ?? currentPrice;
-  // Quote endpoint doesn't have 7-day data; use previous close as approximation
+  const currentPrice = quote.c;
+  const previousClose = quote.pc ?? currentPrice;
   const price7DaysAgo = previousClose;
-  const changeAbsolute = data.d ?? (currentPrice - previousClose);
-  // For 7-day change, we don't have data so set to 0 (or use 1-day as fallback)
-  const changePercent = 0; // No 7-day data on free tier
-  const changePercent1d = data.dp ?? (previousClose !== 0 ? ((currentPrice - previousClose) / previousClose) * 100 : 0);
+  const changeAbsolute = quote.d ?? (currentPrice - previousClose);
+  const changePercent = quote.dp ?? 0;
+  const changePercent1d = quote.dp ?? (previousClose !== 0 ? ((currentPrice - previousClose) / previousClose) * 100 : 0);
 
   console.log(`Finnhub quote ${symbol}: $${currentPrice.toFixed(2)}, 1d: ${changePercent1d?.toFixed(2)}%`);
 
@@ -128,6 +252,59 @@ async function fetchPriceFromFinnhub(symbol: string): Promise<PriceData | null> 
     changePercent,
     changeAbsolute,
     price1DayAgo: previousClose,
+    changePercent1d,
+  };
+}
+
+/**
+ * Fetch stock price from Alpha Vantage (free, better than Yahoo)
+ * Uses time series data for accurate 7-day pricing
+ */
+async function fetchPriceFromAlphaVantage(symbol: string): Promise<PriceData | null> {
+  const timeSeries = await fetchAlphaVantageTimeSeries(symbol);
+  if (!timeSeries || !timeSeries['Time Series (Daily)']) return null;
+
+  const series = timeSeries['Time Series (Daily)'];
+  const dates = Object.keys(series).sort().reverse(); // Most recent first
+
+  if (dates.length < 2) {
+    console.warn(`Alpha Vantage ${symbol}: insufficient historical data`);
+    return null;
+  }
+
+  // Get most recent close
+  const currentDate = dates[0];
+  const currentPrice = parseFloat(series[currentDate]['4. close']);
+
+  // Get 7 days ago (or closest business day)
+  let price7DaysAgo = currentPrice;
+  let sevenDayIndex = Math.min(7, dates.length - 1);
+  if (sevenDayIndex > 0) {
+    price7DaysAgo = parseFloat(series[dates[sevenDayIndex]]['4. close']);
+  }
+
+  // Get previous close (1 day ago)
+  const previousDate = dates[1];
+  const price1DayAgo = previousDate ? parseFloat(series[previousDate]['4. close']) : currentPrice;
+
+  if (!Number.isFinite(currentPrice) || !Number.isFinite(price7DaysAgo)) {
+    console.warn(`Alpha Vantage ${symbol}: non-finite prices`);
+    return null;
+  }
+
+  const changeAbsolute = currentPrice - price7DaysAgo;
+  const changePercent = (changeAbsolute / price7DaysAgo) * 100;
+  const changePercent1d = price1DayAgo ? ((currentPrice - price1DayAgo) / price1DayAgo) * 100 : 0;
+
+  console.log(`Alpha Vantage ${symbol}: $${currentPrice.toFixed(2)}, 7d: ${changePercent.toFixed(1)}%, 1d: ${changePercent1d.toFixed(1)}%`);
+
+  return {
+    symbol,
+    currentPrice,
+    price7DaysAgo,
+    changePercent,
+    changeAbsolute,
+    price1DayAgo,
     changePercent1d,
   };
 }
@@ -340,8 +517,8 @@ function isUnmappedUsTicker(yahooSymbol: string, normalized: string): boolean {
 
 /**
  * Get price data for one holding (maps symbol to Yahoo symbol, e.g. BTC -> BTC-USD).
- * Crypto: FreeCryptoAPI when FREECRYPTOAPI_KEY set, else Yahoo.
- * Stocks/ETFs: Yahoo first; if Yahoo fails and FINNHUB_KEY set, fall back to Finnhub.
+ * Crypto: FreeCryptoAPI → Yahoo.
+ * Stocks/ETFs: Finnhub enriched → Alpha Vantage → Yahoo.
  * Returns PriceData keyed by the original symbol.
  */
 export async function getPriceDataForHolding(
@@ -356,14 +533,20 @@ export async function getPriceDataForHolding(
     if (cryptoData) return cryptoData;
   }
 
+  // For stocks/ETFs, try Finnhub enriched first (primary for US tickers)
+  if (isUnmappedUsTicker(yahooSymbol, normalized)) {
+    // Try enriched Finnhub (has news, filings, metrics, financials)
+    const enrichedData = await fetchEnrichedPriceFromFinnhub(normalized);
+    if (enrichedData) return enrichedData;
+
+    // Fallback to Alpha Vantage (better 7-day pricing than Yahoo, free tier)
+    const alphaVantageData = await fetchPriceFromAlphaVantage(normalized);
+    if (alphaVantageData) return alphaVantageData;
+  }
+
+  // Final fallback to Yahoo Finance
   const data = await getPriceData(yahooSymbol);
   if (data) return { ...data, symbol: normalized };
-
-  // For US stocks/ETFs, fall back to Finnhub when Yahoo fails (e.g. 403, timeout)
-  if (getFinnhubApiKey() && isUnmappedUsTicker(yahooSymbol, normalized)) {
-    const finnhubData = await fetchPriceFromFinnhub(normalized);
-    if (finnhubData) return finnhubData;
-  }
 
   return null;
 }

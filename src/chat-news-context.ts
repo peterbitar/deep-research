@@ -220,11 +220,15 @@ export async function getHybridNewsContext(
 
   // Step 2: Extract tickers from user message
   const userTickers = extractTickersFromText(userMessage);
+  console.log(`[Hybrid News] Extracted tickers from user message: ${userTickers.join(', ') || 'none'}`);
 
   // Step 3: Identify uncovered tickers
   const uncoveredTickers = userTickers.filter(
     ticker => !existingNews.tickers.includes(ticker)
   );
+  if (uncoveredTickers.length > 0) {
+    console.log(`[Hybrid News] Uncovered tickers: ${uncoveredTickers.join(', ')}`);
+  }
 
   // Step 4: Fetch fresh news for uncovered tickers
   let freshNews = { learnings: [], urls: [] };
@@ -260,7 +264,7 @@ export async function getHybridNewsContext(
  * Matches 1-5 uppercase alphanumeric characters with word boundaries.
  */
 function extractTickersFromText(text: string): string[] {
-  const tickerPattern = /(?:^|[\s$\(,])([A-Z0-9]{1,5})(?=[\s\)\.,;:]|$)/g;
+  const tickerPattern = /(?:^|[\s$\(,])([A-Z0-9]{1,5})(?=[\s\)\.,;:!?]|$)/g;
   const commonWords = new Set([
     'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT',
     'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WHO',

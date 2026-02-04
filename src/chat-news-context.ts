@@ -373,7 +373,7 @@ const COMPANY_NAME_TO_SYMBOL: Record<string, string> = {
   costco: 'COST',
   walmart: 'WMT',
   disney: 'DIS',
-  walt disney: 'DIS',
+  'walt disney': 'DIS',
   intel: 'INTC',
   amd: 'AMD',
   qualcomm: 'QCOM',

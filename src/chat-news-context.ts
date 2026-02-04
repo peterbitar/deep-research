@@ -1,12 +1,15 @@
 /**
  * Hybrid news context manager for chat endpoint.
  *
- * Provides two layers of news integration:
+ * Uses the same logic as report cards + holding checkup:
  * 1. Existing news brief cards from database (fast, cached)
- * 2. Fresh news fetch for uncovered tickers (on-demand)
+ * 2. Fresh news for uncovered tickers via newsBriefOpenAI (same pipeline as generating cards)
+ * 3. Holding checkup for mentioned tickers (same logic as /api/holding-checkup)
+ * All of the above are merged into the knowledge base so chat can answer without web search.
  */
 
 import { getReportCards } from './db/reports';
+import { generateHoldingCheckup } from './investor-checkup';
 import { newsBriefOpenAI } from './news-brief-openai';
 import { getPriceDataBatchForHoldings } from './price-detection';
 import type { PriceData } from './price-detection';
@@ -23,6 +26,11 @@ interface FreshNewsCache {
   fetchedAt: number;
 }
 
+interface CheckupCacheEntry {
+  text: string;
+  fetchedAt: number;
+}
+
 interface ChatSessionMetadata {
   newsBriefContext?: {
     runId: string;
@@ -30,6 +38,8 @@ interface ChatSessionMetadata {
     tickers: string[];
   };
   freshNewsCache?: Map<string, FreshNewsCache>;
+  /** Cache of holding checkup text by symbol (JSON-serializable). */
+  checkupCache?: Record<string, CheckupCacheEntry>;
 }
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -264,6 +274,54 @@ export async function getHybridNewsContext(
   if (freshNews.learnings.length > 0) {
     const freshNewsText = `## Fresh News Context\n\n${freshNews.learnings.join('\n')}`;
     knowledgeBaseParts.push(freshNewsText);
+  }
+
+  // Step 7: Add holding checkups for tickers mentioned (same logic as /api/holding-checkup)
+  const MAX_CHECKUPS = 5;
+  const tickersForCheckup = userTickers.slice(0, MAX_CHECKUPS);
+  if (tickersForCheckup.length > 0) {
+    if (!sessionMetadata.checkupCache) {
+      sessionMetadata.checkupCache = {};
+    }
+    const checkupParts: string[] = [];
+    const now = Date.now();
+    let reportForCheckup: Awaited<ReturnType<typeof getReportCards>> | null = null;
+
+    for (const symbol of tickersForCheckup) {
+      const cached = sessionMetadata.checkupCache[symbol];
+      if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
+        checkupParts.push(`### ${symbol}\n${cached.text}`);
+        continue;
+      }
+      try {
+        if (!reportForCheckup) reportForCheckup = await getReportCards();
+        const newsBriefContext =
+          reportForCheckup?.cards?.length || reportForCheckup?.opening
+            ? {
+                opening: reportForCheckup.opening ?? '',
+                cards: (reportForCheckup.cards ?? []).map((c) => ({
+                  title: c.title ?? '',
+                  content: c.content ?? '',
+                })),
+                publishedDate: reportForCheckup.publishedDate,
+              }
+            : undefined;
+        const { checkup } = await generateHoldingCheckup(
+          { symbol, name: symbol },
+          { newsBriefContext }
+        );
+        if (checkup?.trim()) {
+          sessionMetadata.checkupCache![symbol] = { text: checkup.trim(), fetchedAt: now };
+          checkupParts.push(`### ${symbol}\n${checkup.trim()}`);
+        }
+      } catch (err) {
+        console.warn(`[Hybrid News] Checkup failed for ${symbol}:`, err);
+      }
+    }
+
+    if (checkupParts.length > 0) {
+      knowledgeBaseParts.push(`## Holding checkups\n\n${checkupParts.join('\n\n')}`);
+    }
   }
 
   const knowledgeBaseText = knowledgeBaseParts.join('\n\n');

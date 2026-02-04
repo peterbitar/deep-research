@@ -1,6 +1,7 @@
 /**
  * Chat tools for the Finance & Economics GPT.
- * Integrates with OpenAI Responses API: web_search_preview + custom function tools.
+ * Uses only price tools; news/story content comes from the same pipeline as news brief
+ * (knowledge base + hybrid news context from getHybridNewsContext / newsBriefOpenAI).
  */
 
 import OpenAI from 'openai';
@@ -8,12 +9,7 @@ import OpenAI from 'openai';
 import { logLLMCostAsync } from './cost-logger';
 import { getPriceDataForHolding } from './price-detection';
 
-const WEB_SEARCH_TOOL = {
-  type: 'web_search_preview' as const,
-  search_context_size: 'high' as const,
-};
-
-/** Function tools for price data (Yahoo Finance). */
+/** Function tools for price data (Yahoo Finance). No web search — chat uses news-brief-style context only. */
 const CHAT_FUNCTION_TOOLS: OpenAI.Responses.FunctionTool[] = [
   {
     type: 'function',
@@ -69,10 +65,7 @@ const CHAT_FUNCTION_TOOLS: OpenAI.Responses.FunctionTool[] = [
   },
 ];
 
-const CHAT_TOOLS: OpenAI.Responses.Tool[] = [
-  WEB_SEARCH_TOOL,
-  ...CHAT_FUNCTION_TOOLS,
-];
+const CHAT_TOOLS: OpenAI.Responses.Tool[] = [...CHAT_FUNCTION_TOOLS];
 
 function executeTool(
   name: string,
@@ -210,7 +203,7 @@ function getFunctionCalls(
 }
 
 /**
- * Run chat with web search + price tools.
+ * Run chat with price tools only. News content comes from the injected knowledge base (news-brief pipeline).
  * Handles agentic loop for function calls.
  * @param prompt - User message (may include knowledge base context)
  * @param options.model - OpenAI model (default: gpt-4o-mini)
@@ -233,27 +226,22 @@ export async function runChatWithTools(
     return Number.isFinite(n) && n >= 1 ? n : undefined;
   })();
 
-  // System instructions for tool usage
-  const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant with access to web search and real-time price tools.
+  // System instructions for tool usage (no web search — answer from knowledge base / news brief context only)
+  const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant. You have a knowledge base built from the same news-brief pipeline that generates report cards (research + recent news). You also have real-time price tools.
 
 TOOL USAGE:
-- WEB SEARCH: Use when knowledge base lacks info OR user asks "other than this?", "what else?", "any other news?"
 - Price tools: ONLY when user explicitly asks "What is X price?" or "How is X?"
-- After web search: SUMMARIZE results in clean prose (no markdown, no bullet points, no links)
+- Answer news/story questions from the knowledge base only. Do not invent or search; if the knowledge base doesn't cover something, say so briefly.
 
 QUESTION TYPES:
 - "What is X price?" → Use price tool, lead with price, add 1-2 sentences context
-- "Tell me the story on X" / "Latest on X" / "What happened?" → Lead with NEWS/NARRATIVE, not price
-- "Other than this?" / "What else?" → Search for COMPLETELY DIFFERENT info:
-  * Different news categories (not price again)
-  * Product news, partnerships, earnings, regulatory announcements
-  * NOT same story reworded - genuinely new information
+- "Tell me the story on X" / "Latest on X" / "What happened?" → Use the knowledge base; lead with NEWS/NARRATIVE, not price
+- "Other than this?" / "What else?" → Use other parts of the knowledge base; if nothing else is there, say so.
 
 CRITICAL RULES:
-- Never say "knowledge base doesn't have..." without searching first
-- Story questions: Narrative first, price secondary only
-- Follow-ups: Find genuinely new angles/info, not recycled facts
-- PRICE: Say the price (or % change) only ONCE per response. Do not repeat the same number in different words. If you already stated the price in this reply, do not state it again.`;
+- Story questions: Narrative first, price secondary only. Use only the knowledge base for news.
+- If the knowledge base doesn't have info on a topic: say so plainly (e.g. "The research doesn't cover that yet.").
+- PRICE: Say the price (or % change) only ONCE per response. Do not repeat the same number in different words.`;
 
   const initialInput: OpenAI.Responses.ResponseInputItem[] = [
     { type: 'message', role: 'user', content: prompt },

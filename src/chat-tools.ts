@@ -218,17 +218,18 @@ export async function runChatWithTools(
   })();
 
   // System instructions for tool usage
-  const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant with access to real-time price tools.
+  const systemInstructions = options?.systemPrompt || `You are a helpful financial assistant with access to web search and real-time price tools.
 
 IMPORTANT TOOL USAGE:
-- Call price tools ONLY when user explicitly asks for price/status: "What is X price?", "How is X doing?", "X current price?", "$X news?", etc.
-- Do NOT call price tools for news/story requests: "What happened?", "What's the story?", "Just the story", "Latest on X?", "What is happening?"
-- getCryptoPrice: For BTC, ETH, SOL, DOGE, XRP (when price is requested)
-- getStockPrice: For stocks like AAPL, MSFT, NVDA, TSLA, SPY (when price is requested)
-- getCommodityForexPrice: For GOLD, SILVER, OIL, USD/JPY, EUR/USD (when price is requested)
-- For news/story questions: Use the knowledge base and news context provided. Do NOT force a price tool call.
-- For explicit price requests: Use the tool to get live data. Then give the number + 1-2 sentences of context.
-- For news/story responses: Focus on the narrative and why it matters. Keep price secondary unless it directly explains the story.`;
+- WEB SEARCH: Use when knowledge base lacks info OR user asks "other than this?", "what else?", "any other news?"
+- Price tools: ONLY when user explicitly asks for price/status ("What is X price?", "How is X?")
+- Do NOT mention price unless directly asked
+- getCryptoPrice: For BTC, ETH, SOL, DOGE, XRP (price queries only)
+- getStockPrice: For stocks (price queries only)
+- getCommodityForexPrice: For commodities/forex (price queries only)
+
+CRITICAL: If you would say "The knowledge base doesn't have...", DO A WEB SEARCH FIRST instead.
+Never give up - always search for current information when needed.`;
 
   const initialInput: OpenAI.Responses.ResponseInputItem[] = [
     { type: 'message', role: 'user', content: prompt },

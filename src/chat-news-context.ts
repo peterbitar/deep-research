@@ -8,6 +8,8 @@
 
 import { getReportCards } from './db/reports';
 import { newsBriefOpenAI } from './news-brief-openai';
+import { getPriceDataBatchForHoldings } from './price-detection';
+import type { PriceData } from './price-detection';
 
 export interface HoldingEntry {
   symbol: string;
@@ -92,14 +94,17 @@ ${card.content}`;
 /**
  * Fetch fresh news for specific tickers using newsBriefOpenAI.
  * Uses non-reasoning mode (fast) and skips macro pass (Pass 3).
+ * Optional reference prices ensure the model cites correct price data.
  *
  * @param tickers symbols to fetch news for
  * @param sessionCache session-level cache for TTL tracking
+ * @param referencePrices optional map of symbol -> price data for accurate citations
  * @returns learnings + URLs for provided tickers
  */
 async function fetchFreshNewsForTickers(
   tickers: string[],
-  sessionCache: Map<string, FreshNewsCache>
+  sessionCache: Map<string, FreshNewsCache>,
+  referencePrices?: Map<string, PriceData>
 ): Promise<{ learnings: string[]; urls: string[] }> {
   if (tickers.length === 0) {
     return { learnings: [], urls: [] };
@@ -123,40 +128,34 @@ async function fetchFreshNewsForTickers(
     }
   }
 
-  // Fetch news for uncached tickers
+  // Fetch news for uncached tickers (one call per ticker so cache stays correct per symbol)
   if (tickersToFetch.length > 0) {
     console.log(`[Hybrid News] Fetching fresh news for: ${tickersToFetch.join(', ')}`);
     try {
-      const holdings: HoldingEntry[] = tickersToFetch.map(symbol => ({
-        symbol,
-        type: 'stock',
-        name: symbol,
-      }));
-
-      const result = await newsBriefOpenAI({
-        holdings,
-        mode: 'non-reasoning', // Fast mode
-        includeMacro: false, // Skip macro pass
-      });
-
-      // Cache results
       for (const ticker of tickersToFetch) {
-        sessionCache.set(ticker, {
+        const holdings: HoldingEntry[] = [
+          { symbol: ticker, type: 'stock', name: ticker },
+        ];
+        const result = await newsBriefOpenAI({
+          holdings,
+          mode: 'non-reasoning',
+          includeMacro: false,
+          referencePrices,
+        });
+        const entry: FreshNewsCache = {
           learnings: result.learnings,
           urls: result.urls,
           fetchedAt: now,
-        });
+        };
+        sessionCache.set(ticker, entry);
+        allLearnings.push(...result.learnings);
+        allUrls.push(...result.urls);
       }
-
-      allLearnings.push(...result.learnings);
-      allUrls.push(...result.urls);
-
       console.log(
-        `[Hybrid News] Fetched fresh news: ${tickersToFetch.length} ticker(s), ${result.learnings.length} learnings`
+        `[Hybrid News] Fetched fresh news: ${tickersToFetch.length} ticker(s)`
       );
     } catch (error) {
       console.warn('[Hybrid News] Failed to fetch fresh news:', error);
-      // Gracefully degrade - proceed without fresh news
     }
   }
 
@@ -170,8 +169,9 @@ async function fetchFreshNewsForTickers(
  * 1. Load existing news brief from DB (cached in session)
  * 2. Extract tickers from user message
  * 3. Identify uncovered tickers
- * 4. Fetch fresh news for missing tickers
- * 5. Merge results
+ * 4. Fetch reference prices for uncovered tickers
+ * 5. Fetch fresh news for missing tickers (with reference prices for correct citations)
+ * 6. Merge results
  *
  * @param userMessage user's chat message
  * @param sessionMetadata session-level metadata object (persisted across requests)
@@ -230,16 +230,28 @@ export async function getHybridNewsContext(
     console.log(`[Hybrid News] Uncovered tickers: ${uncoveredTickers.join(', ')}`);
   }
 
-  // Step 4: Fetch fresh news for uncovered tickers
+  // Step 4: Fetch reference prices for uncovered tickers (so news brief cites correct numbers)
+  let referencePrices: Map<string, PriceData> | undefined;
+  if (uncoveredTickers.length > 0) {
+    const holdingsForPrice = uncoveredTickers.map((symbol) => ({
+      symbol,
+      type: 'stock' as string,
+      name: symbol,
+    }));
+    referencePrices = await getPriceDataBatchForHoldings(holdingsForPrice);
+  }
+
+  // Step 5: Fetch fresh news for uncovered tickers
   let freshNews = { learnings: [], urls: [] };
   if (uncoveredTickers.length > 0) {
     freshNews = await fetchFreshNewsForTickers(
       uncoveredTickers,
-      sessionMetadata.freshNewsCache
+      sessionMetadata.freshNewsCache,
+      referencePrices
     );
   }
 
-  // Step 5: Merge results into single knowledge base text
+  // Step 6: Merge results into single knowledge base text
   const knowledgeBaseParts: string[] = [];
 
   if (existingNews.text) {

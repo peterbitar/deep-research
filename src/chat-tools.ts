@@ -8,7 +8,10 @@ import OpenAI from 'openai';
 import { logLLMCostAsync } from './cost-logger';
 import { getPriceDataForHolding } from './price-detection';
 
-const WEB_SEARCH_TOOL = { type: 'web_search_preview' as const };
+const WEB_SEARCH_TOOL = {
+  type: 'web_search_preview' as const,
+  search_context_size: 'high' as const,
+};
 
 /** Function tools for price data (Yahoo Finance). */
 const CHAT_FUNCTION_TOOLS: OpenAI.Responses.FunctionTool[] = [
@@ -236,7 +239,8 @@ QUESTION TYPES:
 CRITICAL RULES:
 - Never say "knowledge base doesn't have..." without searching first
 - Story questions: Narrative first, price secondary only
-- Follow-ups: Find genuinely new angles/info, not recycled facts`;
+- Follow-ups: Find genuinely new angles/info, not recycled facts
+- PRICE: Say the price (or % change) only ONCE per response. Do not repeat the same number in different words. If you already stated the price in this reply, do not state it again.`;
 
   const initialInput: OpenAI.Responses.ResponseInputItem[] = [
     { type: 'message', role: 'user', content: prompt },

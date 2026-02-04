@@ -34,8 +34,11 @@ const MODE_CONFIG: Record<
   },
 };
 
-/** Web search tool type supported by the Responses API. */
-const WEB_SEARCH_TOOL = { type: 'web_search_preview' as const };
+/** Web search tool type supported by the Responses API. Use high context for richer search results. */
+const WEB_SEARCH_TOOL = {
+  type: 'web_search_preview' as const,
+  search_context_size: 'high' as const,
+};
 
 /** Tags for triaging findings (blueprint). */
 const TAGS =

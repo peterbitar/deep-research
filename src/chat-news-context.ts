@@ -183,6 +183,9 @@ export async function getHybridNewsContext(
 ): Promise<{
   knowledgeBaseText: string;
   updatedMetadata: ChatSessionMetadata;
+  hadExistingNews: boolean;
+  hadFreshNews: boolean;
+  freshNewsTickers: string[];
 }> {
   // Initialize cache if needed
   if (!sessionMetadata.freshNewsCache) {
@@ -264,10 +267,18 @@ export async function getHybridNewsContext(
   }
 
   const knowledgeBaseText = knowledgeBaseParts.join('\n\n');
+  const hadExistingNews = existingNews.text.length > 0;
+  const hadFreshNews = freshNews.learnings.length > 0;
 
   return {
     knowledgeBaseText,
     updatedMetadata: sessionMetadata,
+    /** True when we loaded existing news brief cards from DB. */
+    hadExistingNews,
+    /** True when we fetched fresh news for uncovered tickers this request. */
+    hadFreshNews,
+    /** Tickers we fetched fresh news for (when hadFreshNews). */
+    freshNewsTickers: hadFreshNews ? uncoveredTickers : [],
   };
 }
 

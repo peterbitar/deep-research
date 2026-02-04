@@ -135,13 +135,26 @@ function extractUrlsFromResponse(response: OpenAI.Responses.Response): string[] 
         type?: string;
         url?: string;
         citation?: { url?: string };
+        annotations?: Array<{ type?: string; url?: string }>;
       }>;
+      citations?: Array<{ url?: string }>;
     };
+    if (msg.citations?.length) {
+      for (const c of msg.citations) {
+        if (typeof c.url === 'string') urls.push(c.url);
+      }
+    }
     if (!Array.isArray(msg.content)) continue;
     for (const block of msg.content) {
       if (block.type === 'output_text' && typeof block.url === 'string')
         urls.push(block.url);
       if (block.citation?.url) urls.push(block.citation.url);
+      if (block.type === 'citation' && typeof block.url === 'string') urls.push(block.url);
+      if (block.annotations?.length) {
+        for (const ann of block.annotations) {
+          if (ann.type === 'url_citation' && typeof ann.url === 'string') urls.push(ann.url);
+        }
+      }
     }
   }
   return [...new Set(urls)];

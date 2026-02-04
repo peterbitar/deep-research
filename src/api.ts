@@ -921,8 +921,13 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     }
 
     // Load hybrid news context
-    const { knowledgeBaseText: newsContext, updatedMetadata } =
-      await getHybridNewsContext(message, session.metadata);
+    const {
+      knowledgeBaseText: newsContext,
+      updatedMetadata,
+      hadExistingNews,
+      hadFreshNews,
+      freshNewsTickers,
+    } = await getHybridNewsContext(message, session.metadata);
 
     // Update session metadata with fresh news cache
     session.metadata = updatedMetadata;
@@ -1017,6 +1022,8 @@ Assistant:`,
         messageCount: session.messages.length,
         webSearchUsed: citationUrls.length > 0,
         citationUrls: citationUrls.length > 0 ? citationUrls : undefined,
+        newsBriefFromDb: hadExistingNews,
+        freshNewsFetched: hadFreshNews ? freshNewsTickers : undefined,
       },
     });
   } catch (error: unknown) {

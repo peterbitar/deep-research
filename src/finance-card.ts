@@ -1,5 +1,5 @@
 /**
- * Generate report cards and holding checkups using the finance app's external chat API.
+ * Generate one report card using the finance app's external chat API.
  * Set FINANCE_APP_URL (e.g. http://localhost:3000 or your deployed finance URL).
  */
 
@@ -78,59 +78,6 @@ export async function generateOneCardFromFinance(
     return { title, content, emoji };
   } catch (e) {
     console.warn('[Finance Card]', e instanceof Error ? e.message : e);
-    return null;
-  }
-}
-
-const CHECKUP_PROMPT = (symbol: string, label: string, assetType: string) =>
-  `Write a short investor checkup for **${label}** (${symbol}), asset type: ${assetType}.
-
-Format (use this structure):
-1. One intro sentence (no "As of [date]" — jump straight in).
-2. Then 5-6 sections, each with a bold header and 1-2 sentences. Use these section ideas (adapt to ${assetType}):
-   - For stock: **Earnings, Growth, Margin** — **Guidance + Confidence** — **Valuation & Risk** — **Market Reaction** — **Recent Developments** (2-3 positive, 2-3 negative) — **General Sentiment** (Bullish/Bearish/Neutral, one sentence).
-   - For crypto: **Activity + Developer Signals** — **Network Health** — **Supply + Market Metrics** — **Risks + Adoption** — **Recent Developments** — **General Sentiment**.
-   - For ETF: **Holdings & Theme** — **Performance & Benchmark** — **Costs & Flows** — **Market & Risks** — **Recent Developments** — **General Sentiment**.
-   - For commodity: **Supply News** — **Demand Outlook** — **Inventory & Macro** — **Price + Momentum** — **Recent Developments** — **General Sentiment**.
-3. End with one sentence: healthy or warning sign.
-
-Use only recent data (this week / this month). Plain English, conversational. Do not list source names or citations. Reply with the checkup text only, no preamble.`;
-
-/**
- * Call finance app to generate a holding checkup. Returns checkup text or null.
- */
-export async function generateCheckupFromFinance(
-  symbol: string,
-  assetType: string,
-  name?: string
-): Promise<string | null> {
-  const baseUrl = (process.env.FINANCE_APP_URL || '').trim();
-  if (!baseUrl) return null;
-
-  const label = name || symbol;
-  const url = `${baseUrl.replace(/\/$/, '')}/api/chat/external`;
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: CHECKUP_PROMPT(symbol, label, assetType),
-        model: 'openai',
-        disableLocal: true,
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-
-    if (!res.ok) {
-      console.warn(`[Finance Checkup] ${res.status} ${res.statusText}`);
-      return null;
-    }
-
-    const data = (await res.json()) as { success?: boolean; response?: string };
-    const text = data?.response?.trim() || '';
-    return text || null;
-  } catch (e) {
-    console.warn('[Finance Checkup]', e instanceof Error ? e.message : e);
     return null;
   }
 }

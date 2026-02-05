@@ -196,6 +196,24 @@ async function main() {
   for (let i = 0; i < holdings.length; i++) {
     const holding = holdings[i];
     const sym = holding.symbol.toUpperCase();
+
+    if (USE_FINANCE_FOR_CARDS) {
+      // Finance path: no OpenAI web search; get card from finance app only.
+      console.log(`[${i + 1}/${holdings.length}] ${sym} — finance API (card only)...`);
+      const cardStart = Date.now();
+      const card = await generateOneCardFromFinance(sym);
+      const cardElapsed = ((Date.now() - cardStart) / 1000).toFixed(1);
+      if (card) {
+        generatedCards.push({ ...card, ticker: sym });
+        await appendCardToReport(runId, card, i, sym, null);
+        console.log(`  Card: "${card.title.slice(0, 50)}..." | ${cardElapsed}s (saved)\n`);
+      } else {
+        console.log(`  No card generated | ${cardElapsed}s\n`);
+      }
+      continue;
+    }
+
+    // Native path: OpenAI web search → learnings → card from learnings.
     console.log(`[${i + 1}/${holdings.length}] ${sym} — OpenAI web search...`);
     const start = Date.now();
     const { learnings, urls } = await newsBriefOpenAI({
@@ -209,20 +227,14 @@ async function main() {
     learningOrderStart += learnings.length;
     console.log(`  Completed ${sym} — ${learnings.length} learnings | ${elapsed}s`);
 
-    if (learnings.length > 0 || USE_FINANCE_FOR_CARDS) {
-      console.log(`  Generating card for ${sym}${USE_FINANCE_FOR_CARDS ? ' (finance API)' : ''}...`);
+    if (learnings.length > 0) {
+      console.log(`  Generating card for ${sym}...`);
       const cardStart = Date.now();
-      let card: { title: string; emoji: string; content: string } | null = null;
-      if (USE_FINANCE_FOR_CARDS) {
-        card = await generateOneCardFromFinance(sym);
-      }
-      if (!card && learnings.length > 0) {
-        card = await generateOneCardFromLearnings(
-          learnings,
-          sym,
-          getModelForNewsBrief()
-        );
-      }
+      const card = await generateOneCardFromLearnings(
+        learnings,
+        sym,
+        getModelForNewsBrief()
+      );
       const cardElapsed = ((Date.now() - cardStart) / 1000).toFixed(1);
       if (card) {
         generatedCards.push({ ...card, ticker: sym });
@@ -236,14 +248,34 @@ async function main() {
     }
   }
 
-  const merged = await getLearnings(runId);
-  if (!merged || merged.learnings.length === 0) {
-    console.log('No learnings saved. Skipping report.');
-    await pool.query(
-      `UPDATE research_runs SET status = 'completed' WHERE run_id = $1`,
-      [runId]
+  // When using finance: opening from card content (no learnings in DB). Otherwise from getLearnings.
+  let learningsForOpening: string[];
+  let reportUrls: string[];
+  if (USE_FINANCE_FOR_CARDS) {
+    if (generatedCards.length === 0) {
+      console.log('No cards from finance. Skipping report.');
+      await pool.query(
+        `UPDATE research_runs SET status = 'completed' WHERE run_id = $1`,
+        [runId]
+      );
+      return;
+    }
+    learningsForOpening = generatedCards.map(
+      (c) => `${c.title}\n${c.content}`
     );
-    return;
+    reportUrls = [];
+  } else {
+    const merged = await getLearnings(runId);
+    if (!merged || merged.learnings.length === 0) {
+      console.log('No learnings saved. Skipping report.');
+      await pool.query(
+        `UPDATE research_runs SET status = 'completed' WHERE run_id = $1`,
+        [runId]
+      );
+      return;
+    }
+    learningsForOpening = merged.learnings;
+    reportUrls = merged.urls;
   }
 
   await pool.query(
@@ -254,7 +286,7 @@ async function main() {
   console.log('Generating opening and assembling report...');
   const reportStart = Date.now();
   const opening = await generateOpeningForReport(
-    merged.learnings,
+    learningsForOpening,
     getModelForNewsBrief()
   );
   const cardSections = generatedCards.map(
@@ -262,7 +294,9 @@ async function main() {
   );
   const reportMarkdown =
     opening + (cardSections.length ? '\n\n' + cardSections.join('\n\n') : '');
-  const urlsSection = `\n\n## Sources\n\n${merged.urls.map((u: string) => `- ${u}`).join('\n')}`;
+  const urlsSection = reportUrls.length
+    ? `\n\n## Sources\n\n${reportUrls.map((u: string) => `- ${u}`).join('\n')}`
+    : '';
   const cardMetadata = generatedCards.map((c) => ({ ticker: c.ticker }));
   const reportElapsed = ((Date.now() - reportStart) / 1000).toFixed(1);
   console.log(`Report: ${reportElapsed}s | Cards: ${generatedCards.length}\n`);
@@ -273,7 +307,7 @@ async function main() {
     depth: 0,
     breadth: 0,
     reportMarkdown: reportMarkdown + urlsSection,
-    sources: merged.urls,
+    sources: reportUrls,
     cardMetadata,
   });
 

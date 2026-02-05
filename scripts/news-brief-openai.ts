@@ -9,6 +9,7 @@
  *
  * Env: NEWS_BRIEF_MODE (non-reasoning | agentic | deep-research), NEWS_BRIEF_MACRO (1/true),
  *      MAIN_BACKEND_URL or HOLDINGS_API_BASE_URL, OPENAI_KEY or OPENAI_API_KEY, DATABASE_URL.
+ *      FINANCE_APP_URL: when set, cards are generated via the finance app API (same format); otherwise via generateOneCardFromLearnings.
  *
  * On Railway, env vars come from the dashboard (no .env.local). Locally, .env.local is loaded if present.
  */
@@ -33,6 +34,7 @@ import {
   generateOneCardFromLearnings,
   generateOpeningForReport,
 } from '../src/deep-research';
+import { generateOneCardFromFinance } from '../src/finance-card';
 import { getModelForNewsBrief } from '../src/ai/providers';
 import { pool } from '../src/db/client';
 import {
@@ -41,6 +43,8 @@ import {
   type HoldingEntry,
 } from '../src/news-brief-openai';
 import { getPriceDataBatchForHoldings } from '../src/price-detection';
+
+const USE_FINANCE_FOR_CARDS = Boolean((process.env.FINANCE_APP_URL ?? '').trim());
 
 const DEFAULT_HOLDINGS_API =
   'https://wealthyrabbitios-production-03a4.up.railway.app';
@@ -205,14 +209,20 @@ async function main() {
     learningOrderStart += learnings.length;
     console.log(`  Completed ${sym} — ${learnings.length} learnings | ${elapsed}s`);
 
-    if (learnings.length > 0) {
-      console.log(`  Generating card for ${sym}...`);
+    if (learnings.length > 0 || USE_FINANCE_FOR_CARDS) {
+      console.log(`  Generating card for ${sym}${USE_FINANCE_FOR_CARDS ? ' (finance API)' : ''}...`);
       const cardStart = Date.now();
-      const card = await generateOneCardFromLearnings(
-        learnings,
-        sym,
-        getModelForNewsBrief()
-      );
+      let card: { title: string; emoji: string; content: string } | null = null;
+      if (USE_FINANCE_FOR_CARDS) {
+        card = await generateOneCardFromFinance(sym);
+      }
+      if (!card && learnings.length > 0) {
+        card = await generateOneCardFromLearnings(
+          learnings,
+          sym,
+          getModelForNewsBrief()
+        );
+      }
       const cardElapsed = ((Date.now() - cardStart) / 1000).toFixed(1);
       if (card) {
         generatedCards.push({ ...card, ticker: sym });

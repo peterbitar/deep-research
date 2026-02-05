@@ -9,7 +9,13 @@ import { randomUUID } from 'crypto';
 import { deepResearch, writeFinalAnswer, writeFinalReport } from './deep-research';
 import { getModel } from './ai/providers';
 import { pool, testConnection, initializeSchema } from './db/client';
-import { saveReport, getLatestReport, getReportCards } from './db/reports';
+import {
+  saveReport,
+  getLatestReport,
+  getReportCards,
+  ensureNewsBriefRun,
+  appendCardToReport,
+} from './db/reports';
 import { saveChatSession, getChatSession, cleanupOldChatSessions } from './db/chat';
 import { getCostLogs, getCostSummary, getCostLogsWithBreakdown } from './db/cost-logs';
 import { getPipelineIterations, getPipelineStageData } from './db/pipeline-stages';
@@ -18,6 +24,7 @@ import { parseReportToCards } from './report-parser';
 import { runChatWithTools } from './chat-tools';
 import { generateHoldingCheckup } from './investor-checkup';
 import { getHybridNewsContext } from './chat-news-context';
+import { generateOneCardFromFinance } from './finance-card';
 
 export { parseReportToCards };
 
@@ -617,6 +624,48 @@ app.post('/api/holding-checkup', async (req: Request, res: Response) => {
     console.error('Error in holding-checkup API:', error);
     return res.status(500).json({
       error: 'An error occurred generating the checkup',
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+// Generate one card using the finance app's chat API (FINANCE_APP_URL must be set).
+app.post('/api/card-from-finance', async (req: Request, res: Response) => {
+  try {
+    const { symbol, save } = req.body as { symbol?: string; save?: boolean };
+    const ticker = (symbol ?? '').toString().trim().toUpperCase();
+    if (!ticker) {
+      return res.status(400).json({ error: 'symbol is required' });
+    }
+
+    const card = await generateOneCardFromFinance(ticker);
+    if (!card) {
+      return res.status(502).json({
+        error: 'Could not generate card from finance app',
+        hint: 'Set FINANCE_APP_URL and ensure the finance app is running and /api/chat/external works.',
+      });
+    }
+
+    let runId: string | undefined;
+    if (save && pool) {
+      runId = `finance-card-${Date.now()}`;
+      await ensureNewsBriefRun(runId, `Card from finance: ${ticker}`);
+      await appendCardToReport(runId, card, 0, ticker, null);
+      await pool.query(
+        `UPDATE research_runs SET status = 'completed' WHERE run_id = $1`,
+        [runId]
+      );
+    }
+
+    return res.json({
+      success: true,
+      card: { ...card, ticker },
+      ...(runId && { runId }),
+    });
+  } catch (error: unknown) {
+    console.error('Error in card-from-finance:', error);
+    return res.status(500).json({
+      error: 'An error occurred generating the card',
       message: error instanceof Error ? error.message : String(error),
     });
   }

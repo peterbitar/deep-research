@@ -48,7 +48,7 @@ export async function generateOneCardFromFinance(
         model: 'openai',
         disableLocal: true,
       }),
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(300_000), // 5 minutes
     });
 
     if (!res.ok) {

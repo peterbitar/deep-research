@@ -22,9 +22,9 @@ import { getPipelineIterations, getPipelineStageData } from './db/pipeline-stage
 import { fetchUserHoldings } from './fetch-holdings';
 import { parseReportToCards } from './report-parser';
 import { runChatWithTools } from './chat-tools';
-import { generateHoldingCheckup } from './investor-checkup';
+import { generateHoldingCheckup, normalizeAssetType } from './investor-checkup';
 import { getHybridNewsContext } from './chat-news-context';
-import { generateOneCardFromFinance } from './finance-card';
+import { generateOneCardFromFinance, generateCheckupFromFinance } from './finance-card';
 
 export { parseReportToCards };
 
@@ -566,7 +566,7 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/holding-checkup — friendly conversational investor checkup for a holding (stock, crypto, ETF, commodity). Uses news brief when available.
+// POST /api/holding-checkup — friendly conversational investor checkup. Uses finance app when FINANCE_APP_URL set, else local web search.
 app.post('/api/holding-checkup', async (req: Request, res: Response) => {
   try {
     const { symbol, type, name } = req.body;
@@ -574,6 +574,22 @@ app.post('/api/holding-checkup', async (req: Request, res: Response) => {
 
     if (!sym) {
       return res.status(400).json({ error: 'symbol is required (string)' });
+    }
+
+    const assetType = normalizeAssetType(sym, type != null ? String(type) : undefined);
+    const useFinance = Boolean((process.env.FINANCE_APP_URL ?? '').trim());
+
+    if (useFinance) {
+      const financeCheckup = await generateCheckupFromFinance(sym, assetType, name != null ? String(name) : undefined);
+      if (financeCheckup) {
+        return res.json({
+          success: true,
+          checkup: financeCheckup,
+          assetType,
+          symbol: sym,
+          financeUsed: true,
+        });
+      }
     }
 
     let newsBriefContext: { opening: string; cards: Array<{ title: string; content: string }>; publishedDate?: string } | undefined;
@@ -602,7 +618,7 @@ app.post('/api/holding-checkup', async (req: Request, res: Response) => {
       }
     }
 
-    const { checkup, assetType, citationUrls, webSearchUsed } = await generateHoldingCheckup(
+    const { checkup, assetType: at, citationUrls, webSearchUsed } = await generateHoldingCheckup(
       {
         symbol: sym,
         type: type != null ? String(type) : undefined,
@@ -614,7 +630,7 @@ app.post('/api/holding-checkup', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       checkup,
-      assetType,
+      assetType: at,
       symbol: sym,
       ...(newsBriefContext && { newsBriefUsed: true }),
       ...(webSearchUsed !== undefined && { webSearchUsed }),

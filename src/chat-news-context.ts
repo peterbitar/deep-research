@@ -9,7 +9,8 @@
  */
 
 import { getReportCards } from './db/reports';
-import { generateHoldingCheckup } from './investor-checkup';
+import { generateCheckupFromFinance } from './finance-card';
+import { generateHoldingCheckup, normalizeAssetType } from './investor-checkup';
 import { newsBriefOpenAI } from './news-brief-openai';
 import { getPriceDataBatchForHoldings } from './price-detection';
 import type { PriceData } from './price-detection';
@@ -294,25 +295,37 @@ export async function getHybridNewsContext(
         continue;
       }
       try {
-        if (!reportForCheckup) reportForCheckup = await getReportCards();
-        const newsBriefContext =
-          reportForCheckup?.cards?.length || reportForCheckup?.opening
-            ? {
-                opening: reportForCheckup.opening ?? '',
-                cards: (reportForCheckup.cards ?? []).map((c) => ({
-                  title: c.title ?? '',
-                  content: c.content ?? '',
-                })),
-                publishedDate: reportForCheckup.publishedDate,
-              }
-            : undefined;
-        const { checkup } = await generateHoldingCheckup(
-          { symbol, name: symbol },
-          { newsBriefContext }
-        );
-        if (checkup?.trim()) {
-          sessionMetadata.checkupCache![symbol] = { text: checkup.trim(), fetchedAt: now };
-          checkupParts.push(`### ${symbol}\n${checkup.trim()}`);
+        const useFinance = Boolean((process.env.FINANCE_APP_URL ?? '').trim());
+        let checkupText: string | null = null;
+
+        if (useFinance) {
+          const assetType = normalizeAssetType(symbol);
+          checkupText = await generateCheckupFromFinance(symbol, assetType, symbol);
+        }
+
+        if (!checkupText) {
+          if (!reportForCheckup) reportForCheckup = await getReportCards();
+          const newsBriefContext =
+            reportForCheckup?.cards?.length || reportForCheckup?.opening
+              ? {
+                  opening: reportForCheckup.opening ?? '',
+                  cards: (reportForCheckup.cards ?? []).map((c) => ({
+                    title: c.title ?? '',
+                    content: c.content ?? '',
+                  })),
+                  publishedDate: reportForCheckup.publishedDate,
+                }
+              : undefined;
+          const { checkup } = await generateHoldingCheckup(
+            { symbol, name: symbol },
+            { newsBriefContext }
+          );
+          checkupText = checkup?.trim() ?? null;
+        }
+
+        if (checkupText) {
+          sessionMetadata.checkupCache![symbol] = { text: checkupText, fetchedAt: now };
+          checkupParts.push(`### ${symbol}\n${checkupText}`);
         }
       } catch (err) {
         console.warn(`[Hybrid News] Checkup failed for ${symbol}:`, err);

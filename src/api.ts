@@ -629,7 +629,7 @@ app.post('/api/holding-checkup', async (req: Request, res: Response) => {
   }
 });
 
-// Generate one card using the finance app's chat API (FINANCE_APP_URL must be set).
+// Generate one card using the finance app (Railway default; override with FINANCE_APP_URL).
 app.post('/api/card-from-finance', async (req: Request, res: Response) => {
   try {
     const { symbol, save } = req.body as { symbol?: string; save?: boolean };
@@ -642,7 +642,7 @@ app.post('/api/card-from-finance', async (req: Request, res: Response) => {
     if (!card) {
       return res.status(502).json({
         error: 'Could not generate card from finance app',
-        hint: 'Set FINANCE_APP_URL and ensure the finance app is running and /api/chat/external works.',
+        hint: 'Cards use Railway finance app by default; set FINANCE_APP_URL to override or if request failed.',
       });
     }
 

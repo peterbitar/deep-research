@@ -1,6 +1,8 @@
 /**
  * One-off test: generate one card for a symbol using the finance app.
- * Usage: FINANCE_APP_URL=http://localhost:3000 npx tsx scripts/test-card-from-finance.ts BTC
+ * Uses Railway finance app by default; override with FINANCE_APP_URL.
+ * Usage: npx tsx scripts/test-card-from-finance.ts [SYMBOL]
+ *        FINANCE_APP_URL=http://localhost:3000 npx tsx scripts/test-card-from-finance.ts BTC
  */
 
 import { config } from 'dotenv';
@@ -13,15 +15,14 @@ if (existsSync(join(__dirname, '..', '.env.local'))) {
 
 import { generateOneCardFromFinance } from '../src/finance-card';
 
+const DEFAULT_FINANCE_APP_URL = 'https://advanced-chat-production.up.railway.app';
 const symbol = process.argv[2] || 'BTC';
-const baseUrl = (process.env.FINANCE_APP_URL || '').trim();
+const baseUrl = (
+  process.env.FINANCE_APP_URL !== undefined ? process.env.FINANCE_APP_URL : DEFAULT_FINANCE_APP_URL
+).trim();
 
 async function main() {
-  if (!baseUrl) {
-    console.error('Set FINANCE_APP_URL (e.g. http://localhost:3000)');
-    process.exit(1);
-  }
-  console.log(`Generating 1 card for ${symbol} via ${baseUrl}...\n`);
+  console.log(`Generating 1 card for ${symbol} via ${baseUrl || '(default Railway)'}...\n`);
   const card = await generateOneCardFromFinance(symbol);
   if (!card) {
     console.error('Failed to get card (check finance app is running and /api/chat/external works)');

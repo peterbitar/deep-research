@@ -44,7 +44,10 @@ import {
 } from '../src/news-brief-openai';
 import { getPriceDataBatchForHoldings } from '../src/price-detection';
 
-const USE_FINANCE_FOR_CARDS = Boolean((process.env.FINANCE_APP_URL ?? '').trim());
+const DEFAULT_FINANCE_APP_URL = 'https://advanced-chat-production.up.railway.app';
+const USE_FINANCE_FOR_CARDS = Boolean(
+  (process.env.FINANCE_APP_URL ?? DEFAULT_FINANCE_APP_URL).trim()
+);
 
 const DEFAULT_HOLDINGS_API =
   'https://wealthyrabbitios-production-03a4.up.railway.app';

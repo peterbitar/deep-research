@@ -1,6 +1,6 @@
 /**
  * Generate one report card using the finance app's external chat API.
- * Set FINANCE_APP_URL (e.g. http://localhost:3000 or your deployed finance URL).
+ * Uses FINANCE_APP_URL if set; otherwise defaults to the Railway finance app (cards via Railway).
  */
 
 export interface FinanceCardResult {
@@ -8,6 +8,9 @@ export interface FinanceCardResult {
   content: string;
   emoji: string;
 }
+
+/** Railway finance app URL used for cards when FINANCE_APP_URL is not set. */
+const DEFAULT_FINANCE_APP_URL = 'https://advanced-chat-production.up.railway.app';
 
 const CARD_PROMPT = (symbol: string) =>
   `Write a single investor news card for ${symbol} in the exact format below. Reply with ONLY a JSON object, no other text.
@@ -32,9 +35,13 @@ JSON keys: "title", "emoji", "content". Example: {"title":"Bitcoin slid as risk-
 export async function generateOneCardFromFinance(
   symbol: string
 ): Promise<FinanceCardResult | null> {
-  const baseUrl = (process.env.FINANCE_APP_URL || '').trim();
+  const baseUrl = (
+    process.env.FINANCE_APP_URL !== undefined
+      ? process.env.FINANCE_APP_URL
+      : DEFAULT_FINANCE_APP_URL
+  ).trim();
   if (!baseUrl) {
-    console.warn('[Finance Card] FINANCE_APP_URL not set');
+    console.warn('[Finance Card] No finance app URL (set FINANCE_APP_URL or use default Railway)');
     return null;
   }
 

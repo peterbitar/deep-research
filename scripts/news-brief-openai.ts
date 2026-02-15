@@ -236,9 +236,12 @@ async function main() {
 
         const recap = await fetchEarningsRecap(sym);
         if (recap) {
+          const isFullCard = recap.includes('\n\n');
           const earningsCard = {
             title: `${sym} — Last quarter earnings recap`,
-            content: normalizeCardContent(`**Earnings recap** — ${recap}`),
+            content: isFullCard
+              ? normalizeCardContent(recap)
+              : normalizeCardContent(`**Earnings recap** — ${recap}`),
             emoji: '📊',
           };
           generatedCards.push({ ...earningsCard, ticker: sym });

@@ -125,6 +125,13 @@ export async function fetchEarningsRecap(
     if (!res.ok) return null;
 
     const data = (await res.json()) as Record<string, unknown>;
+    // Feed-style response: { success, cards: [{ symbol, title, content }] }
+    const cards = data?.cards as Array<{ symbol?: string; content?: string; title?: string }> | undefined;
+    if (Array.isArray(cards) && cards.length > 0) {
+      const first = cards[0];
+      const content = typeof first?.content === 'string' ? first.content.trim() : '';
+      if (content) return content;
+    }
     if (typeof data?.recap === 'string') return data.recap.trim() || null;
     if (typeof data?.content === 'string') return data.content.trim() || null;
     if (typeof data?.summary === 'string') return data.summary.trim() || null;

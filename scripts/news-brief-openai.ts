@@ -10,6 +10,7 @@
  * Env: NEWS_BRIEF_MODE (non-reasoning | agentic | deep-research), NEWS_BRIEF_MACRO (1/true),
  *      MAIN_BACKEND_URL or HOLDINGS_API_BASE_URL, OPENAI_KEY or OPENAI_API_KEY, DATABASE_URL.
  *      FEED_API_URL: when set (default chat-from-scratch), cards from GET /api/feed?symbols=X,Y&mode=retail.
+ *      EARNINGS_RECAP_API_URL: optional; when set, GET /api/earnings-recap-feed/:ticker as separate earnings card.
  *      FINANCE_APP_URL: fallback when FEED_API_URL not used; cards via finance app POST /api/chat/external.
  *
  * On Railway, env vars come from the dashboard (no .env.local). Locally, .env.local is loaded if present.
@@ -36,7 +37,11 @@ import {
   generateOpeningForReport,
 } from '../src/deep-research';
 import { generateOneCardFromFinance } from '../src/finance-card';
-import { fetchCardsFromFeed } from '../src/feed-card';
+import {
+  fetchCardsFromFeed,
+  fetchEarningsRecap,
+  normalizeCardContent,
+} from '../src/feed-card';
 import { getModelForNewsBrief } from '../src/ai/providers';
 import { pool } from '../src/db/client';
 import {
@@ -226,8 +231,20 @@ async function main() {
       const entry = feedCardsBySymbol.get(sym);
       if (entry) {
         generatedCards.push({ ...entry.card, ticker: sym });
-        await appendCardToReport(runId, entry.card, i, sym, null);
+        await appendCardToReport(runId, entry.card, i * 2, sym, null);
         console.log(`[${i + 1}/${holdings.length}] ${sym} — feed card saved`);
+
+        const recap = await fetchEarningsRecap(sym);
+        if (recap) {
+          const earningsCard = {
+            title: `${sym} — Last quarter earnings recap`,
+            content: normalizeCardContent(`**Earnings recap** — ${recap}`),
+            emoji: '📊',
+          };
+          generatedCards.push({ ...earningsCard, ticker: sym });
+          await appendCardToReport(runId, earningsCard, i * 2 + 1, sym, null);
+          console.log(`  ${sym} — earnings recap card saved`);
+        }
       }
       continue;
     }

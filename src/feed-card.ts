@@ -25,10 +25,16 @@ interface FeedResponse {
   marketMood?: string;
 }
 
+/** Ensure bold mini-headlines have a space before the em dash: "**text**—" → "**text** — ". Exported for use in earnings card. */
+export function normalizeCardContent(content: string): string {
+  return content.replace(/\*\*([^*]+)\*\*—/g, '**$1** — ');
+}
+
 function toFinanceCard(card: FeedCardRaw): FinanceCardResult | null {
   const symbol = (card.symbol ?? '').trim().toUpperCase();
   const title = (card.title ?? card.headline ?? '').trim();
-  const content = (card.content ?? '').trim();
+  let content = (card.content ?? '').trim();
+  content = normalizeCardContent(content);
   if (!symbol || !title || !content) return null;
   return {
     title,
@@ -81,5 +87,67 @@ export async function fetchCardsFromFeed(
   } catch (e) {
     console.warn('[Feed Card]', e instanceof Error ? e.message : e);
     return [];
+  }
+}
+
+/** Base URL for earnings-recap (defaults to same as feed). */
+function getEarningsRecapBaseUrl(): string {
+  return (
+    process.env.EARNINGS_RECAP_API_URL ??
+    process.env.FEED_API_URL ??
+    DEFAULT_FEED_API_URL
+  ).trim();
+}
+
+/**
+ * Fetch last reported quarter recap for a ticker.
+ * GET /api/earnings-recap-feed/:ticker
+ * Returns a short recap string or null.
+ */
+export async function fetchEarningsRecap(
+  ticker: string,
+  options?: { baseUrl?: string }
+): Promise<string | null> {
+  const baseUrl = (options?.baseUrl ?? getEarningsRecapBaseUrl()).trim();
+  if (!baseUrl) return null;
+
+  const sym = ticker.trim().toUpperCase();
+  if (!sym) return null;
+
+  const url = `${baseUrl.replace(/\/$/, '')}/api/earnings-recap-feed/${encodeURIComponent(sym)}`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as Record<string, unknown>;
+    if (typeof data?.recap === 'string') return data.recap.trim() || null;
+    if (typeof data?.content === 'string') return data.content.trim() || null;
+    if (typeof data?.summary === 'string') return data.summary.trim() || null;
+
+    const r = data?.recap as Record<string, unknown> | undefined;
+    if (r && typeof r === 'object') {
+      const quarter = (r.quarter ?? r.reportedDate ?? '') as string;
+      const reported = (r.reportedDate ?? r.reportDate ?? '') as string;
+      const narrative = (r.narrativeSummary ?? '') as string;
+      const rev = r.revenue as { actual?: number; estimate?: number; beatPct?: number } | undefined;
+      const eps = r.eps as { actual?: number; estimate?: number; beatPct?: number } | undefined;
+      const parts: string[] = [];
+      if (quarter || reported)
+        parts.push(`${[quarter, reported].filter(Boolean).join(' ')}`.trim());
+      if (eps?.actual != null && eps?.estimate != null)
+        parts.push(`EPS $${eps.actual} vs est $${eps.estimate}${eps.beatPct != null ? ` (${eps.beatPct > 0 ? '+' : ''}${eps.beatPct}%)` : ''}`);
+      if (rev?.actual != null && rev?.estimate != null)
+        parts.push(`Revenue $${(rev.actual / 1e9).toFixed(1)}B vs est $${(rev.estimate / 1e9).toFixed(1)}B${rev.beatPct != null ? ` (${rev.beatPct > 0 ? '+' : ''}${rev.beatPct}%)` : ''}`);
+      if (narrative) parts.push(narrative);
+      if (parts.length) return parts.join('. ');
+    }
+    return null;
+  } catch {
+    return null;
   }
 }

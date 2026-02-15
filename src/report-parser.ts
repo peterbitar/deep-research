@@ -26,15 +26,19 @@ export function parseReportToCards(reportMarkdown: string): {
     }
   }
 
+  // Only treat ## as card header when followed by an emoji (our card format: ## 📰 Title)
+  // So "## Summary" in the opening stays as a headline, not a card.
   const cardHeaders: Array<{ index: number; emoji?: string; title: string }> = [];
   let match;
   const headerRegexWithHash = /^##\s*([^\s]+)?\s*(.+)$/gm;
   while ((match = headerRegexWithHash.exec(mainContent)) !== null) {
-    const emoji = match[1] && /[\p{Emoji}]/u.test(match[1]) ? match[1] : undefined;
-    const title = emoji ? match[2].trim() : (match[1] || match[2]).trim();
+    const firstToken = match[1];
+    const hasEmoji = firstToken && /[\p{Emoji}]/u.test(firstToken);
+    if (!hasEmoji) continue;
+    const title = match[2].trim();
     if (title.toUpperCase() === 'TLDR' || title.toUpperCase().includes('TLDR'))
       continue;
-    cardHeaders.push({ index: match.index!, emoji, title });
+    cardHeaders.push({ index: match.index!, emoji: firstToken, title });
   }
 
   if (cardHeaders.length === 0) {

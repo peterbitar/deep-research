@@ -9,7 +9,8 @@
  *
  * Env: NEWS_BRIEF_MODE (non-reasoning | agentic | deep-research), NEWS_BRIEF_MACRO (1/true),
  *      MAIN_BACKEND_URL or HOLDINGS_API_BASE_URL, OPENAI_KEY or OPENAI_API_KEY, DATABASE_URL.
- *      FINANCE_APP_URL: when set, cards are generated via the finance app API (same format); otherwise via generateOneCardFromLearnings.
+ *      FEED_API_URL: when set (default chat-from-scratch), cards from GET /api/feed?symbols=X,Y&mode=retail.
+ *      FINANCE_APP_URL: fallback when FEED_API_URL not used; cards via finance app POST /api/chat/external.
  *
  * On Railway, env vars come from the dashboard (no .env.local). Locally, .env.local is loaded if present.
  */
@@ -35,6 +36,7 @@ import {
   generateOpeningForReport,
 } from '../src/deep-research';
 import { generateOneCardFromFinance } from '../src/finance-card';
+import { fetchCardsFromFeed } from '../src/feed-card';
 import { getModelForNewsBrief } from '../src/ai/providers';
 import { pool } from '../src/db/client';
 import {
@@ -45,6 +47,10 @@ import {
 import { getPriceDataBatchForHoldings } from '../src/price-detection';
 
 const DEFAULT_FINANCE_APP_URL = 'https://advanced-chat-production.up.railway.app';
+const DEFAULT_FEED_API_URL = 'https://chat-from-scratch-production.up.railway.app';
+const USE_FEED_FOR_CARDS = Boolean(
+  (process.env.FEED_API_URL ?? DEFAULT_FEED_API_URL).trim()
+);
 const USE_FINANCE_FOR_CARDS = Boolean(
   (process.env.FINANCE_APP_URL ?? DEFAULT_FINANCE_APP_URL).trim()
 );
@@ -196,9 +202,35 @@ async function main() {
   let learningOrderStart = 0;
   const generatedCards: Array<{ title: string; emoji: string; content: string; ticker: string }> = [];
 
+  // Feed path: batch fetch cards from GET /api/feed?symbols=X,Y,Z&mode=retail
+  let feedCardsBySymbol: Map<string, { card: { title: string; content: string; emoji: string } }> | null = null;
+  if (USE_FEED_FOR_CARDS) {
+    const symbols = holdings.map((h) => h.symbol.toUpperCase());
+    console.log(`Feed API: batch fetch cards for ${symbols.join(', ')}...`);
+    const feedStart = Date.now();
+    const feedResults = await fetchCardsFromFeed(symbols, {
+      mode: process.env.FEED_MODE ?? 'retail',
+    });
+    const feedElapsed = ((Date.now() - feedStart) / 1000).toFixed(1);
+    feedCardsBySymbol = new Map(
+      feedResults.map((r) => [r.symbol, { card: r.card }])
+    );
+    console.log(`  Feed: ${feedResults.length}/${symbols.length} cards | ${feedElapsed}s\n`);
+  }
+
   for (let i = 0; i < holdings.length; i++) {
     const holding = holdings[i];
     const sym = holding.symbol.toUpperCase();
+
+    if (feedCardsBySymbol) {
+      const entry = feedCardsBySymbol.get(sym);
+      if (entry) {
+        generatedCards.push({ ...entry.card, ticker: sym });
+        await appendCardToReport(runId, entry.card, i, sym, null);
+        console.log(`[${i + 1}/${holdings.length}] ${sym} — feed card saved`);
+      }
+      continue;
+    }
 
     if (USE_FINANCE_FOR_CARDS) {
       // Finance path: no OpenAI web search; get card from finance app only.
@@ -251,12 +283,12 @@ async function main() {
     }
   }
 
-  // When using finance: opening from card content (no learnings in DB). Otherwise from getLearnings.
+  // When using feed or finance: opening from card content (no learnings in DB). Otherwise from getLearnings.
   let learningsForOpening: string[];
   let reportUrls: string[];
-  if (USE_FINANCE_FOR_CARDS) {
+  if (USE_FEED_FOR_CARDS || USE_FINANCE_FOR_CARDS) {
     if (generatedCards.length === 0) {
-      console.log('No cards from finance. Skipping report.');
+      console.log('No cards from feed/finance. Skipping report.');
       await pool.query(
         `UPDATE research_runs SET status = 'completed' WHERE run_id = $1`,
         [runId]

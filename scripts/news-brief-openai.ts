@@ -190,12 +190,12 @@ async function main() {
         return `${sym} $${p.currentPrice.toFixed(2)} (${s7}${s1})`;
       })
       .join(', ');
-    console.log(`Reference prices (Yahoo): ${lines}\n`);
+    console.log(`Reference prices: ${lines}\n`);
   } else {
     console.warn(
       'Reference prices: none fetched. News brief will run without reference prices.\n' +
-        '  Common causes: Yahoo 403/429 (blocked/rate limit), timeout in container, or network.\n' +
-        '  Options: set FINNHUB_KEY for stocks and/or FREECRYPTOAPI_KEY for crypto; or run with RESEARCH_SYMBOLS=SPY to test.\n'
+        '  Common causes: timeout in container, or network.\n' +
+        '  Options: set FMP_API_KEY (FMP only), or FINNHUB_KEY / FREECRYPTOAPI_KEY for legacy sources.\n'
     );
   }
 
@@ -221,46 +221,67 @@ async function main() {
     feedCardsBySymbol = new Map(
       feedResults.map((r) => [r.symbol, { card: r.card }])
     );
-    console.log(`  Feed: ${feedResults.length}/${symbols.length} cards | ${feedElapsed}s\n`);
+    console.log(`  Feed: ${feedResults.length}/${symbols.length} cards | ${feedElapsed}s`);
+    if (feedResults.length < symbols.length) {
+      const returned = new Set(feedResults.map((r) => r.symbol));
+      const missing = symbols.filter((s) => !returned.has(s));
+      console.log(`  (Feed API returned only ${feedResults.length} cards; missing: ${missing.join(', ')})`);
+    }
+    console.log('');
   }
 
+  if (feedCardsBySymbol) {
+    // Build list of (sym, entry) in holdings order for symbols that have a feed card
+    const withFeed = holdings
+      .map((h) => ({ sym: h.symbol.toUpperCase(), entry: feedCardsBySymbol.get(h.symbol.toUpperCase()) }))
+      .filter((x): x is { sym: string; entry: { card: { title: string; content: string; emoji: string; eventType?: string } } } => x.entry != null);
+
+    // Fetch earnings + news-feed in parallel for all symbols that have feed (no per-holding limit)
+    const parallelStart = Date.now();
+    const results = await Promise.all(
+      withFeed.map(async ({ sym, entry }) => {
+        const [recapResult, newsFeedCard] = await Promise.all([
+          fetchEarningsRecap(sym),
+          fetchNewsFeedCard(sym),
+        ]);
+        return { sym, entry, recapResult, newsFeedCard };
+      })
+    );
+    const parallelElapsed = ((Date.now() - parallelStart) / 1000).toFixed(1);
+    console.log(`  Earnings + news-feed: ${results.length} symbols in parallel | ${parallelElapsed}s`);
+
+    let cardOrder = 0;
+    for (let pos = 0; pos < results.length; pos++) {
+      const { sym, entry, recapResult, newsFeedCard } = results[pos];
+      generatedCards.push({ ...entry.card, ticker: sym });
+      await appendCardToReport(runId, entry.card, cardOrder++, sym, null);
+      console.log(`[${pos + 1}/${withFeed.length}] ${sym} — feed card saved`);
+
+      if (recapResult) {
+        const { recap, eventType } = recapResult;
+        const isFullCard = recap.includes('\n\n');
+        const earningsCard = {
+          title: `${sym} — Last quarter earnings recap`,
+          content: isFullCard
+            ? normalizeCardContent(recap)
+            : normalizeCardContent(`**Earnings recap** — ${recap}`),
+          emoji: '📊',
+          ...(eventType && { eventType }),
+        };
+        generatedCards.push({ ...earningsCard, ticker: sym });
+        await appendCardToReport(runId, earningsCard, cardOrder++, sym, null);
+        console.log(`  ${sym} — earnings recap card saved`);
+      }
+      if (newsFeedCard) {
+        generatedCards.push({ ...newsFeedCard, ticker: sym });
+        await appendCardToReport(runId, newsFeedCard, cardOrder++, sym, null);
+        console.log(`  ${sym} — news-feed card saved`);
+      }
+    }
+  } else {
   for (let i = 0; i < holdings.length; i++) {
     const holding = holdings[i];
     const sym = holding.symbol.toUpperCase();
-
-    if (feedCardsBySymbol) {
-      const entry = feedCardsBySymbol.get(sym);
-      if (entry) {
-        generatedCards.push({ ...entry.card, ticker: sym });
-        await appendCardToReport(runId, entry.card, i * 2, sym, null);
-        console.log(`[${i + 1}/${holdings.length}] ${sym} — feed card saved`);
-
-        const recapResult = await fetchEarningsRecap(sym);
-        if (recapResult) {
-          const { recap, eventType } = recapResult;
-          const isFullCard = recap.includes('\n\n');
-          const earningsCard = {
-            title: `${sym} — Last quarter earnings recap`,
-            content: isFullCard
-              ? normalizeCardContent(recap)
-              : normalizeCardContent(`**Earnings recap** — ${recap}`),
-            emoji: '📊',
-            ...(eventType && { eventType }),
-          };
-          generatedCards.push({ ...earningsCard, ticker: sym });
-          await appendCardToReport(runId, earningsCard, i * 2 + 1, sym, null);
-          console.log(`  ${sym} — earnings recap card saved`);
-        }
-        const newsFeedCard = await fetchNewsFeedCard(sym);
-        if (newsFeedCard) {
-          generatedCards.push({ ...newsFeedCard, ticker: sym });
-          const cardIndex = i * 2 + (recapResult ? 2 : 1);
-          await appendCardToReport(runId, newsFeedCard, cardIndex, sym, null);
-          console.log(`  ${sym} — news-feed card saved`);
-        }
-      }
-      continue;
-    }
 
     if (USE_FINANCE_FOR_CARDS) {
       // Finance path: no OpenAI web search; get card from finance app only.
@@ -311,6 +332,7 @@ async function main() {
     } else {
       console.log('');
     }
+  }
   }
 
   // When using feed or finance: opening from card content (no learnings in DB). Otherwise from getLearnings.

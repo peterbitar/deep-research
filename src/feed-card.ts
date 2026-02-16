@@ -56,8 +56,13 @@ function toFinanceCard(card: FeedCardRaw): FinanceCardResult | null {
   };
 }
 
+/** Run 3 feed requests, then wait 1 minute before the next 3. */
+const FEED_RUN_SIZE = 3;
+const FEED_PAUSE_MS = 60_000; // 1 minute between runs of 3
+
 /**
  * Fetch cards for symbols from the feed API.
+ * One symbol per request. Run 3, then wait 1 minute, then run next 3. Merges all results.
  * Returns array of { symbol, card } for each symbol that got a card.
  */
 export async function fetchCardsFromFeed(
@@ -73,34 +78,49 @@ export async function fetchCardsFromFeed(
   if (list.length === 0) return [];
 
   const mode = options?.mode ?? process.env.FEED_MODE ?? 'retail';
-  const params = new URLSearchParams({ symbols: list.join(','), mode });
-  const url = `${baseUrl.replace(/\/$/, '')}/api/feed?${params}`;
+  const allResults: Array<{ symbol: string; card: FinanceCardResult }> = [];
 
-  try {
-    const res = await fetch(url, {
-      method: 'GET',
-      signal: AbortSignal.timeout(90_000),
-    });
-
-    if (!res.ok) {
-      console.warn(`[Feed Card] ${res.status} ${res.statusText}`);
-      return [];
-    }
-
-    const data = (await res.json()) as FeedResponse;
-    if (!data.success || !Array.isArray(data.cards)) return [];
-
-    const out: Array<{ symbol: string; card: FinanceCardResult }> = [];
-    for (const raw of data.cards) {
-      const sym = (raw.symbol ?? '').trim().toUpperCase();
-      const card = toFinanceCard(raw);
-      if (sym && card) out.push({ symbol: sym, card });
-    }
-    return out;
-  } catch (e) {
-    console.warn('[Feed Card]', e instanceof Error ? e.message : e);
-    return [];
+  // 1 minute delay from the start before first batch of 3
+  if (list.length > 0) {
+    console.log(`[Feed Card] pausing ${FEED_PAUSE_MS / 1000}s before first batch...`);
+    await new Promise((r) => setTimeout(r, FEED_PAUSE_MS));
   }
+
+  for (let i = 0; i < list.length; i++) {
+    const sym = list[i];
+    const params = new URLSearchParams({ symbols: sym, mode });
+    const url = `${baseUrl.replace(/\/$/, '')}/api/feed?${params}`;
+
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        signal: AbortSignal.timeout(180_000), // 3 min: feed may be slow when FMP rate limit applies
+      });
+
+      if (!res.ok) {
+        console.warn(`[Feed Card] ${sym}: ${res.status} ${res.statusText}`);
+      } else {
+        const data = (await res.json()) as FeedResponse;
+        if (data.success && Array.isArray(data.cards)) {
+          for (const raw of data.cards) {
+            const s = (raw.symbol ?? '').trim().toUpperCase();
+            const card = toFinanceCard(raw);
+            if (s && card) allResults.push({ symbol: s, card });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Feed Card]', e instanceof Error ? e.message : e);
+    }
+
+    // After every 3 requests, wait 1 minute before continuing (if more symbols left)
+    if ((i + 1) % FEED_RUN_SIZE === 0 && i + 1 < list.length) {
+      console.log(`[Feed Card] ran ${FEED_RUN_SIZE}, pausing ${FEED_PAUSE_MS / 1000}s before next batch...`);
+      await new Promise((r) => setTimeout(r, FEED_PAUSE_MS));
+    }
+  }
+
+  return allResults;
 }
 
 /** Base URL for earnings-recap (defaults to same as feed). */

@@ -1,6 +1,8 @@
 // Price move detection for trigger system
-// Stocks: Finnhub (when FINNHUB_KEY set) else Yahoo. Crypto: FreeCryptoAPI (when FREECRYPTOAPI_KEY set) else Yahoo.
+// When FMP_API_KEY set: FMP only (no Finnhub, FreeCrypto, Yahoo). No batch limit.
+// Otherwise: Finnhub (when FINNHUB_KEY set) else Yahoo; Crypto: FreeCryptoAPI else Yahoo.
 
+import { getFmpApiKey, fetchFmpQuote, fetchFmpHistorical } from './fmp-data';
 import {
   getAllFinnhubDataForStock,
   fetchFinnhubQuote,
@@ -321,6 +323,69 @@ async function fetchPriceFromAlphaVantage(symbol: string): Promise<PriceData | n
   };
 }
 
+/**
+ * Fetch price data from FMP only (quote + historical for 7d change).
+ * Used when FMP_API_KEY is set; no Finnhub/FreeCrypto/Yahoo.
+ */
+async function fetchPriceFromFMP(symbol: string): Promise<PriceData | null> {
+  const quote = await fetchFmpQuote(symbol);
+  if (!quote || typeof quote.price !== 'number' || quote.price <= 0) return null;
+
+  const now = new Date();
+  const to = now.toISOString().slice(0, 10);
+  const fromDate = new Date(now);
+  fromDate.setDate(fromDate.getDate() - 14);
+  const from = fromDate.toISOString().slice(0, 10);
+
+  const historical = await fetchFmpHistorical(symbol, from, to);
+  const sorted = [...historical].sort((a, b) => b.date.localeCompare(a.date)); // newest first
+
+  const currentPrice = quote.price;
+  let price7DaysAgo = quote.previousClose ?? currentPrice;
+  let price1DayAgo: number | undefined = quote.previousClose;
+  if (sorted.length >= 2) {
+    price1DayAgo = sorted[1].close;
+    if (sorted.length > 7) {
+      price7DaysAgo = sorted[7].close;
+    } else if (sorted.length > 1) {
+      price7DaysAgo = sorted[sorted.length - 1].close;
+    }
+  }
+
+  const changeAbsolute = currentPrice - price7DaysAgo;
+  const changePercent = price7DaysAgo !== 0 ? (changeAbsolute / price7DaysAgo) * 100 : 0;
+  const changePercent1d =
+    price1DayAgo != null && price1DayAgo !== 0
+      ? ((currentPrice - price1DayAgo) / price1DayAgo) * 100
+      : (quote.changesPercentage as number | undefined);
+
+  const rawMc = quote.marketCap;
+  const marketCap =
+    rawMc != null && rawMc > 0
+      ? rawMc >= 1e9
+        ? rawMc
+        : rawMc * 1_000_000
+      : undefined;
+
+  console.log(`FMP ${symbol}: $${currentPrice.toFixed(2)}, 7d: ${changePercent.toFixed(1)}%, 1d: ${changePercent1d?.toFixed(1) ?? '-'}%`);
+
+  return {
+    symbol: symbol.toUpperCase(),
+    currentPrice,
+    price7DaysAgo,
+    changePercent,
+    changeAbsolute,
+    ...(price1DayAgo != null && { price1DayAgo }),
+    ...(changePercent1d != null && { changePercent1d }),
+    marketCap,
+    peRatio: typeof quote.pe === 'number' && quote.pe > 0 ? quote.pe : undefined,
+    eps: typeof quote.eps === 'number' ? quote.eps : undefined,
+    beta: typeof quote.beta === 'number' ? quote.beta : undefined,
+    weekHigh52: typeof quote.yearHigh === 'number' ? quote.yearHigh : undefined,
+    weekLow52: typeof quote.yearLow === 'number' ? quote.yearLow : undefined,
+  };
+}
+
 const FREECRYPTOAPI_FETCH_TIMEOUT_MS = 30_000; // Increased for network latency
 
 function getFreeCryptoApiKey(): string | undefined {
@@ -528,9 +593,9 @@ function isUnmappedUsTicker(yahooSymbol: string, normalized: string): boolean {
 }
 
 /**
- * Get price data for one holding (maps symbol to Yahoo symbol, e.g. BTC -> BTC-USD).
- * Crypto: FreeCryptoAPI → Yahoo.
- * Stocks/ETFs: Finnhub enriched → Alpha Vantage → Yahoo.
+ * Get price data for one holding (maps symbol to Yahoo symbol when not using FMP).
+ * When FMP_API_KEY set: FMP only (no Finnhub, FreeCrypto, Yahoo).
+ * Otherwise: Crypto FreeCryptoAPI → Yahoo; Stocks/ETFs Finnhub → Alpha Vantage → Yahoo.
  * Returns PriceData keyed by the original symbol.
  */
 export async function getPriceDataForHolding(
@@ -538,6 +603,11 @@ export async function getPriceDataForHolding(
 ): Promise<PriceData | null> {
   const normalized = ourSymbol.toUpperCase().trim();
   const yahooSymbol = getYahooSymbol(ourSymbol);
+
+  // FMP only: single source when FMP_API_KEY is set (no Finnhub, FreeCrypto, Yahoo)
+  if (getFmpApiKey()) {
+    return fetchPriceFromFMP(normalized);
+  }
 
   // Crypto: try FreeCryptoAPI first when key is set
   if (CRYPTO_SYMBOLS.has(normalized) && getFreeCryptoApiKey()) {
@@ -567,24 +637,19 @@ export async function getPriceDataForHolding(
   return null;
 }
 
-const BATCH_CONCURRENCY = 3; // Limit parallel Yahoo fetches to avoid connection limits in containers
-
 /**
  * Get price data for all holdings; returns Map keyed by original symbol (e.g. NVDA, BTC).
- * Fetches in small batches to avoid ETIMEDOUT in production (e.g. Railway).
+ * No concurrency limit: all symbols fetched in parallel (FMP or legacy sources).
  * Logs which symbols succeeded and which failed when not all succeed.
  */
 export async function getPriceDataBatchForHoldings(holdings: {
   symbol: string;
 }[]): Promise<Map<string, PriceData>> {
   const symbols = [...new Set(holdings.map((h) => h.symbol.toUpperCase()))];
+  const results = await Promise.all(symbols.map((sym) => getPriceDataForHolding(sym)));
   const map = new Map<string, PriceData>();
-  for (let i = 0; i < symbols.length; i += BATCH_CONCURRENCY) {
-    const chunk = symbols.slice(i, i + BATCH_CONCURRENCY);
-    const results = await Promise.all(chunk.map((sym) => getPriceDataForHolding(sym)));
-    for (const data of results) {
-      if (data) map.set(data.symbol, data);
-    }
+  for (const data of results) {
+    if (data) map.set(data.symbol, data);
   }
   const succeeded = symbols.filter((s) => map.has(s));
   const failed = symbols.filter((s) => !map.has(s));

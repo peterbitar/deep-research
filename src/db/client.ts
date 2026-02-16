@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS report_cards (
     emoji VARCHAR(10),
     ticker VARCHAR(20),
     macro VARCHAR(100),
+    event_type VARCHAR(100),
     card_order INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -447,6 +447,7 @@ app.get('/api/report/cards', async (req: Request, res: Response) => {
               emoji: card.emoji,
               ticker: card.ticker ?? metadata.ticker ?? null,
               macro: card.macro ?? metadata.macro ?? null,
+              eventType: card.eventType ?? undefined,
               sources: dbData.sources,
               publishedDate: dbData.publishedDate,
             };

@@ -14,7 +14,9 @@ interface FeedCardRaw {
   headline?: string;
   title?: string;
   content?: string;
-  explanation?: string;
+  eventType?: string;
+  event_type?: string;
+  explanation?: { classification?: { eventType?: string } };
   whatItMeans?: string;
   riskNote?: string;
 }
@@ -30,16 +32,27 @@ export function normalizeCardContent(content: string): string {
   return content.replace(/\*\*([^*]+)\*\*—/g, '**$1** — ');
 }
 
+/** Extract eventType from client shape: explanation.classification.eventType, or top-level eventType/event_type. */
+function eventTypeFromCard(obj: Record<string, unknown> | undefined): string | undefined {
+  if (!obj) return undefined;
+  const expl = obj.explanation as Record<string, unknown> | undefined;
+  const classification = expl?.classification as Record<string, unknown> | undefined;
+  const v = (classification?.eventType ?? obj.eventType ?? obj.event_type) as string | undefined;
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
 function toFinanceCard(card: FeedCardRaw): FinanceCardResult | null {
   const symbol = (card.symbol ?? '').trim().toUpperCase();
   const title = (card.title ?? card.headline ?? '').trim();
   let content = (card.content ?? '').trim();
   content = normalizeCardContent(content);
   if (!symbol || !title || !content) return null;
+  const eventType = eventTypeFromCard(card as unknown as Record<string, unknown>);
   return {
     title,
     content,
     emoji: '📰',
+    ...(eventType && { eventType }),
   };
 }
 
@@ -99,15 +112,20 @@ function getEarningsRecapBaseUrl(): string {
   ).trim();
 }
 
+export interface EarningsRecapResult {
+  recap: string;
+  eventType?: string;
+}
+
 /**
  * Fetch last reported quarter recap for a ticker.
  * GET /api/earnings-recap-feed/:ticker
- * Returns a short recap string or null.
+ * Returns { recap, eventType? } or null.
  */
 export async function fetchEarningsRecap(
   ticker: string,
   options?: { baseUrl?: string }
-): Promise<string | null> {
+): Promise<EarningsRecapResult | null> {
   const baseUrl = (options?.baseUrl ?? getEarningsRecapBaseUrl()).trim();
   if (!baseUrl) return null;
 
@@ -125,16 +143,30 @@ export async function fetchEarningsRecap(
     if (!res.ok) return null;
 
     const data = (await res.json()) as Record<string, unknown>;
-    // Feed-style response: { success, cards: [{ symbol, title, content }] }
-    const cards = data?.cards as Array<{ symbol?: string; content?: string; title?: string }> | undefined;
+    const topEventType = eventTypeFromCard(data);
+
+    // Feed-style response: { success, cards: [{ symbol, title, content, explanation? }] }
+    const cards = data?.cards as Array<Record<string, unknown>> | undefined;
     if (Array.isArray(cards) && cards.length > 0) {
       const first = cards[0];
       const content = typeof first?.content === 'string' ? first.content.trim() : '';
-      if (content) return content;
+      if (content) {
+        const eventType = eventTypeFromCard(first) ?? topEventType;
+        return { recap: content, ...(eventType && { eventType }) };
+      }
     }
-    if (typeof data?.recap === 'string') return data.recap.trim() || null;
-    if (typeof data?.content === 'string') return data.content.trim() || null;
-    if (typeof data?.summary === 'string') return data.summary.trim() || null;
+    if (typeof data?.recap === 'string') {
+      const recap = data.recap.trim();
+      if (recap) return { recap, ...(topEventType && { eventType: topEventType }) };
+    }
+    if (typeof data?.content === 'string') {
+      const content = data.content.trim();
+      if (content) return { recap: content, ...(topEventType && { eventType: topEventType }) };
+    }
+    if (typeof data?.summary === 'string') {
+      const summary = data.summary.trim();
+      if (summary) return { recap: summary, ...(topEventType && { eventType: topEventType }) };
+    }
 
     const r = data?.recap as Record<string, unknown> | undefined;
     if (r && typeof r === 'object') {
@@ -151,7 +183,98 @@ export async function fetchEarningsRecap(
       if (rev?.actual != null && rev?.estimate != null)
         parts.push(`Revenue $${(rev.actual / 1e9).toFixed(1)}B vs est $${(rev.estimate / 1e9).toFixed(1)}B${rev.beatPct != null ? ` (${rev.beatPct > 0 ? '+' : ''}${rev.beatPct}%)` : ''}`);
       if (narrative) parts.push(narrative);
-      if (parts.length) return parts.join('. ');
+      if (parts.length) {
+        const eventType = eventTypeFromCard(r) ?? topEventType;
+        return { recap: parts.join('. '), ...(eventType && { eventType }) };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Base URL for news-feed (defaults to same as feed). */
+function getNewsFeedBaseUrl(): string {
+  return (
+    process.env.NEWS_FEED_API_URL ??
+    process.env.FEED_API_URL ??
+    DEFAULT_FEED_API_URL
+  ).trim();
+}
+
+/**
+ * Fetch news-feed card for a ticker.
+ * GET /api/news-feed/:ticker
+ * Returns a card for the holding or null.
+ */
+export async function fetchNewsFeedCard(
+  ticker: string,
+  options?: { baseUrl?: string }
+): Promise<FinanceCardResult | null> {
+  const baseUrl = (options?.baseUrl ?? getNewsFeedBaseUrl()).trim();
+  if (!baseUrl) return null;
+
+  const sym = ticker.trim().toUpperCase();
+  if (!sym) return null;
+
+  const url = `${baseUrl.replace(/\/$/, '')}/api/news-feed/${encodeURIComponent(sym)}`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as Record<string, unknown>;
+    // Feed-style: { success, cards: [{ symbol, title, content, explanation? }] }
+    const cards = data?.cards as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(cards) && cards.length > 0) {
+      const first = cards[0];
+      const title = (typeof first?.title === 'string' ? first.title : '').trim();
+      let content = (typeof first?.content === 'string' ? first.content : '').trim();
+      content = normalizeCardContent(content);
+      if (title || content) {
+        const eventType = eventTypeFromCard(first);
+        return {
+          title: title || `${sym} — News`,
+          content: content || 'No content.',
+          emoji: '📰',
+          ...(eventType && { eventType }),
+        };
+      }
+    }
+    // Single card: { title, content } or { card: { title, content } }
+    const card = (data?.card ?? data) as Record<string, unknown> | undefined;
+    if (card && typeof card === 'object') {
+      const title = (typeof card.title === 'string' ? card.title : '').trim();
+      let content = (typeof card.content === 'string' ? card.content : '').trim();
+      content = normalizeCardContent(content);
+      if (title || content) {
+        const eventType = eventTypeFromCard(card);
+        return {
+          title: title || `${sym} — News`,
+          content: content || 'No content.',
+          emoji: '📰',
+          ...(eventType && { eventType }),
+        };
+      }
+    }
+    // Plain text (top-level or explanation.classification.eventType)
+    const topEventType = eventTypeFromCard(data);
+    if (typeof data?.content === 'string') {
+      const content = normalizeCardContent(data.content.trim());
+      if (content) {
+        return { title: `${sym} — News`, content, emoji: '📰', ...(topEventType && { eventType: topEventType }) };
+      }
+    }
+    if (typeof data?.summary === 'string') {
+      const content = normalizeCardContent(data.summary.trim());
+      if (content) {
+        return { title: `${sym} — News`, content, emoji: '📰', ...(topEventType && { eventType: topEventType }) };
+      }
     }
     return null;
   } catch {

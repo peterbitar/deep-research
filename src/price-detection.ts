@@ -143,9 +143,16 @@ export async function fetchEnrichedPriceFromFinnhub(symbol: string): Promise<Pri
   const previousClose = quote.pc ?? currentPrice;
   const changePercent1d = quote.dp ?? (previousClose !== 0 ? ((currentPrice - previousClose) / previousClose) * 100 : 0);
 
-  // Extract metrics
+  // Extract metrics (P/E and others are company-level only; no industry/sector here)
   const metrics = finnhubData.metrics?.metric ?? {};
-  const marketCap = metrics.marketCapitalization ? metrics.marketCapitalization * 1_000_000 : undefined;
+  // Finnhub marketCap unit is ambiguous: if value >= 1e9 assume dollars; else assume millions
+  const rawMc = metrics.marketCapitalization;
+  const marketCap =
+    rawMc == null
+      ? undefined
+      : rawMc >= 1e9
+        ? rawMc
+        : rawMc * 1_000_000;
   const peRatio = metrics.peNormalizedAnnual ?? undefined;
   const eps = metrics.eps ?? undefined;
   const beta = metrics.beta ?? undefined;

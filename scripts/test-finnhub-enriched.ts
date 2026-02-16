@@ -36,7 +36,11 @@ async function testStock(symbol: string) {
   console.log('\n--- Key Metrics ---');
   if (finnhubData.metrics?.metric) {
     const m = finnhubData.metrics.metric;
-    if (m.marketCapitalization) console.log(`Market Cap: $${(m.marketCapitalization / 1e9).toFixed(2)}B`);
+    // Raw marketCap unit from Finnhub may be millions or dollars; we show in billions for display
+    if (m.marketCapitalization) {
+      const mcDollars = m.marketCapitalization >= 1e9 ? m.marketCapitalization : m.marketCapitalization * 1e6;
+      console.log(`Market Cap: $${(mcDollars / 1e9).toFixed(2)}B (raw: ${m.marketCapitalization})`);
+    }
     if (m.peNormalizedAnnual) console.log(`P/E Ratio: ${m.peNormalizedAnnual.toFixed(2)}`);
     if (m.eps) console.log(`EPS: ${m.eps.toFixed(2)}`);
     if (m.beta) console.log(`Beta: ${m.beta.toFixed(2)}`);

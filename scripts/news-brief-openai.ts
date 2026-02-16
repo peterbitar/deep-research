@@ -40,6 +40,7 @@ import { generateOneCardFromFinance } from '../src/finance-card';
 import {
   fetchCardsFromFeed,
   fetchEarningsRecap,
+  fetchNewsFeedCard,
   normalizeCardContent,
 } from '../src/feed-card';
 import { getModelForNewsBrief } from '../src/ai/providers';
@@ -234,8 +235,9 @@ async function main() {
         await appendCardToReport(runId, entry.card, i * 2, sym, null);
         console.log(`[${i + 1}/${holdings.length}] ${sym} — feed card saved`);
 
-        const recap = await fetchEarningsRecap(sym);
-        if (recap) {
+        const recapResult = await fetchEarningsRecap(sym);
+        if (recapResult) {
+          const { recap, eventType } = recapResult;
           const isFullCard = recap.includes('\n\n');
           const earningsCard = {
             title: `${sym} — Last quarter earnings recap`,
@@ -243,10 +245,18 @@ async function main() {
               ? normalizeCardContent(recap)
               : normalizeCardContent(`**Earnings recap** — ${recap}`),
             emoji: '📊',
+            ...(eventType && { eventType }),
           };
           generatedCards.push({ ...earningsCard, ticker: sym });
           await appendCardToReport(runId, earningsCard, i * 2 + 1, sym, null);
           console.log(`  ${sym} — earnings recap card saved`);
+        }
+        const newsFeedCard = await fetchNewsFeedCard(sym);
+        if (newsFeedCard) {
+          generatedCards.push({ ...newsFeedCard, ticker: sym });
+          const cardIndex = i * 2 + (recapResult ? 2 : 1);
+          await appendCardToReport(runId, newsFeedCard, cardIndex, sym, null);
+          console.log(`  ${sym} — news-feed card saved`);
         }
       }
       continue;
@@ -352,7 +362,7 @@ async function main() {
   const urlsSection = reportUrls.length
     ? `\n\n## Sources\n\n${reportUrls.map((u: string) => `- ${u}`).join('\n')}`
     : '';
-  const cardMetadata = generatedCards.map((c) => ({ ticker: c.ticker }));
+  const cardMetadata = generatedCards.map((c) => ({ ticker: c.ticker, eventType: c.eventType }));
   const reportElapsed = ((Date.now() - reportStart) / 1000).toFixed(1);
   console.log(`Report: ${reportElapsed}s | Cards: ${generatedCards.length}\n`);
 

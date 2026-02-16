@@ -1,5 +1,17 @@
 # Database Migration Guide - DBeaver & Manual Migration
 
+## Report cards: add `event_type`
+
+If you have an existing `report_cards` table and want to store card event type (e.g. from news-feed API), add the column:
+
+```sql
+ALTER TABLE report_cards ADD COLUMN IF NOT EXISTS event_type VARCHAR(100);
+```
+
+Run once (e.g. in DBeaver or `psql $DATABASE_URL -c "ALTER TABLE ..."`). New installs get the column from `schema.sql` / `client.ts`.
+
+---
+
 ## Cost logs: add `usage_credits` (Firecrawl credit-based costing)
 
 If you use cost logging and have an existing `cost_logs` table, run this once to add the `usage_credits` column (for Firecrawl credit-based costing):

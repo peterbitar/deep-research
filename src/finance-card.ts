@@ -7,6 +7,7 @@ export interface FinanceCardResult {
   title: string;
   content: string;
   emoji: string;
+  eventType?: string;
 }
 
 /** Railway finance app URL used for cards when FINANCE_APP_URL is not set. */

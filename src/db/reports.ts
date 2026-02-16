@@ -8,6 +8,7 @@ export interface ReportCard {
   emoji?: string;
   ticker?: string;
   macro?: string;
+  eventType?: string;
   card_order: number;
 }
 
@@ -18,8 +19,8 @@ export interface ReportData {
   breadth: number;
   reportMarkdown: string;
   sources: string[];
-  /** Optional: per-card ticker/macro from pipeline (tagged from researched holdings). When present, used instead of inferring from title/content. */
-  cardMetadata?: Array<{ ticker?: string; macro?: string }>;
+  /** Optional: per-card ticker/macro/eventType from pipeline. When present, used instead of inferring from title/content. */
+  cardMetadata?: Array<{ ticker?: string; macro?: string; eventType?: string }>;
 }
 
 /**
@@ -113,11 +114,12 @@ export async function saveReport(data: ReportData): Promise<void> {
       const meta = data.cardMetadata?.[i];
       let ticker: string | null = null;
       let macro: string | null = null;
+      let eventType: string | null = null;
 
       if (meta) {
-        // Use ticker/macro tagged from pipeline (researched holdings)
         ticker = meta.ticker ?? null;
         macro = meta.macro ?? null;
+        eventType = meta.eventType ?? null;
       }
 
       if (ticker === null && macro === null) {
@@ -148,9 +150,9 @@ export async function saveReport(data: ReportData): Promise<void> {
       }
 
       await client.query(
-        `INSERT INTO report_cards (run_id, title, content, emoji, ticker, macro, card_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [data.runId, card.title, card.content, card.emoji || null, ticker, macro, i]
+        `INSERT INTO report_cards (run_id, title, content, emoji, ticker, macro, event_type, card_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [data.runId, card.title, card.content, card.emoji || null, ticker, macro, eventType, i]
       );
     }
 
@@ -228,7 +230,7 @@ export async function getReportCards(runId?: string): Promise<{
 
   // Get cards
   const cardsResult = await pool.query(
-    `SELECT title, content, emoji, ticker, macro, card_order
+    `SELECT title, content, emoji, ticker, macro, event_type, card_order
      FROM report_cards
      WHERE run_id = $1
      ORDER BY card_order`,
@@ -254,6 +256,7 @@ export async function getReportCards(runId?: string): Promise<{
       emoji: row.emoji,
       ticker: row.ticker,
       macro: row.macro,
+      eventType: row.event_type ?? undefined,
       card_order: row.card_order,
     })),
     sources: sourcesResult.rows.map(row => row.source_url),
@@ -379,15 +382,15 @@ export async function ensureNewsBriefRun(
  */
 export async function appendCardToReport(
   runId: string,
-  card: { title: string; content: string; emoji?: string },
+  card: { title: string; content: string; emoji?: string; eventType?: string },
   cardOrder: number,
   ticker?: string | null,
   macro?: string | null
 ): Promise<void> {
   if (!pool) throw new Error('Database not configured');
   await pool.query(
-    `INSERT INTO report_cards (run_id, title, content, emoji, ticker, macro, card_order)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO report_cards (run_id, title, content, emoji, ticker, macro, event_type, card_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       runId,
       card.title,
@@ -395,6 +398,7 @@ export async function appendCardToReport(
       card.emoji ?? null,
       ticker ?? null,
       macro ?? null,
+      card.eventType ?? null,
       cardOrder,
     ]
   );
